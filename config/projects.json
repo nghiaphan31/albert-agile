@@ -1,0 +1,9 @@
+{
+  "_comment": "Registre des projets gérés par Albert. Ajouter un bloc par projet.",
+  "_exemple": {
+    "path": "/chemin/absolu/du/projet",
+    "auto_next_sprint": false,
+    "archived": false,
+    "github_repo": "owner/repo"
+  }
+}

@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+.env
+
+# LangGraph / LangChain
+.langgraph_api/
+langgraph.db
+*.db
+*.sqlite
+
+# Chroma (base vectorielle RAG)
+chroma_db/
+.chroma/
+
+# Logs et runtime
+logs/*.log
+logs/pending_index.log
+
+# Clés et secrets
+.env
+*.key
+*.pem
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# LangSmith (traces locales si export)
+langsmith_traces/
