@@ -8,6 +8,8 @@
 
 *Contexte : Linux, RTX 3060 (12G VRAM), Google AI Studio (free-tier), Anthropic (Opus 4.6 / Sonnet 4.6). Priorité : coûts et qualité.*
 
+**Nomenclature 4D** (actions humaines en environnement distribué) : Toute action humaine est préfixée par le format : SOURCE > APP > VUE → CIBLE. Ex. : PC > Cursor > Terminal → Calypso signifie que vous tapez sur votre PC, la commande s'exécute sur Calypso. SOURCE = machine où vous tapez (ex. PC). APP = logiciel (Cursor, Navigateur Web). VUE = zone d'écran (Terminal, Éditeur, Chat). CIBLE = machine où la commande s'exécute (Calypso, Cloud). Règle : aucune ambiguïté tolérée.
+
 | Section | Contenu |
 |---------|---------|
 | I | Matrice Modèles IA (local/cloud) par rôle — cohérence technique |
@@ -142,6 +144,20 @@ III. Outils, Frameworks et Modèles IA — Spécifications Techniques Détaillé
 
 **Correspondance rôle ↔ nœud** : Chaque ligne du tableau des rôles (section II) correspond à un nœud du graphe. R-1 (Nghia Product Owner) et R-7 (Nghia Stakeholder) sont humains : ils interviennent via `interrupt()` (validation) et n'ont pas de nœud dédié ; le graphe s'arrête en attente de leur input.
 
+**Lois Albert Core et injection par rôle** : Les agents appliquent les lois définies dans specs/REGLES_AGENTS_AGILE.md (référence : plan lois Albert Core). Chaque nœud charge graph/laws.py et injecte dans le system prompt les lois applicables à son rôle (ex. R-0 : L1 Anti-précipitation, L4 Gabarit CDC ; R-4 : L8 Non-destruction, L9, L19 Idempotence, L21 Doc-as-code). Lois transverses (L0, L3, L7, L8, L9, L11, L18, L-ANON) s'appliquent à tous les nœuds.
+
+#### 3.5-ter L-ANON — Gateway anonymisation cloud (règle absolue)
+
+**Règle L-ANON** : Aucune donnée personnelle ne quitte la machine locale vers le cloud (Gemini, Claude) sans anonymisation préalable ou autorisation explicite de Nghia. L'IA locale (Ollama) est la **gateway de sortie** : tout contenu envoyé à Gemini ou Anthropic doit passer par une couche d'anonymisation avant l'appel API.
+
+**Implémentation** :
+- **Fichiers** : specs/REGLES_ANONYMISATION.md (règles métier), config/anonymisation.yaml (patterns et mappings), graph/anonymizer.py avec scrub() et apply_rules().
+- **Point d'intégration** : Dans graph/cascade.py, avant chaque appel à ChatGoogleGenerativeAI ou ChatAnthropic, appliquer l'anonymizer sur le contenu à envoyer (system prompt, messages, contexte RAG). Les appels à Ollama (N0 local) ne sont pas anonymisés — les données restent locales.
+- **Données considérées personnelles** : noms, emails, chemins /home/..., adresses IP, URLs internes, clés API, tokens. Règles de remplacement : ex. chemins utilisateur → [PROJECT_ROOT]/, emails → [EMAIL_REDACTED].
+- **Autorisation explicite** : Variable AGILE_ALLOW_PERSONAL_CLOUD + confirmation via interrupt ou handle_interrupt.py. Seul Nghia peut débloquer l'envoi de données non anonymisées.
+
+Cette règle renforce la "Règle d'or de sécurité" (section V) et la stratégie "Anonymisation systématique" (section VI).
+
 #### 3.6 Human-in-the-Loop — Points d'Interruption Obligatoires
 
 **Principe** : Automatiser au maximum le flux, mais bloquer l'exécution pour validation humaine aux décisions critiques. LangGraph `interrupt()` suspend le graphe, sauvegarde l'état (checkpointer), et attend un `Command(resume=...)` de l'opérateur.
@@ -266,6 +282,8 @@ Pour `start_phase HOTFIX (correctif urgent)` : load_context crée un Sprint Back
 - **H4 (Sprint Review, CI verts) rejected** → commits correctifs sur la même feature branch, nouveau cycle E5 (tests, CI local) obligatoire. Limite : 3 cycles → H5 (approbation escalade API payante) `reason="max_h4_rejections"`.
 - **H6 (résolution conflit Git)** : Si R-5 (Albert Release Manager) échoue à résoudre un conflit Git après 2 tentatives → interrupt. L'humain résout (`git mergetool`), commit, puis `Command(resume="resolved")`.
 
+**L18 — Contradictions RAG/Backlog/Architecture** : Si les sources (RAG, Backlog, Architecture.md) se contredisent, l'agent produit un payload interrupt avec reason=spec_contradiction et liste les sources en conflit. R-1 (Nghia Product Owner) ou R-7 (Nghia Stakeholder) résout la contradiction (correction des artefacts, choix explicite). Jamais arbitrer silencieusement (loi L18 Arrêt sur contradiction).
+
 **Catalogue complet des reasons H5 (approbation escalade API payante)** :
 
 | reason | Déclencheur |
@@ -278,6 +296,7 @@ Pour `start_phase HOTFIX (correctif urgent)` : load_context crée un Sprint Back
 | `github_actions_timeout` | Timeout polling CI 1 (feature→develop) ou CI 2 (develop→main) (GITHUB_ACTIONS_TIMEOUT) |
 | `ci2_github_actions_failure` | CI 2 (develop→main) rouge après merge_to_main |
 | `pr_review_required` | Branch protection stricte sur main (reviewer requis) |
+| `spec_contradiction` | Contradiction détectée entre RAG (recherche sémantique), Backlog, Architecture.md (L18) |
 
 **H4 (Sprint Review, CI verts) sequence complète** : (1) R-5 (Albert Release Manager) push unique feature branch fin E4 (exécution code, sprint) + `gh pr create --base develop`. (2) CI local (R-6 (Albert QA & DevOps)) et CI 1 (feature→develop) (GitHub Actions, feature→develop) tournent en parallèle. R-6 (Albert QA & DevOps) poll CI 1 (feature→develop) via `gh pr checks {pr_number} --required --watch --interval 30` (timeout `GITHUB_ACTIONS_TIMEOUT=600s`). (3) Les deux CI verts → H4 (Sprint Review, CI verts). (4) H4 (Sprint Review, CI verts) resume approuvé → E6 (clôture sprint, merge) : Retrofit + sprint_complete. **H4 (Sprint Review, CI verts) est toujours l'interrupt de sortie de E5 (tests, CI local)**, indépendamment du nombre de H5 (approbation escalade API payante) précédents.
 
@@ -462,9 +481,11 @@ Checklist (manuelle par R-1 (Nghia Product Owner)/R-7 (Nghia Stakeholder) ou via
 
 ---
 
-##### N. Génération de documentation (build_docs)
+##### N. Génération de documentation (build_docs) et L21 Doc-as-code
 
 Étape dans E5 (tests, CI local), avant les tests : R-6 (Albert QA & DevOps) exécute `sphinx-build` (Python) ou `npm run docs` (JS/TS). Si pas de `conf.py` / `jsdoc.json` : skip avec log. Variable `BUILD_DOCS_REQUIRED=false` (défaut : skip silencieux ; `true` : échec si absent).
+
+**L21 Doc-as-code** : R-6 (Albert QA & DevOps) refuse tout commit de R-4 (Albert Dev Team) qui (1) ajoute du code sans docstrings sur les éléments publics (classes, fonctions exportées), ou (2) modifie l'API sans mise à jour de la documentation générée (JSDoc, Sphinx), lorsque `BUILD_DOCS_REQUIRED=true`. Règle appliquée dans le pipeline E5 (tests, CI local) : build_docs → unit → intégration → E2E.
 
 ---
 
@@ -513,7 +534,15 @@ api-meteo         H2 (validation Architecture + DoD) (attend)     H2 (validation
 cli-tool          sprint-01       H1 (validation Gros Ticket) (52h!)      1j ago         ⚠ interrupt > 48h
 ```
 
-`setup_project_hooks.sh` crée le script `status.py` dans le projet orchestration. Exécution manuelle ou via alias shell recommandé (`alias agile-status='python $AGILE_ORCHESTRATION_ROOT/scripts/status.py'`).
+setup_project_hooks.sh crée le script status.py dans le projet orchestration. Exécution manuelle ou via alias shell recommandé (alias agile-status pointant vers python et scripts/status.py).
+
+---
+
+##### Q. Structure nobles / opérationnels (lois Albert Core §3.4)
+
+**Séparation stricte** : Les dossiers **nobles** (versionnés, source de vérité) : `/specs`, `/src`, `/docs`, `Architecture.md`, `Product Backlog.md`, ADRs (Architecture Decision Record). Les dossiers **opérationnels** (artefacts temporaires, logs, chroma local) : `/.operations` (artefacts IA, logs, chroma_db local au projet).
+
+**Quarantaine des artefacts IA** : R-2 (Albert System Architect) et R-4 (Albert Dev Team) déposent les artefacts générés par l'IA en quarantaine (ex. `.operations/artifacts`) avant promotion. La promotion vers les nobles (commit dans `/src`, `/docs`) requiert la validation de R-1 (Nghia Product Owner) ou R-7 (Nghia Stakeholder). Documenter cette structure dans `specs/REGLES_AGENTS_AGILE.md`.
 
 ---
 
@@ -537,7 +566,7 @@ IV. Comptes de Services Cloud à Mettre en Place (Priorité Gratuit)
 2. **VS Code** : Installation standard
 3. **Continue.dev** : Extension depuis le marketplace. Configurer Ollama (`http://localhost:11434`) et les modèles `qwen2.5-coder:7b` / `gemma3:12b-it-q4_K_M`. Option RAG (recherche sémantique) partagé : configurer chroma-mcp (étape 6) dans `.continue/mcpServers/` pour utiliser le même Chroma que les agents.
 4. **Roo Code** : Extension depuis le marketplace. Même configuration Ollama
-5. **LangGraph + LangChain + Pydantic + Chroma** : `pip install langgraph langchain langchain-ollama langchain-anthropic langchain-google-genai langchain-chroma pydantic chromadb`. Créer le projet Python du graphe (III.5), configurer le checkpointer et le RAG (recherche sémantique) (III.7, III.7-bis). État TypedDict : inclure `dod`, `sprint_number` (int, défaut 1), `adr_counter` (int, défaut 0), `needs_architecture_review` (bool). Nœud "load_context" en entrée de thread. Voir III.8 (procédures consolidées). Stratégie branches Git : feature/{project_id}-sprint-{NN} depuis develop (III.8-D). Créer les scripts : `handle_interrupt.py`, `index_rag.py`, `setup_project_hooks.sh`, `purge_checkpoints.py`, `export_chroma.py`, `import_chroma.py`, `notify_pending_interrupts.py`, `status.py` (voir III.8-B, III.8-C, III.8-J, III.8-L, III.8-P). Options RAG (recherche sémantique) : file watcher, indexation incrémentale (III.7-bis). Créer `projects.json` (format III.8-G). Variable `AGILE_PROJECTS_JSON`. `API_429_MAX_RETRIES=3`. GitHub Actions sur `pull_request` (III.8-F). Checklist de clôture (III.8-M). Voir III.8.
+5. **LangGraph + LangChain + Pydantic + Chroma** : pip install langgraph langchain langchain-ollama langchain-anthropic langchain-google-genai langchain-chroma pydantic chromadb. Créer le projet Python du graphe (III.5), configurer le checkpointer et le RAG (III.7, III.7-bis). État TypedDict : inclure dod, sprint_number, adr_counter, needs_architecture_review. Nœud load_context en entrée de thread. Voir III.8. Stratégie branches Git : feature depuis develop (III.8-D). Créer les scripts : handle_interrupt.py, index_rag.py, setup_project_hooks.sh, purge_checkpoints.py, export_chroma.py, import_chroma.py, notify_pending_interrupts.py, status.py (III.8-B, III.8-C, III.8-J, III.8-L, III.8-P). Créer graph/anonymizer.py, specs/REGLES_ANONYMISATION.md, config/anonymisation.yaml (III.5-ter L-ANON). Créer specs/REGLES_AGENTS_AGILE.md, graph/laws.py (lois Albert Core). Créer projects.json (format III.8-G). Variable AGILE_PROJECTS_JSON. API_429_MAX_RETRIES=3. GitHub Actions sur pull_request (III.8-F). Checklist de clôture (III.8-M). Voir III.8.
 6. **chroma-mcp** (optionnel, pour RAG (recherche sémantique) partagé IDE) : `uvx chroma-mcp` ou `pip install chroma-mcp`. Configurer pour pointer vers la même Chroma que index_rag (client persistent ou HTTP). Ajouter à `.continue/mcpServers/` (Continue) ou `~/.cursor/mcp.json` (Cursor) pour que l'IDE utilise le même RAG (recherche sémantique) que les agents. Voir III.7-bis.
 7. **LangSmith** : Compte sur https://smith.langchain.com. Clé API à définir dans `LANGCHAIN_TRACING_V2=true` et `LANGCHAIN_API_KEY=...` pour traçage.
 8. **Google AI Studio** : Clé API sur https://aistudio.google.com. Provider de fallback N1 (cloud gratuit).
@@ -565,6 +594,8 @@ Cette phase préliminaire se déroule en dehors de la rigueur et du coût du cyc
 | Cristallisation | R-0 (Albert Business Analyst) (IA) | Notes de Discovery | Idem | **Gros Ticket initial mature** (Epic) |
 
 *Règle : privilégier gemma3:12b en local. Escalade uniquement si blocage ou limite 429. **H1 (validation Gros Ticket)** : R-1 (Nghia Product Owner) valide le Gros Ticket avant passage en Phase 1.*
+
+**Guide utilisateur** : Pour le guide pas-à-pas d'initiation d'un nouveau projet (déclaration dans projects.json, indexation RAG, lancement E1, validation des interrupts), voir specs/plans/Implementation_Ecosysteme_Agile_Calypso.md — section "Guide utilisateur basique — Initier un projet de développement".
 
 #### 5.2 PHASE 1 à N : L'Usine Agile — Flux Détaillés et Livrables
 
