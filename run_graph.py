@@ -31,11 +31,24 @@ def main() -> int:
     }
 
     try:
-        for chunk in graph.invoke(initial, config=config, stream_mode="values"):
-            print(chunk)
+        result = graph.invoke(initial, config=config)
     except Exception as e:
         print(f"Erreur: {e}", file=sys.stderr)
         return 1
+
+    if "__interrupt__" in result:
+        interrupts = result["__interrupt__"]
+        print(f"\nGraphe suspendu — {len(interrupts)} interrupt(s) en attente:")
+        for i, intr in enumerate(interrupts, 1):
+            val = intr.value if hasattr(intr, "value") else intr
+            print(f"  [{i}] {val}")
+        print(f"\nPour valider ou rejeter:")
+        print(f"  python scripts/handle_interrupt.py --thread-id {thread_id}")
+        return 0
+
+    print("\nRun terminé. État final:")
+    for k, v in result.items():
+        print(f"  {k}: {v}")
     return 0
 
 

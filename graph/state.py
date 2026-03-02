@@ -17,3 +17,5 @@ class State(TypedDict, total=False):
     start_phase: str
     h1_feedback: str
     hotfix_description: str
+    self_healing_iterations: int
+    tests_passed: bool

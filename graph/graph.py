@@ -13,6 +13,16 @@ ROOT = Path(os.environ.get("AGILE_ORCHESTRATION_ROOT", Path(__file__).resolve().
 CHECKPOINT_PATH = ROOT / "checkpoints.sqlite"
 
 
+def _route_from_load_context(state: State) -> str:
+    """Router conditionnel post-load_context selon start_phase (spec III.8-A)."""
+    phase = state.get("start_phase", "E1")
+    if phase == "E3":
+        return "r3"
+    if phase == "HOTFIX":
+        return "r4"
+    return "r0"  # E1 par défaut
+
+
 def build_graph():
     builder = StateGraph(State)
     builder.add_node("load_context", load_context)
@@ -24,7 +34,11 @@ def build_graph():
     builder.add_node("r6", node_r6)
 
     builder.add_edge(START, "load_context")
-    builder.add_edge("load_context", "r0")
+    builder.add_conditional_edges(
+        "load_context",
+        _route_from_load_context,
+        {"r0": "r0", "r3": "r3", "r4": "r4"},
+    )
     builder.add_edge("r0", "r2")
     builder.add_edge("r2", "r3")
     builder.add_edge("r3", "r4")
