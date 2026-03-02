@@ -50,15 +50,15 @@ Ces étapes s'exécutent **sur ton PC** (pas sur Calypso). L'agent ne peut pas l
 
 ---
 
-## 7.6 chroma-mcp (RAG partagé) — optionnel
+## 7.6 chroma-mcp (RAG (recherche sémantique) partagé) — optionnel
 
 chroma-mcp est déjà installé dans le venv du projet. Pour le configurer dans Continue :
 
 - Chemin Chroma : `/home/nghia-phan/PROJECTS_WITH_ALBERT/albert-agile/chroma_db`
-- Réfère-toi à la doc Continue pour ajouter un serveur MCP chroma-mcp
+- Réfère-toi à la doc Continue pour ajouter un serveur MCP (Model Context Protocol) chroma-mcp
 
 ---
 
 ## 7.7 Recommandation RTX 3060
 
-Pendant E4/E5 (quand le graphe LangGraph tourne sur Calypso), configure Continue/Roo Code sur **qwen2.5-coder:7b** pour éviter le swapping de modèles (un seul modèle en VRAM sur RTX 3060).
+Pendant E4 (exécution code)/E5 (tests CI) (quand le graphe LangGraph tourne sur Calypso), configure Continue/Roo Code sur **qwen2.5-coder:7b** pour éviter le swapping de modèles (un seul modèle en VRAM sur RTX 3060).

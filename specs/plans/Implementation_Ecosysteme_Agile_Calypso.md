@@ -25,7 +25,7 @@ isProject: false
 **Bootstrap vs Cible** :
 
 - **Bootstrap** : Pendant toute l'implémentation (Phases 0 à 8), tu restes dans **Cursor**. C'est l'outil qui exécute les commandes, édite les fichiers et pilote l'installation.
-- **Cible** : L'IDE de l'écosystème (spec III.3, II) est **VS Code + Continue.dev + Roo Code**. Il est installé en Phase 7, une fois Ollama, LangGraph, scripts et comptes cloud opérationnels. Tu bascules vers cet IDE pour le travail quotidien (R-1, R-7) : priorisation backlog, validation H1–H4, pair programming. Le flux automatisé (E4, E5) reste piloté par LangGraph, pas par Roo Code.
+- **Cible** : L'IDE de l'écosystème (spec III.3, II) est **VS Code + Continue.dev + Roo Code**. Il est installé en Phase 7, une fois Ollama, LangGraph, scripts et comptes cloud opérationnels. Tu bascules vers cet IDE pour le travail quotidien (R-1 (Nghia Product Owner) Product Owner, R-7 (Nghia Stakeholder) Stakeholder) : priorisation backlog, validation H1 (validation Gros Ticket) (Gros Ticket)–H4 (Sprint Review), pair programming. Le flux automatisé (E4 (exécution code) exécution code, E5 (tests CI) tests CI) reste piloté par LangGraph, pas par Roo Code.
 
 ---
 
@@ -92,7 +92,7 @@ nvidia-smi
 
 ## Phase 1 — Ollama et modèles (Calypso)
 
-Ollama est la base : LangGraph, index_rag et Cursor (via MCP optionnel) en dépendent. Aucune autre dépendance en amont.
+Ollama est la base : LangGraph, index_rag et Cursor (via MCP (Model Context Protocol) optionnel) en dépendent. Aucune autre dépendance en amont.
 
 ### 1.1 Installer Ollama
 
@@ -144,7 +144,7 @@ grep -q 'OLLAMA_KEEP_ALIVE' ~/.bashrc || echo 'export OLLAMA_KEEP_ALIVE=qwen2.5-
 source ~/.bashrc
 ```
 
-- Cette variable évite le déchargement du modèle pendant E4/E5. Pour Phase 0 / E2, tu peux optionnellement passer à `gemma3:12b-it-q4_K_M` avant de lancer ces phases.
+- Cette variable évite le déchargement du modèle pendant E4 (exécution code) / E5 (tests CI). Pour Phase 0 / E2 (architecture), tu peux optionnellement passer à `gemma3:12b-it-q4_K_M` avant de lancer ces phases.
 
 ---
 
@@ -301,7 +301,7 @@ chmod +x scripts/setup_project_hooks.sh
 
 - [ PC > Cursor > Éditeur ] -> (Calypso) Créer `scripts/handle_interrupt.py` (spec III.8-B). Ce script :
   - Accepte `--thread-id <id>` optionnel
-  - Si omis : liste les threads en attente (API LangServe ou accès direct au checkpointer), triés par project_id puis H1→H6
+  - Si omis : liste les threads en attente (API LangServe ou accès direct au checkpointer), triés par project_id puis H1 (validation Gros Ticket)→H6 (résolution conflit Git)
   - Affiche le payload `__interrupt__`, demande `approved` | `rejected` | `feedback`
   - Envoie `graph.invoke(Command(resume=...), config)`
   - Exit codes : 0 succès, 1 erreur, 2 usage
@@ -328,20 +328,20 @@ import argparse
 
 ### 3.6 Créer notify_pending_interrupts.py
 
-- [ PC > Cursor > Éditeur ] -> (Calypso) Créer `scripts/notify_pending_interrupts.py` (spec F5, III.8-B). Logique :
+- [ PC > Cursor > Éditeur ] -> (Calypso) Créer `scripts/notify_pending_interrupts.py` (spec F5 (notification interrupt > 48h), III.8-B). Logique :
   - Parcourt les threads avec interrupt en attente
   - Si durée > AGILE_INTERRUPT_TIMEOUT_HOURS (48) : écrit dans `logs/pending_interrupts_alert.log`
   - Si AGILE_NOTIFY_CMD défini : exécute cette commande (ex. email, webhook)
 
 ### 3.7 Créer status.py
 
-- [ PC > Cursor > Éditeur ] -> (Calypso) Créer `scripts/status.py` (spec III.8-P, F6). Signature : `--project-id <id>`, `--json`. Affiche : project_id, phase_courante, interrupts_en_attente, dernière_indexation_rag, pending_index, alertes.
+- [ PC > Cursor > Éditeur ] -> (Calypso) Créer `scripts/status.py` (spec III.8-P, F6 (status multi-projets)). Signature : `--project-id <id>`, `--json`. Affiche : project_id, phase_courante, interrupts_en_attente, dernière_indexation_rag, pending_index, alertes.
 
 ---
 
 ## Phase 4 — Graphe LangGraph (Calypso)
 
-C'est le cœur du système. Ordre : d'abord le graphe minimal avec load_context, puis les nœuds R-0 à R-6, puis LangServe.
+C'est le cœur du système. Ordre : d'abord le graphe minimal avec load_context, puis les nœuds R-0 (Albert Business Analyst) à R-6 (Albert QA & DevOps), puis LangServe.
 
 ### 4.1 Créer le module graphe (structure)
 
@@ -368,25 +368,25 @@ class State(TypedDict, total=False):
 ### 4.3 Implémenter load_context (spec III.8-A)
 
 - [ PC > Cursor > Éditeur ] -> (Calypso) Nœud `load_context` :
-  1. Lit BaseStore : `project/{id}/adr_counter`, `project/{id}/sprint_counter`, `project/{id}/dod/{sprint_number}`
-  2. Gère AGILE_BASESTORE_STRICT (spec F10)
-  3. Route selon `start_phase` : E1, E3, ou HOTFIX
+  1. Lit BaseStore (mémoire long terme) : `project/{id}/adr_counter`, `project/{id}/sprint_counter`, `project/{id}/dod/{sprint_number}`
+  2. Gère AGILE_BASESTORE_STRICT (spec F10 (AGILE_BASESTORE_STRICT))
+  3. Route selon `start_phase` : E1 (idéation), E3 (Sprint Backlog), ou HOTFIX (correctif urgent)
 
-### 4.4 Implémenter la cascade N0→N1→N2 (spec III.5, F8)
+### 4.4 Implémenter la cascade N0 (local Ollama)→N1 (cloud gratuit)→N2 (cloud payant) (spec III.5, F8 (cascade échec N0))
 
-- [ PC > Cursor > Éditeur ] -> (Calypso) Créer `graph/cascade.py` avec `call_with_cascade(llm_n0, llm_n1, llm_n2, prompt, schema)`. Toute exception Ollama (OOM, timeout, ConnectionError) → escalade N1. Log structuré `n0_failure`. Retry HTTP 429 avec backoff (API_429_MAX_RETRIES=3).
+- [ PC > Cursor > Éditeur ] -> (Calypso) Créer `graph/cascade.py` avec `call_with_cascade(llm_n0, llm_n1, llm_n2, prompt, schema)`. Toute exception Ollama (OOM, timeout, ConnectionError) → escalade N1 (cloud gratuit). Log structuré `n0_failure`. Retry HTTP 429 avec backoff (API_429_MAX_RETRIES=3).
 
-### 4.5 Implémenter les nœuds R-0 à R-6
+### 4.5 Implémenter les nœuds R-0 (Albert Business Analyst) à R-6 (Albert QA & DevOps)
 
-- Chaque nœud est une fonction `def node_r0(state: State) -> dict: ...`. R-4 utilise les tools `read_file`, `write_file` (atomique, spec F9), `run_shell`. R-5 utilise `run_shell` pour Git.
+- Chaque nœud est une fonction `def node_r0(state: State) -> dict: ...`. R-4 (Albert Dev Team) utilise les tools `read_file`, `write_file` (atomique, spec F9 (write_file atomique)), `run_shell`. R-5 (Albert Release Manager) utilise `run_shell` pour Git.
 
 ### 4.6 Configurer le checkpointer (SqliteSaver)
 
 - [ PC > Cursor > Éditeur ] -> (Calypso) Chemin par défaut : `$AGILE_ORCHESTRATION_ROOT/checkpoints.sqlite` ou sous-dossier `data/`.
 
-### 4.7 Configurer Chroma et BaseStore
+### 4.7 Configurer Chroma et BaseStore (mémoire long terme)
 
-- Chroma : `chroma_db/` (déjà créé). BaseStore : PostgresStore (pgvector) si Postgres dispo, sinon store custom basé sur Chroma ou fichier JSON (mode dégradé).
+- Chroma : `chroma_db/` (déjà créé). BaseStore (mémoire long terme) : PostgresStore (pgvector) si Postgres dispo, sinon store custom basé sur Chroma ou fichier JSON (mode dégradé).
 
 ### 4.8 Exposer via LangServe (FastAPI)
 
@@ -408,7 +408,7 @@ add_routes(app, graph, path="/agile")
 
 ### 4.9 Créer run_graph.py (script Python)
 
-- [ PC > Cursor > Éditeur ] -> (Calypso) Script Python CLI, invocable par : `python run_graph.py --project-id <id> --start-phase E1|E3|HOTFIX --thread-id <id>-phase-0|<id>-sprint-02|...`. Pour HOTFIX : `--hotfix-description "..."`. Toujours exécuter avec le venv activé : `source .venv/bin/activate` avant, ou utiliser `.venv/bin/python run_graph.py`.
+- [ PC > Cursor > Éditeur ] -> (Calypso) Script Python CLI, invocable par : `python run_graph.py --project-id <id> --start-phase E1 (idéation)|E3 (Sprint Backlog)|HOTFIX (correctif urgent) --thread-id <id>-phase-0|<id>-sprint-02|...`. Pour HOTFIX (correctif urgent) : `--hotfix-description "..."`. Toujours exécuter avec le venv activé : `source .venv/bin/activate` avant, ou utiliser `.venv/bin/python run_graph.py`.
 
 ---
 
@@ -486,7 +486,7 @@ sudo apt install -y gh
 
 ### 6.2 Vérifier Docker
 
-- Déjà fait en Phase 0. Les tests R-6 utiliseront Docker pour l'isolation.
+- Déjà fait en Phase 0. Les tests R-6 (Albert QA & DevOps) utiliseront Docker pour l'isolation.
 
 ---
 
@@ -525,14 +525,14 @@ L'IDE cible de l'écosystème (spec III.3, II) est VS Code + Continue.dev + Roo 
 - [ PC > VS Code > Paramètres Continue ] Configurer :
   - **Modèles** : ajouter Ollama, URL `http://localhost:11434`
   - Modèles à utiliser : `qwen2.5-coder:7b`, `gemma3:12b-it-q4_K_M`
-  - Option RAG partagé (spec III.7-bis) : si chroma-mcp est installé sur Calypso, configurer dans `.continue/mcpServers/` pour pointer vers le même Chroma que `index_rag`
+  - Option RAG (recherche sémantique) partagé (spec III.7-bis) : si chroma-mcp est installé sur Calypso, configurer dans `.continue/mcpServers/` pour pointer vers le même Chroma que `index_rag`
 
 ### 7.4 Installer Roo Code
 
 - [ PC > VS Code > Extensions ] (fenêtre connectée à Calypso) Rechercher et installer **Roo Code**.
 - Configurer Ollama de la même manière : `http://localhost:11434`, modèles `qwen2.5-coder:7b` / `gemma3:12b-it-q4_K_M`.
 
-### 7.5 chroma-mcp (optionnel, pour RAG partagé IDE + agents)
+### 7.5 chroma-mcp (optionnel, pour RAG (recherche sémantique) partagé IDE + agents)
 
 - [ PC > Cursor > Terminal ] -> (Calypso) Avec le venv activé :
 
@@ -540,11 +540,11 @@ L'IDE cible de l'écosystème (spec III.3, II) est VS Code + Continue.dev + Roo 
 pip install chroma-mcp
 ```
 
-- [ PC > VS Code > Éditeur ] -> (Calypso) Configurer chroma-mcp dans Continue : fichier `.continue/mcpServers/` ou équivalent, pointer vers `$AGILE_ORCHESTRATION_ROOT/chroma_db`. Permet à Continue (et donc à R-1/R-7) d'utiliser le même index RAG que les agents LangGraph.
+- [ PC > VS Code > Éditeur ] -> (Calypso) Configurer chroma-mcp dans Continue : fichier `.continue/mcpServers/` ou équivalent, pointer vers `$AGILE_ORCHESTRATION_ROOT/chroma_db`. Permet à Continue (et donc à R-1 (Nghia Product Owner) Product Owner / R-7 (Nghia Stakeholder) Stakeholder) d'utiliser le même index RAG (recherche sémantique) que les agents LangGraph.
 
 ### 7.6 Recommandation RTX 3060 (spec III.8-J, CC2)
 
-- Pendant E4/E5 (quand le graphe LangGraph tourne sur Calypso), si VS Code + Continue ou Roo Code restent ouverts, les configurer sur **qwen2.5-coder:7b** pour éviter le swapping de modèles (un seul modèle en VRAM sur RTX 3060). Alternative : désactiver l'autocomplétion IA pendant E4/E5.
+- Pendant E4 (exécution code) / E5 (tests CI), si VS Code + Continue ou Roo Code restent ouverts, les configurer sur **qwen2.5-coder:7b** pour éviter le swapping de modèles (un seul modèle en VRAM sur RTX 3060). Alternative : désactiver l'autocomplétion IA pendant E4 (exécution code)/E5 (tests CI).
 
 ---
 
@@ -571,7 +571,7 @@ source .venv/bin/activate
 
 - Le hook est créé automatiquement par `setup_project_hooks.sh` (voir Phase 3.2). Il source `.agile-env`, écrit dans `pending_index.log` si AGILE_DEFER_INDEX=true, sinon lance `index_rag.py`.
 
-### 8.3 Premier index RAG
+### 8.3 Premier index RAG (recherche sémantique)
 
 - [ PC > Cursor > Terminal ] -> (Calypso) **Activer le venv** puis lancer :
 
@@ -599,16 +599,16 @@ uvicorn serve:app --host 0.0.0.0 --port 8000
 
 - [ PC > Navigateur Web ] Ouvrir [http://calypso:8000/playground](http://calypso:8000/playground) (ou localhost si tunnel SSH). Vérifier que le graphe est exposé.
 
-### 9.2 Lancer un run Phase 0 (E1)
+### 9.2 Lancer un run Phase 0 (E1 (idéation) idéation)
 
 - [ PC > Cursor > Terminal ] -> (Calypso) Avec venv activé :
 
 ```
 source .venv/bin/activate
-python run_graph.py --project-id albert-agile --start-phase E1 --thread-id albert-agile-phase-0
+python run_graph.py --project-id albert-agile --start-phase E1 (idéation) --thread-id albert-agile-phase-0
 ```
 
-- Le graphe doit atteindre H1 (interrupt). Utiliser `handle_interrupt.py` pour valider.
+- Le graphe doit atteindre H1 (validation Gros Ticket). Utiliser `handle_interrupt.py` pour valider.
 
 ### 9.3 Vérifier status.py
 
@@ -694,7 +694,7 @@ flowchart TB
 | [scripts/status.py](scripts/status.py)                                       | Créer                                                                              |
 | [scripts/index_rag.py](scripts/index_rag.py)                                 | Vérifier/compléter                                                                 |
 | graph/state.py, graph/nodes.py, graph/graph.py                               | Créer                                                                              |
-| graph/cascade.py                                                             | Créer (F8)                                                                         |
+| graph/cascade.py                                                             | Créer (F8 (cascade échec N0))                                                                         |
 | run_graph.py                                                                 | Créer                                                                              |
 | serve.py                                                                     | Créer (LangServe)                                                                  |
 | ~/.bashrc                                                                    | Ajouter OLLAMA_KEEP_ALIVE, AGILE_*, LANGCHAIN_*, GOOGLE_API_KEY, ANTHROPIC_API_KEY |
@@ -706,6 +706,6 @@ flowchart TB
 
 1. **Toujours activer le venv** avant de lancer Python : `source .venv/bin/activate`
 2. **Vérifier la CIBLE** : le Terminal Cursor en Remote SSH exécute sur Calypso ; les commandes `curl`, `ollama`, `python` tournent donc sur la machine Linux
-3. **Ne pas lancer index_rag pendant E4/E5** : AGILE_DEFER_INDEX=true évite les conflits GPU ; le hook écrit dans pending_index.log
-4. **Un seul modèle Ollama à la fois** sur RTX 3060 : OLLAMA_KEEP_ALIVE=qwen2.5-coder:7b pour E4/E5
+3. **Ne pas lancer index_rag pendant E4 (exécution code)/E5 (tests CI)** : AGILE_DEFER_INDEX=true évite les conflits GPU ; le hook écrit dans pending_index.log
+4. **Un seul modèle Ollama à la fois** sur RTX 3060 : OLLAMA_KEEP_ALIVE=qwen2.5-coder:7b pour E4 (exécution code) / E5 (tests CI)
 

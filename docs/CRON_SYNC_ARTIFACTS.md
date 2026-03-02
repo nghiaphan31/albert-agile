@@ -1,4 +1,4 @@
-# Cron sync_artifacts (spec III.8-O, F1)
+# Cron sync_artifacts (spec III.8-O, F1 (sync_artifacts cron))
 
 Pour activer le rapport hebdomadaire de dérive Architecture.md :
 

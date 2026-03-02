@@ -2,6 +2,8 @@
 
 *Dernière mise à jour : 2026-03-02*
 
+*Nomenclature : [specs/NOMENCLATURE_R_H_E.md](../specs/NOMENCLATURE_R_H_E.md) — Rôles (R-x), Interrupts (H-x), Phases (E-x).*
+
 ## Plan Calypso — Phases exécutées
 
 | Phase | Statut | Détail |
@@ -14,24 +16,24 @@
 | 5 | ✅ | .env.example, .env, LANGCHAIN_ENDPOINT (EU), clés API |
 | 6 | ✅ | gh installé, gh auth login (nghiaphan31) |
 | 7 | ✅ | VS Code, Remote-SSH, Continue.dev, Roo Code (PC) |
-| 8 | ✅ | setup_project_hooks exécuté, index RAG (442 chunks) |
+| 8 | ✅ | setup_project_hooks exécuté, index RAG (recherche sémantique) (442 chunks) |
 | 9 | ✅ | LangServe OK, run_graph OK, status.py OK |
 
 ## Graphe LangGraph
 
-- **Structure** : load_context → r0 → r2 → r3 → r4 → r5 → r6 → END
+- **Structure** : load_context → r0 (R-0 (Albert Business Analyst) Business Analyst) → r2 (R-2 (Albert System Architect) System Architect) → r3 (R-3 (Albert Scrum Master) Scrum Master) → r4 (R-4 (Albert Dev Team) Dev Team) → r5 (R-5 (Albert Release Manager) Release Manager) → r6 (R-6 (Albert QA & DevOps) QA & DevOps) → END
 - **Checkpointer** : SqliteSaver (checkpoints.sqlite)
 - **Exposition** : uvicorn serve:app, path /agile
-- **CLI** : `python run_graph.py --project-id albert-agile --start-phase E1`
+- **CLI** : `python run_graph.py --project-id albert-agile --start-phase E1 (idéation)`
 
 ## Agents (nœuds) — Stubs
 
-Les nœuds R-0 à R-6 existent mais retournent des messages statiques. Non implémenté :
-- Appels LLM (cascade N0→N1→N2)
-- interrupt() H1–H6
-- Tools R-4/R-5 (read_file, write_file, run_shell)
-- RAG Chroma, BaseStore
-- load_context complet (routing E1/E3/HOTFIX)
+Les nœuds R-0 (Albert Business Analyst) à R-6 (Albert QA & DevOps) existent mais retournent des messages statiques. Non implémenté :
+- Appels LLM (cascade N0 (local Ollama)→N1 (cloud gratuit)→N2 (cloud payant))
+- interrupt() H1 (validation Gros Ticket)–H6 (résolution conflit Git)
+- Tools R-4 (Albert Dev Team)/R-5 (Albert Release Manager) (read_file, write_file, run_shell)
+- RAG (recherche sémantique) Chroma, BaseStore (mémoire long terme)
+- load_context complet (routing E1 (idéation)/E3 (Sprint Backlog)/HOTFIX (correctif urgent))
 
 ## Scripts
 
