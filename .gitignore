@@ -17,10 +17,15 @@ langgraph.db
 # Chroma (base vectorielle RAG)
 chroma_db/
 .chroma/
+.agile-rag-manifest.json
 
 # Logs et runtime
 logs/*.log
 logs/pending_index.log
+
+# Générés par setup_project_hooks.sh
+.agile-env
+.agile-project-id
 
 # Clés et secrets
 .env

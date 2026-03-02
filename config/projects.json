@@ -5,5 +5,11 @@
     "auto_next_sprint": false,
     "archived": false,
     "github_repo": "owner/repo"
+  },
+  "albert-agile": {
+    "path": "/home/nghia-phan/PROJECTS_WITH_ALBERT/albert-agile",
+    "auto_next_sprint": false,
+    "archived": false,
+    "github_repo": "nghiaphan31/albert-agile"
   }
 }
