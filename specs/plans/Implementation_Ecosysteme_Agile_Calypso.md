@@ -102,15 +102,11 @@ curl -fsSL https://ollama.com/install.sh | sh
 
 - Attendre la fin. Vérifier : `ollama --version`
 
-### 1.2 Démarrer Ollama en arrière-plan
+### 1.2 Démarrer Ollama
 
-- [ PC > Cursor > Terminal ] -> (Calypso)
-
-```
-ollama serve &
-```
-
-- Ou, si Ollama est installé comme service : `sudo systemctl start ollama` (selon méthode d'install).
+- [ PC > Cursor > Terminal ] -> (Calypso) Vérifier d'abord si Ollama tourne déjà : `curl -s http://localhost:11434/api/tags` (si succès, passer à 1.3). Sinon :
+  - Si installé via le script officiel (1.1) : `ollama serve &` (ou `nohup ollama serve &` pour persister). Attendre 2–3 s puis vérifier.
+  - Si installé comme service système : `sudo systemctl start ollama` (Ubuntu/Debian avec paquet `.deb`).
 - Vérifier : `curl http://localhost:11434/api/tags` — doit retourner du JSON (même vide).
 
 ### 1.3 Télécharger les modèles (ordre recommandé)
@@ -139,10 +135,10 @@ ollama pull nomic-embed-text
 
 ### 1.4 Configurer OLLAMA_KEEP_ALIVE (RTX 3060)
 
-- [ PC > Cursor > Terminal ] -> (Calypso) Créer ou éditer `~/.bashrc` (ou `~/.profile`) :
+- [ PC > Cursor > Terminal ] -> (Calypso) Ajouter à `~/.bashrc` de manière **idempotente** (évite duplication si le plan est relancé) :
 
 ```
-echo 'export OLLAMA_KEEP_ALIVE=qwen2.5-coder:7b' >> ~/.bashrc
+grep -q 'OLLAMA_KEEP_ALIVE' ~/.bashrc || echo 'export OLLAMA_KEEP_ALIVE=qwen2.5-coder:7b' >> ~/.bashrc
 source ~/.bashrc
 ```
 
@@ -176,7 +172,7 @@ source .venv/bin/activate
 
 ```
 pip install --upgrade pip
-pip install langgraph langchain langchain-ollama langchain-anthropic langchain-google-genai langchain-chroma pydantic chromadb fastapi uvicorn
+pip install langgraph langchain langchain-ollama langchain-anthropic langchain-google-genai langchain-chroma pydantic chromadb fastapi uvicorn python-dotenv
 ```
 
 - Ces packages couvrent : LangGraph, LangChain, connecteurs Ollama/Anthropic/Google, Chroma, Pydantic, LangServe (FastAPI).
@@ -208,13 +204,15 @@ mkdir -p scripts config logs chroma_db
 
 - Ajouter d'autres projets plus tard en dupliquant ce bloc avec un autre `path` et `github_repo`.
 
-### 2.5 Définir la variable AGILE_ORCHESTRATION_ROOT
+### 2.5 Définir les variables AGILE_* dans ~/.bashrc (idempotent)
 
-- [ PC > Cursor > Terminal ] -> (Calypso)
+- [ PC > Cursor > Terminal ] -> (Calypso) Ajouter **sans duplication** :
 
 ```
-echo 'export AGILE_ORCHESTRATION_ROOT=/home/nghia-phan/PROJECTS_WITH_ALBERT/albert-agile' >> ~/.bashrc
-echo 'export AGILE_PROJECTS_JSON=$AGILE_ORCHESTRATION_ROOT/config/projects.json' >> ~/.bashrc
+grep -q 'AGILE_ORCHESTRATION_ROOT' ~/.bashrc || {
+  echo 'export AGILE_ORCHESTRATION_ROOT=/home/nghia-phan/PROJECTS_WITH_ALBERT/albert-agile' >> ~/.bashrc
+  echo 'export AGILE_PROJECTS_JSON=$AGILE_ORCHESTRATION_ROOT/config/projects.json' >> ~/.bashrc
+}
 source ~/.bashrc
 ```
 
@@ -263,8 +261,28 @@ AGILE_RAG_FILE_WATCHER=false
 AGILE_RAG_INCREMENTAL=false
 AGILE_BASESTORE_STRICT=true
 AGILE_INTERRUPT_TIMEOUT_HOURS=48
-SYNC_ARTIFACTS_CRON=0 0 * * 0
+SYNC_ARTIFACTS_CRON="0 0 * * 0"
 EOF
+
+# Hook Git post-commit (spec III.8-C) : indexation différée ou pending_index.log
+HOOK_FILE="$PROJECT_ROOT/.git/hooks/post-commit"
+mkdir -p "$PROJECT_ROOT/.git/hooks"
+cat > "$HOOK_FILE" << 'HOOK'
+#!/bin/bash
+ROOT="$(git rev-parse --show-toplevel)"
+[ -f "$ROOT/.agile-env" ] && source "$ROOT/.agile-env"
+ORCH="${AGILE_ORCHESTRATION_ROOT:-}"
+PID="${AGILE_PROJECT_ID:-}"
+[ -z "$PID" ] && [ -f "$ROOT/.agile-project-id" ] && PID=$(cat "$ROOT/.agile-project-id")
+[ -z "$ORCH" ] || [ -z "$PID" ] && exit 0
+mkdir -p "$ORCH/logs"
+if [ "${AGILE_DEFER_INDEX:-true}" = "true" ]; then
+  echo "$(date -Iseconds) $(git rev-parse HEAD) $PID" >> "$ORCH/logs/pending_index.log"
+else
+  python "$ORCH/scripts/index_rag.py" --project-root "$ROOT" --project-id "$PID" 2>/dev/null || true
+fi
+HOOK
+chmod +x "$HOOK_FILE"
 
 cd "$PROJECT_ROOT"
 git checkout -b develop main 2>/dev/null || true
@@ -282,7 +300,7 @@ chmod +x scripts/setup_project_hooks.sh
 - [ PC > Cursor > Éditeur ] -> (Calypso) Créer `scripts/handle_interrupt.py` (spec III.8-B). Ce script :
   - Accepte `--thread-id <id>` optionnel
   - Si omis : liste les threads en attente (API LangServe ou accès direct au checkpointer), triés par project_id puis H1→H6
-  - Affiche le payload `__interrupt`__, demande `approved` | `rejected` | `feedback`
+  - Affiche le payload `__interrupt__`, demande `approved` | `rejected` | `feedback`
   - Envoie `graph.invoke(Command(resume=...), config)`
   - Exit codes : 0 succès, 1 erreur, 2 usage
 - Implémentation minimale : appeler l'API LangServe `POST /runs/{thread_id}/resume` avec le payload. Si LangServe n'est pas encore déployé, le script peut être un stub qui affiche "À implémenter : appeler LangServe quand le graphe tourne".
@@ -370,53 +388,66 @@ class State(TypedDict, total=False):
 
 ### 4.8 Exposer via LangServe (FastAPI)
 
-- [ PC > Cursor > Éditeur ] -> (Calypso) Créer `serve.py` ou équivalent qui monte le graphe sur `/invoke`, `/stream`, `/playground`.
+- [ PC > Cursor > Éditeur ] -> (Calypso) Créer `serve.py` à la racine. Structure attendue pour que `uvicorn serve:app` fonctionne :
 
-### 4.9 Créer run_graph.py
+```python
+# serve.py
+from dotenv import load_dotenv
+load_dotenv()
 
-- [ PC > Cursor > Éditeur ] -> (Calypso) Script CLI :
+from langserve import add_routes
+from fastapi import FastAPI
+from graph.graph import graph  # le graphe compilé
 
-```bash
-python run_graph.py --project-id <id> --start-phase E1|E3|HOTFIX --thread-id <id>-phase-0|<id>-sprint-02|...
+app = FastAPI(title="Agile Graph")
+add_routes(app, graph, path="/agile")
+# Ou selon API LangServe : add_routes(app, graph.with_config(...), path="/agile")
 ```
 
-- Pour HOTFIX : `--hotfix-description "..."`
+### 4.9 Créer run_graph.py (script Python)
+
+- [ PC > Cursor > Éditeur ] -> (Calypso) Script Python CLI, invocable par : `python run_graph.py --project-id <id> --start-phase E1|E3|HOTFIX --thread-id <id>-phase-0|<id>-sprint-02|...`. Pour HOTFIX : `--hotfix-description "..."`. Toujours exécuter avec le venv activé : `source .venv/bin/activate` avant, ou utiliser `.venv/bin/python run_graph.py`.
 
 ---
 
 ## Phase 5 — Comptes Cloud et clés API (Navigateur)
 
-Aucune dépendance circulaire : les clés sont nécessaires au graphe mais le graphe peut être codé avant. Ordre : créer les comptes, puis injecter les clés dans l'environnement.
+**ARRÊT : action humaine requise.** L'agent ne peut pas créer de comptes ni récupérer de clés. Cette phase est exécutée par Nghia.
 
-### 5.1 LangSmith
+Aucune dépendance circulaire : les clés sont nécessaires au graphe mais le graphe peut être codé avant. **Sécurité** : les clés ne doivent jamais être commitées. Utiliser un fichier `.env` à la racine du projet (déjà dans `.gitignore`).
+
+### 5.1 Créer le fichier .env.example (template sans secrets)
+
+- [ PC > Cursor > Éditeur ] -> (Calypso) Créer `$AGILE_ORCHESTRATION_ROOT/.env.example` :
+
+```
+# Copier vers .env et remplir les valeurs. Ne jamais commiter .env
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_API_KEY=
+GOOGLE_API_KEY=
+ANTHROPIC_API_KEY=
+```
+
+### 5.2 LangSmith
 
 - [ PC > Navigateur Web ] -> (Cloud) Aller sur [https://smith.langchain.com](https://smith.langchain.com). Créer un compte. Créer une clé API.
-- [ PC > Cursor > Terminal ] -> (Calypso) Ajouter dans `~/.bashrc` ou `.env` du projet :
+- [ PC > Cursor > Éditeur ] -> (Calypso) Créer ou éditer `.env` à la racine du projet. Ajouter `LANGCHAIN_API_KEY=<ta_clé>` (coller la vraie clé). Ne pas commiter ce fichier.
 
-```
-export LANGCHAIN_TRACING_V2=true
-export LANGCHAIN_API_KEY=<ta_clé>
-```
-
-### 5.2 Google AI Studio
+### 5.3 Google AI Studio
 
 - [ PC > Navigateur Web ] -> (Cloud) Aller sur [https://aistudio.google.com](https://aistudio.google.com). Créer une clé API.
-- [ PC > Cursor > Terminal ] -> (Calypso) :
+- [ PC > Cursor > Éditeur ] -> (Calypso) Ajouter `GOOGLE_API_KEY=<ta_clé>` dans `.env`.
 
-```
-export GOOGLE_API_KEY=<ta_clé>
-```
-
-### 5.3 Anthropic
+### 5.4 Anthropic
 
 - [ PC > Navigateur Web ] -> (Cloud) Aller sur [https://console.anthropic.com](https://console.anthropic.com). Créer une clé API.
-- [ PC > Cursor > Terminal ] -> (Calypso) :
+- [ PC > Cursor > Éditeur ] -> (Calypso) Ajouter `ANTHROPIC_API_KEY=<ta_clé>` dans `.env`.
 
-```
-export ANTHROPIC_API_KEY=<ta_clé>
-```
+### 5.5 Charger .env au démarrage
 
-### 5.4 GitHub
+- Les scripts Python (run_graph, serve, etc.) doivent charger `.env` via `python-dotenv` : `from dotenv import load_dotenv; load_dotenv()` au démarrage. Ou : `export $(grep -v '^#' .env | xargs)` avant de lancer les commandes (dans un wrapper ou manuellement).
+
+### 5.6 GitHub
 
 - [ PC > Navigateur Web ] -> (Cloud) Avoir un compte GitHub. Pour CI/CD, privilégier un dépôt public (Actions illimité).
 
@@ -424,16 +455,17 @@ export ANTHROPIC_API_KEY=<ta_clé>
 
 ## Phase 6 — GitHub CLI et Docker (Calypso)
 
+**ARRÊT : action humaine requise.** `gh auth login` est interactif (choix méthode, ouverture navigateur). L'agent ne peut pas le terminer seul.
+
 ### 6.1 Installer gh (GitHub CLI)
 
 - [ PC > Cursor > Terminal ] -> (Calypso)
 
 ```
 sudo apt install -y gh
-gh auth login
 ```
 
-- Choisir GitHub.com, HTTPS, s'authentifier (browser ou token). Une seule fois.
+- [ PC > Cursor > Terminal ] -> (Calypso) **Action humaine** : lancer `gh auth login` et suivre les invites (GitHub.com, HTTPS, s'authentifier via navigateur ou token). Une seule fois.
 
 ### 6.2 Vérifier Docker
 
@@ -442,6 +474,8 @@ gh auth login
 ---
 
 ## Phase 7 — Installation de l'IDE cible (VS Code + Continue.dev + Roo Code)
+
+**ARRÊT : action humaine requise.** Télécharger VS Code, l'installer, configurer les extensions sont des actions sur le poste local. L'agent ne peut pas les exécuter. Cette phase est réalisée manuellement par Nghia.
 
 L'IDE cible de l'écosystème (spec III.3, II) est VS Code + Continue.dev + Roo Code. Cette phase s'exécute **une fois** Ollama, LangGraph, les scripts et les comptes cloud en place. Jusque-là, tu continues à utiliser Cursor en bootstrap.
 
@@ -506,15 +540,17 @@ source .venv/bin/activate
 
 - Vérifier : `.agile-project-id` et `.agile-env` existent à la racine.
 
-### 8.2 Configurer le hook Git post-commit (si souhaité)
+### 8.2 Hook Git post-commit
 
-- Le hook post-commit doit appeler `index_rag.py` ou écrire dans `pending_index.log` si AGILE_DEFER_INDEX=true. `setup_project_hooks.sh` peut créer `.git/hooks/post-commit` qui source `.agile-env` et lance le script approprié.
+- Le hook est créé automatiquement par `setup_project_hooks.sh` (voir Phase 3.2). Il source `.agile-env`, écrit dans `pending_index.log` si AGILE_DEFER_INDEX=true, sinon lance `index_rag.py`.
 
 ### 8.3 Premier index RAG
 
-- [ PC > Cursor > Terminal ] -> (Calypso)
+- [ PC > Cursor > Terminal ] -> (Calypso) **Activer le venv** puis lancer :
 
 ```
+cd /home/nghia-phan/PROJECTS_WITH_ALBERT/albert-agile
+source .venv/bin/activate
 python scripts/index_rag.py --project-root /home/nghia-phan/PROJECTS_WITH_ALBERT/albert-agile --project-id albert-agile --sources all
 ```
 
@@ -526,7 +562,7 @@ python scripts/index_rag.py --project-root /home/nghia-phan/PROJECTS_WITH_ALBERT
 
 ### 9.1 Démarrer LangServe (si implémenté)
 
-- [ PC > Cursor > Terminal ] -> (Calypso)
+- [ PC > Cursor > Terminal ] -> (Calypso) **Activer le venv** (chaque nouveau terminal le perd) :
 
 ```
 cd /home/nghia-phan/PROJECTS_WITH_ALBERT/albert-agile
@@ -538,9 +574,10 @@ uvicorn serve:app --host 0.0.0.0 --port 8000
 
 ### 9.2 Lancer un run Phase 0 (E1)
 
-- [ PC > Cursor > Terminal ] -> (Calypso)
+- [ PC > Cursor > Terminal ] -> (Calypso) Avec venv activé :
 
 ```
+source .venv/bin/activate
 python run_graph.py --project-id albert-agile --start-phase E1 --thread-id albert-agile-phase-0
 ```
 
@@ -548,9 +585,10 @@ python run_graph.py --project-id albert-agile --start-phase E1 --thread-id alber
 
 ### 9.3 Vérifier status.py
 
-- [ PC > Cursor > Terminal ] -> (Calypso)
+- [ PC > Cursor > Terminal ] -> (Calypso) Avec venv activé :
 
 ```
+source .venv/bin/activate
 python scripts/status.py
 ```
 
