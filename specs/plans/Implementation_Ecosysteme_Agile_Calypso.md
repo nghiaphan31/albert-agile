@@ -22,7 +22,7 @@
 **Bootstrap vs Cible** :
 
 - **Bootstrap** : Pendant toute l'implémentation (Phases 0 à 8), tu restes dans **Cursor**. C'est l'outil qui exécute les commandes, édite les fichiers et pilote l'installation.
-- **Cible** : L'IDE de l'écosystème (spec III.3, II) est **VS Code + Continue.dev + Roo Code**. Il est installé en Phase 7, une fois Ollama, LangGraph, scripts et comptes cloud opérationnels. Tu bascules vers cet IDE pour le travail quotidien (R-1 (Nghia Product Owner), R-7 (Nghia Stakeholder)) : priorisation backlog, validation H1 (validation Gros Ticket)–H4 (Sprint Review), pair programming. Le flux automatisé (E4 (exécution code), E5 (tests CI)) reste piloté par LangGraph, pas par Roo Code.
+- **Cible** : L'IDE de l'écosystème (spec III.3, II) est **VS Code + Continue.dev + Roo Code**. Il est installé en Phase 7, une fois Ollama, LangGraph, scripts et comptes cloud opérationnels. Tu bascules vers cet IDE pour le travail quotidien (R-1 (Nghia (Product Owner)), R-7 (Nghia (Stakeholder))) : priorisation backlog, validation H1 (validation Epic)–H4 (Sprint Review), pair programming. Le flux automatisé (E4 (exécution code), E5 (tests CI)) reste piloté par LangGraph, pas par Roo Code.
 
 ---
 
@@ -93,9 +93,222 @@ flowchart TB
 
 ---
 
+## Schéma du Graphe d'Orchestration — Agents IA et Nghia
+
+### Lexique des abréviations
+
+| Code | Signification complète |
+|------|------------------------|
+| **R-0** | Albert (Business Analyst) — agent IA idéation |
+| **R-1** | Nghia (Product Owner) — humain, garant vision produit |
+| **R-2** | Albert (System Architect) — agent IA architecture |
+| **R-3** | Albert (Scrum Master) — agent IA découpage sprint |
+| **R-4** | Albert (Dev Team) — agent IA développement |
+| **R-5** | Albert (Release Manager) — agent IA Git et releases |
+| **R-6** | Albert (QA et DevOps) — agent IA tests et CI |
+| **R-7** | Nghia (Stakeholder) — humain, sponsor et validateur |
+| **E1** | Phase Idéation — Epic |
+| **E2** | Phase Architecture et Definition of Done |
+| **E3** | Phase Sprint Backlog (découpage) |
+| **E4** | Phase Exécution code du sprint |
+| **E5** | Phase Tests et Intégration continue locale |
+| **E6** | Phase Clôture sprint et merge |
+| **H1** | Interrupt — Validation Epic par Product Owner |
+| **H2** | Interrupt — Validation Architecture et DoD par Stakeholder |
+| **H3** | Interrupt — Validation Sprint Backlog par Product Owner |
+| **H4** | Interrupt — Sprint Review et CI verts par Stakeholder |
+| **H5** | Interrupt — Approbation escalade vers API payante Claude |
+| **H6** | Interrupt — Résolution manuelle conflit Git |
+| **DoD** | Definition of Done — Contrat d'acceptation |
+| **CI** | Continuous Integration — Intégration continue |
+| **CI1** | CI sur branche feature → develop (GitHub Actions) |
+| **CI2** | CI sur branche develop → main (GitHub Actions) |
+
+### Résumé du système
+
+Le graphe LangGraph orchestre **7 agents IA** (Albert) et **2 rôles humains** (Nghia Product Owner, Nghia Stakeholder). Les humains interviennent via `interrupt()` aux 6 points de validation (H1 à H6), pilotés par `handle_interrupt.py`.
+
+### Processus amont — De l'idée à l'Epic
+
+Avant d'entrer dans le cycle Agile (sprints, program increment), un **processus amont** de Product Discovery transforme opportunités et idées en Epic validé :
+
+1. **Discovery** — Exploration du problème, des utilisateurs, recherche, vision produit.
+2. **Ideation** — Nghia (Product Owner) et Albert (Business Analyst) échangent : hypothèses, proposition de valeur, opportunité.
+3. **Cristallisation** — Albert (Business Analyst) structure l'initiative en Epic (cahier des charges, critères de haut niveau).
+4. **Validation de l'Epic** — Nghia (Product Owner) valide l'Epic (interrupt H1) avant injection dans le Product Backlog.
+
+L'Epic validé est l'entrée du cycle E2 (Architecture) puis E3 (Sprint Backlog) et des sprints.
+
+### Schéma Mermaid complet
+
+```mermaid
+flowchart TB
+    subgraph Entry [Point d'entrée]
+        LoadContext["load_context
+        Charge BaseStore, project_root, sprint_number
+        Route selon start_phase"]
+    end
+
+    subgraph Routing [Phases — routage]
+        RouteE1([Phase E1 Idéation — Epic])
+        RouteE3([Phase E3 Sprint Backlog])
+        RouteHOTFIX([HOTFIX Correctif urgent])
+    end
+
+    subgraph AgentsIA [Rôles Agile — Albert, agents IA]
+        R0["Albert (Business Analyst)
+        Cascade Ollama gemma3 / Gemini / Claude Opus
+        Produit Epic"]
+        R2["Albert (System Architect)
+        Cascade gemma3 / Gemini / Claude Opus
+        Architecture.md + Definition of Done"]
+        R3["Albert (Scrum Master)
+        Cascade qwen / Gemini / Claude Sonnet
+        Sprint Backlog"]
+        R4["Albert (Dev Team)
+        Cascade qwen / Gemini / Claude Sonnet
+        Tools: read_file, write_file, run_shell"]
+        R5["Albert (Release Manager)
+        Tools: git, GitHub Pull Request"]
+        R6["Albert (QA et DevOps)
+        Tests, Intégration continue, Definition of Done"]
+    end
+
+    subgraph Nghia [Acteurs humains — Nghia]
+        R1_PO(("Nghia (Product Owner)
+        VS Code + Continue.dev
+        Valide: Epic, Sprint Backlog"))
+        R7_Stake(("Nghia (Stakeholder)
+        VS Code + Continue.dev
+        Valide: Architecture, Sprint Review, conflits Git"))
+    end
+
+    subgraph Interrupts [Points de validation — interrupts]
+        H1{"Validation Epic
+        Nghia (Product Owner)"}
+        H2{"Validation Architecture et DoD
+        Nghia (Stakeholder)"}
+        H3{"Validation Sprint Backlog
+        Nghia (Product Owner)"}
+        H4{"Sprint Review et CI verts
+        Nghia (Stakeholder)"}
+        H5{"Approbation escalade API payante"}
+        H6{"Résolution conflit Git"}
+    end
+
+    subgraph E6Closure [Artefacts / processus]
+        SprintComplete[["sprint_complete — Artifact
+        Résumé sprint, merge feature vers develop
+        PR develop vers main, CI2"]]
+    end
+
+    LoadContext --> RouteE1
+    LoadContext --> RouteE3
+    LoadContext --> RouteHOTFIX
+
+    RouteE1 --> R0
+    R0 -->|"interrupt"| H1
+    H1 -->|"Product Owner valide"| R2
+    H1 -.->|"rejeté + feedback"| R0
+
+    R2 -->|"interrupt"| H2
+    H2 -->|"Stakeholder valide"| R3
+    H2 -.->|"rejeté + feedback"| R2
+
+    RouteE3 --> R3
+    R3 -->|"interrupt"| H3
+    H3 -->|"Product Owner valide"| R4
+    H3 -.->|"rejeté + feedback"| R3
+    H3 -.->|"changement architectural forcé"| R2
+
+    RouteHOTFIX -->|"Sprint Backlog HF-001 synthétique"| R4
+    R4 --> R5
+    R5 -->|"push, création Pull Request"| R6
+
+    R6 -->|"tests en échec"| R4
+    R6 -->|"tests OK et CI feature→develop vert"| H4
+    R5 -.->|"conflit Git non résolu"| H6
+
+    H4 -->|"Stakeholder Sprint Review"| SprintComplete
+    H4 -.->|"rejeté"| R4
+
+    SprintComplete -->|"sprint suivant automatique"| RouteE3
+
+    H5 -.->|"escalade cloud payant ou max rejets"| R1_PO
+    H6 -.->|"résolution manuelle par humain"| R7_Stake
+
+    %% Boucle d'idéation : Nghia (Product Owner) ↔ Albert (Business Analyst)
+    linkStyle 0 stroke:#16a34a,stroke-width:3px
+    linkStyle 3 stroke:#16a34a,stroke-width:3px
+    linkStyle 4 stroke:#16a34a,stroke-width:3px
+    linkStyle 5 stroke:#16a34a,stroke-width:3px
+    linkStyle 6 stroke:#16a34a,stroke-width:3px
+
+    %% Cycle nominal : Sprint Backlog → validation H3 → Dev → Release → QA → validation H4 → clôture → sprint suivant
+    linkStyle 10 stroke:#0066ff,stroke-width:3px
+    linkStyle 11 stroke:#0066ff,stroke-width:3px
+    linkStyle 12 stroke:#0066ff,stroke-width:3px
+    linkStyle 16 stroke:#0066ff,stroke-width:3px
+    linkStyle 17 stroke:#0066ff,stroke-width:3px
+    linkStyle 19 stroke:#0066ff,stroke-width:3px
+    linkStyle 21 stroke:#0066ff,stroke-width:3px
+    linkStyle 23 stroke:#0066ff,stroke-width:3px
+```
+
+**Convention visuelle** : `(())` = acteur humain (Nghia) ; `[]` = rôle Agile / agent IA (Albert) ; `{}` = point de validation (interrupt) ; `[[]]` = artefact ; `()` = phase.
+
+**Flèches vertes** = boucle d'idéation entre Nghia (Product Owner) et Albert (Business Analyst) : Phase Idéation → Albert (Business Analyst) → Validation Epic par Nghia → approbation vers Architecture, ou rejet + feedback.
+
+**Flèches bleues** = cycle nominal complet d'un sprint (tout se passe bien) : Phase Sprint Backlog → Albert (Scrum Master) → Validation Sprint Backlog → Albert (Dev Team) → Albert (Release Manager) → Albert (QA et DevOps) → Sprint Review validée → clôture → sprint suivant.
+
+### Flux principaux
+
+| Phase | Nœuds | Interrupt | Validateur |
+| ------ | ------ | --------- | ---------- |
+| **E1 Idéation** | load_context → Albert (Business Analyst) | Validation Epic | Nghia (Product Owner) |
+| **E2 Architecture** | après validation → Albert (System Architect) | Validation Architecture et DoD | Nghia (Stakeholder) |
+| **E3 Sprint Backlog** | après validation → Albert (Scrum Master) | Validation Sprint Backlog | Nghia (Product Owner) |
+| **E4 Exécution** | après validation → Albert (Dev Team) → Albert (Release Manager) | — | Automatique |
+| **E5 Tests** | Albert (Release Manager) → Albert (QA et DevOps) | Sprint Review et CI verts | Nghia (Stakeholder) |
+| **E6 Clôture** | après Sprint Review → sprint_complete | — | Merge Git |
+
+### Rôles et responsabilités
+
+```mermaid
+flowchart LR
+    subgraph Agents [Rôles Albert - agents IA]
+        R0["Albert Business Analyst"]
+        R2["Albert System Architect"]
+        R3["Albert Scrum Master"]
+        R4["Albert Dev Team"]
+        R5["Albert Release Manager"]
+        R6["Albert QA et DevOps"]
+    end
+
+    subgraph Humain [Acteurs Nghia]
+        R1(("Nghia Product Owner<br/>Backlog Epic Sprint Backlog"))
+        R7(("Nghia Stakeholder<br/>Architecture DoD Sprint Review"))
+    end
+
+    R1 -->|"Validation Epic, Sprint Backlog"| R0
+    R7 -->|"Validation Architecture, Sprint Review"| R2
+```
+
+- **Nghia (Product Owner)** : valide l'Epic, le Sprint Backlog et l'escalade vers l'API payante.
+- **Nghia (Stakeholder)** : valide l'Architecture et la Definition of Done, la Sprint Review et la résolution des conflits Git.
+
+### Boucle Self-Healing (Albert QA et DevOps → Albert Dev Team)
+
+- Si les tests (Phase E5) échouent : Albert (QA et DevOps) renvoie vers Albert (Dev Team) pour correction.
+- Max 3 itérations (`SELF_HEALING_MAX_ITERATIONS=3`).
+- Au-delà : interrupt pour approbation escalade vers API payante Claude.
+
+---
+
 ## Table des matières
 
 - [Conventions](#conventions)
+- [Schéma du Graphe d'Orchestration — Agents IA et Nghia](#schéma-du-graphe-dorchestration--agents-ia-et-nghia)
 - [Phase 0 — Prérequis système (Calypso)](#phase-0--prérequis-système-calypso)
 - [Phase 1 — Ollama et modèles (Calypso)](#phase-1--ollama-et-modèles-calypso)
 - [Phase 2 — Projet orchestration Python (Calypso)](#phase-2--projet-orchestration-python-calypso)
@@ -386,7 +599,7 @@ chmod +x scripts/setup_project_hooks.sh
 
 - [ PC > Cursor > Éditeur ] -> (Calypso) Créer `scripts/handle_interrupt.py` (spec III.8-B). Ce script :
   - Accepte `--thread-id <id>` optionnel
-  - Si omis : liste les threads en attente (API LangServe ou accès direct au checkpointer), triés par project_id puis H1 (validation Gros Ticket)→H6 (résolution conflit Git)
+  - Si omis : liste les threads en attente (API LangServe ou accès direct au checkpointer), triés par project_id puis H1 (validation Epic)→H6 (résolution conflit Git)
   - Affiche le payload `__interrupt_`_, demande `approved` | `rejected` | `feedback`
   - Envoie `graph.invoke(Command(resume=...), config)`
   - Exit codes : 0 succès, 1 erreur, 2 usage
@@ -628,7 +841,7 @@ L'IDE cible de l'écosystème (spec III.3, II) est VS Code + Continue.dev + Roo 
 pip install chroma-mcp
 ```
 
-- [ PC > VS Code > Éditeur ] -> (Calypso) Configurer chroma-mcp dans Continue : fichier `.continue/mcpServers/` ou équivalent, pointer vers `$AGILE_ORCHESTRATION_ROOT/chroma_db`. Permet à Continue (et donc à R-1 (Nghia Product Owner) / R-7 (Nghia Stakeholder)) d'utiliser le même index RAG (recherche sémantique) que les agents LangGraph.
+- [ PC > VS Code > Éditeur ] -> (Calypso) Configurer chroma-mcp dans Continue : fichier `.continue/mcpServers/` ou équivalent, pointer vers `$AGILE_ORCHESTRATION_ROOT/chroma_db`. Permet à Continue (et donc à R-1 (Nghia (Product Owner)) / R-7 (Nghia (Stakeholder))) d'utiliser le même index RAG (recherche sémantique) que les agents LangGraph.
 
 ### 7.6 Recommandation RTX 3060 (spec III.8-J, CC2)
 
@@ -696,7 +909,7 @@ source .venv/bin/activate
 python run_graph.py --project-id albert-agile --start-phase E1 --thread-id albert-agile-phase-0
 ```
 
-- Le graphe doit atteindre H1 (validation Gros Ticket). Utiliser `handle_interrupt.py` pour valider.
+- Le graphe doit atteindre H1 (validation Epic). Utiliser `handle_interrupt.py` pour valider.
 
 ### 9.3 Vérifier status.py
 
@@ -723,7 +936,7 @@ python scripts/status.py
   - Synthèse opérationnelle : mapping lois→agents (L0, L3, L7, L8, L9, L11, L18 transverses ; L-ANON Anonymisation cloud transversale ; L1, L2, L4, L5, L6, L15, L19, L21 par rôle)
   - Règles A (commandes par ligne), B (tableaux Markdown), C (prompts YAML), D (doc-in-code)
   - Règles Tests (unit→intégration→E2E)
-  - Règles validation R-1 (Nghia Product Owner)/R-7 (Nghia Stakeholder)
+  - Règles validation R-1 (Nghia (Product Owner))/R-7 (Nghia (Stakeholder))
 - [ PC > Cursor > Éditeur ] -> (Calypso) Créer `graph/laws.py` (module Python, **pas** un YAML — le reste du plan importe `from graph.laws import LAWS`) :
   - Les 21 lois + L21 (Doc-as-code / Doc-in-code) + Règles A/B/C/D + Règles Tests, en format structuré (dict ou dataclasses)
   - Chargé par chaque nœud pour injection dans le system prompt
@@ -746,7 +959,7 @@ python scripts/status.py
 ### 10.2 Interrupts H1–H6 (spec III.6, III.8-B)
 
 - [ PC > Cursor > Éditeur ] -> (Calypso) Modifier le graphe dans `graph/graph.py` :
-  - H1 (validation Gros Ticket) : fin R-0 (Albert Business Analyst) ; H2 (validation Architecture + DoD) : fin R-2 (Albert System Architect) ; H3 (validation Sprint Backlog) : fin R-3 (Albert Scrum Master) ; H4 (Sprint Review) : fin R-5 (Albert Release Manager)/R-6 (Albert QA & DevOps) ; H5 (approbation escalade API payante) : sur escalade N2 (cloud payant) ; H6 (résolution conflit Git) : sur conflit Git
+  - H1 (validation Epic) : fin R-0 (Albert Business Analyst) ; H2 (validation Architecture + DoD) : fin R-2 (Albert System Architect) ; H3 (validation Sprint Backlog) : fin R-3 (Albert Scrum Master) ; H4 (Sprint Review) : fin R-5 (Albert Release Manager)/R-6 (Albert QA & DevOps) ; H5 (approbation escalade API payante) : sur escalade N2 (cloud payant) ; H6 (résolution conflit Git) : sur conflit Git
   - **API à utiliser : `interrupt()` depuis `langgraph.types`, PAS `raise NodeInterrupt`.** La différence est critique pour les rebouclages sur feedback :
     - `interrupt()` suspend le nœud ET retourne la valeur du `Command(resume=...)` au nœud quand il reprend → permet au nœud d'injecter le feedback humain dans son traitement
     - `raise NodeInterrupt(value=...)` stoppe le nœud comme une exception → le nœud ne peut pas utiliser la réponse humaine, donc les branches "rejected avec feedback" ne peuvent pas reboucler correctement
@@ -775,7 +988,7 @@ python scripts/status.py
   - Créer des prompts système par rôle dans `graph/prompts/` ou `config/prompts/` (Règle C : templates en bloc texte avec frontmatter YAML)
   - **Injection des lois** : pour chaque nœud, charger `graph/laws.py` et injecter les lois applicables au rôle dans le system prompt (ex. R-0 (Albert Business Analyst) : L1 Anti-précipitation, L4 Gabarit CDC ; R-4 (Albert Dev Team) : L8, L9, L19, L21, Règles Tests)
   - Règle B : Backlog, Architecture, Sprint Backlog en **tableaux Markdown**
-  - Utiliser `with_structured_output(Schema)` (Pydantic) pour Gros Ticket, Sprint Backlog, Architecture, tickets
+  - Utiliser `with_structured_output(Schema)` (Pydantic) pour Epic, Sprint Backlog, Architecture, tickets
   - Sur escalade N2 (cloud payant) : déclencher H5 (approbation escalade API payante) avant d'appeler Claude. **Implémentation** : dans `graph/cascade.py`, juste avant le bloc N2, appeler `interrupt({"reason": "H5", "payload": {"escalation": "N2_claude", "context": prompt[:200]}})`. `interrupt()` est importable depuis `langgraph.types` et peut être appelé depuis `cascade.py` car celui-ci s'exécute dans le contexte d'un nœud LangGraph actif. Exemple :
     ```python
     # Dans cascade.py, avant l'appel N2 :
@@ -876,11 +1089,11 @@ python scripts/status.py
 - [ PC > Cursor > Éditeur ] -> (Calypso) Documenter dans `specs/REGLES_AGENTS_AGILE.md` :
   - **Nobles** : `/specs`, `/src`, `/docs`, `Architecture.md`, `Product Backlog.md`, ADRs (Architecture Decision Record)
   - **Opérationnels** : `/.operations` (artefacts temporaires, logs, chroma_db local au projet)
-  - R-2 (Albert System Architect) et R-4 (Albert Dev Team) : artefacts IA en quarantaine (ex. `.operations/artifacts`) avant promotion par R-1 (Nghia Product Owner)/R-7 (Nghia Stakeholder)
+  - R-2 (Albert System Architect) et R-4 (Albert Dev Team) : artefacts IA en quarantaine (ex. `.operations/artifacts`) avant promotion par R-1 (Nghia (Product Owner))/R-7 (Nghia (Stakeholder))
 
 ### 10.9 Contradictions (L18) et interrupt
 
-- [ PC > Cursor > Éditeur ] -> (Calypso) Si RAG (recherche sémantique)/Backlog/Architecture.md se contredisent : l'agent produit un payload `__interrupt_`_ avec `reason="spec_contradiction"` et liste les sources. R-1 (Nghia Product Owner) ou R-7 (Nghia Stakeholder) résout (plan lois L18 Arrêt sur contradiction).
+- [ PC > Cursor > Éditeur ] -> (Calypso) Si RAG (recherche sémantique)/Backlog/Architecture.md se contredisent : l'agent produit un payload `__interrupt_`_ avec `reason="spec_contradiction"` et liste les sources. R-1 (Nghia (Product Owner)) ou R-7 (Nghia (Stakeholder)) résout (plan lois L18 Arrêt sur contradiction).
 
 ### 10.10 Ordre d'exécution recommandé
 
@@ -888,7 +1101,7 @@ python scripts/status.py
 2. 10.1 BaseStore + load_context (prérequis pour tout)
 3. 10.3 LLM dans les nœuds (avec injection lois, sans tools ni interrupts)
 4. 10.3bis Gateway anonymisation cloud (L-ANON) — avant toute escalade Gemini/Claude
-5. 10.2 Interrupts (H1 validation Gros Ticket après R-0, puis H2, H3, etc.)
+5. 10.2 Interrupts (H1 validation Epic après R-0, puis H2, H3, etc.)
 6. 10.6 handle_interrupt (pour tester)
 7. 10.4 Tools R-4 (Albert Dev Team)/R-5 (Albert Release Manager) (allowlist, L19)
 8. 10.5 RAG dans les nœuds
@@ -901,23 +1114,23 @@ python scripts/status.py
 
 **Les 7 rôles Agile opérationnels :**
 
-- **Albert Business Analyst** : produit les Gros Tickets (idéation, phase E1 idéation), utilise la cascade IA (Ollama local → Gemini cloud gratuit → Claude cloud payant) et le gabarit CDC (Cahier des charges).
-- **Nghia Product Owner** : priorise le backlog, valide les Gros Tickets (H1 validation Gros Ticket), le Sprint Backlog (H3 validation Sprint Backlog) et la Sprint Review (H4 Sprint Review).
+- **Albert Business Analyst** : produit les Epics (idéation, phase E1 idéation), utilise la cascade IA (Ollama local → Gemini cloud gratuit → Claude cloud payant) et le gabarit CDC (Cahier des charges).
+- **Nghia (Product Owner)** : priorise le backlog, valide les Epics (H1 validation Epic), le Sprint Backlog (H3 validation Sprint Backlog) et la Sprint Review (H4 Sprint Review).
 - **Albert System Architect** : définit l'architecture et le DoD (Definition of Done) en phase E2 architecture, valide la cohérence, interroge le RAG pour le contexte.
 - **Albert Scrum Master** : découpe le Sprint Backlog (phase E3 Sprint Backlog) à partir du backlog et du contexte RAG.
 - **Albert Dev Team** : exécute le code en sprint (phase E4 exécution code), avec les tools `read_file`, `write_file`, `run_shell` sécurisés (allowlist L8 Non-destruction), et le Self-Healing en cas de tests en échec.
 - **Albert Release Manager** : gère Git et les PR (pull requests), clôture le sprint (phase E6 clôture sprint, merge).
-- **Nghia Stakeholder** : valide l'architecture et le DoD (H2 validation Architecture + DoD), participe à la Sprint Review (H4), résout les contradictions de spec (L18 Arrêt sur contradiction) et les conflits Git (H6 résolution conflit Git).
+- **Nghia (Stakeholder)** : valide l'architecture et le DoD (H2 validation Architecture + DoD), participe à la Sprint Review (H4), résout les contradictions de spec (L18 Arrêt sur contradiction) et les conflits Git (H6 résolution conflit Git).
 
 **Les 6 points d'interruption human-in-the-loop :**
 
 
 | Interrupt                           | Moment                                                                                     |
 | ----------------------------------- | ------------------------------------------------------------------------------------------ |
-| H1 validation Gros Ticket           | Après Albert Business Analyst — Nghia Product Owner valide le Gros Ticket                  |
-| H2 validation Architecture + DoD    | Après Albert System Architect — Nghia Stakeholder valide l'architecture                    |
-| H3 validation Sprint Backlog        | Après Albert Scrum Master — Nghia Product Owner valide le Sprint Backlog                   |
-| H4 Sprint Review                    | Après Albert Release Manager / Albert QA & DevOps — CI verts, validation Nghia Stakeholder |
+| H1 validation Epic           | Après Albert Business Analyst — Nghia (Product Owner) valide l'Epic                  |
+| H2 validation Architecture + DoD    | Après Albert System Architect — Nghia (Stakeholder) valide l'architecture                    |
+| H3 validation Sprint Backlog        | Après Albert Scrum Master — Nghia (Product Owner) valide le Sprint Backlog                   |
+| H4 Sprint Review                    | Après Albert Release Manager / Albert QA & DevOps — CI verts, validation Nghia (Stakeholder) |
 | H5 approbation escalade API payante | Sur escalade vers Claude (cloud payant) ou après 3 cycles de rejet                         |
 | H6 résolution conflit Git           | Sur conflit Git non résolu par l'IA — intervention manuelle                                |
 
@@ -937,7 +1150,7 @@ python scripts/status.py
 - **Lois Albert Core** : L1 Anti-précipitation, L4 Gabarit CDC, L8 Non-destruction, L9, L18 Arrêt sur contradiction, L19 Idempotence, L21 Doc-as-code et règles de tests injectées dans les prompts.
 - **Doc-as-code (L21)** : Albert QA & DevOps refuse tout commit d'Albert Dev Team qui ajoute du code sans docstrings ou qui modifie l'API sans mise à jour de la doc.
 
-**En résumé** : un flux Agile complet piloté par des agents IA, avec des checkpoints humains explicites (Nghia Product Owner, Nghia Stakeholder) et des garde-fous (L8, L19, allowlist des tools).
+**En résumé** : un flux Agile complet piloté par des agents IA, avec des checkpoints humains explicites (Nghia (Product Owner), Nghia (Stakeholder)) et des garde-fous (L8, L19, allowlist des tools).
 
 ---
 
@@ -1023,7 +1236,7 @@ python scripts/index_rag.py --project-id mon-projet
 ### Étape 3 — Lancer la phase d'idéation (E1)
 
 **Qui** : Vous (humain) lancez le graphe.  
-**Quoi** : Démarrage du flux Agile en phase E1 (idéation, Gros Ticket).  
+**Quoi** : Démarrage du flux Agile en phase E1 (idéation, Epic).  
 **Où** : `run_graph.py` s'exécute sur Calypso ; le graphe LangGraph tourne sur Calypso ; les appels LLM passent par Ollama (local) puis éventuellement Gemini/Claude (cloud).
 
 1. [ PC > Cursor > Terminal ] -> (Calypso) Avec le venv activé :
@@ -1035,8 +1248,8 @@ python run_graph.py --project-id mon-projet --start-phase E1 --thread-id mon-pro
 1. **Effet** :
   - `load_context` charge le projet depuis `config/projects.json` et le BaseStore.  
   - Le graphe route vers **Albert Business Analyst** (agent IA).  
-  - Albert Business Analyst produit un **Gros Ticket** (idéation, cahier des charges) en s'appuyant sur le RAG et les lois (L1, L4, gabarit CDC).  
-  - À la fin du nœud, le graphe appelle `interrupt()` et se suspend sur **H1 (validation Gros Ticket)**.  
+  - Albert Business Analyst produit un **Epic** (idéation, cahier des charges) en s'appuyant sur le RAG et les lois (L1, L4, gabarit CDC).  
+  - À la fin du nœud, le graphe appelle `interrupt()` et se suspend sur **H1 (validation Epic)**.  
   - Le checkpointer sauvegarde l'état ; le thread reste en attente.
 2. [ PC > Cursor > Terminal ] -> (Calypso) Le script affiche que le graphe est suspendu (ou qu'il a terminé si LangServe gère l'asynchrone). Vous devez valider l'interrupt via `handle_interrupt.py`.
 
@@ -1044,7 +1257,7 @@ python run_graph.py --project-id mon-projet --start-phase E1 --thread-id mon-pro
 
 ### Étape 4 — Valider les interrupts (H1, H2, H3, H4, etc.)
 
-**Qui** : Nghia Product Owner (H1, H3), Nghia Stakeholder (H2, H4), ou vous en leur qualité.  
+**Qui** : Nghia (Product Owner) (H1, H3), Nghia (Stakeholder) (H2, H4), ou vous en leur qualité.  
 **Quoi** : Consulter les runs en attente, voir le payload proposé par l'IA, et décider : approuver, rejeter avec feedback, ou (pour H5) autoriser l'escalade API payante.  
 **Où** : `handle_interrupt.py` s'exécute sur Calypso ; il communique avec LangServe (ou le checkpointer) pour reprendre le graphe.
 
@@ -1056,7 +1269,7 @@ python run_graph.py --project-id mon-projet --start-phase E1 --thread-id mon-pro
 python scripts/handle_interrupt.py
 ```
 
-1. **Effet** : Sans `--thread-id`, le script interroge l'API LangServe (ou le checkpointer) et affiche la liste des runs suspendus, triés par `project_id` puis par type d'interrupt (H1 validation Gros Ticket → H6 résolution conflit Git). Vous voyez les `thread_id` en attente.
+1. **Effet** : Sans `--thread-id`, le script interroge l'API LangServe (ou le checkpointer) et affiche la liste des runs suspendus, triés par `project_id` puis par type d'interrupt (H1 validation Epic → H6 résolution conflit Git). Vous voyez les `thread_id` en attente.
 
 #### 4.2 Valider ou rejeter un interrupt spécifique
 
@@ -1066,7 +1279,7 @@ python scripts/handle_interrupt.py
 python scripts/handle_interrupt.py --thread-id mon-projet-phase-0
 ```
 
-1. **Effet** : Le script récupère le payload `__interrupt__` (ex. le Gros Ticket proposé par Albert Business Analyst), l'affiche à l'écran, et demande : `approved` | `rejected` | `feedback`.
+1. **Effet** : Le script récupère le payload `__interrupt__` (ex. l'Epic proposé par Albert Business Analyst), l'affiche à l'écran, et demande : `approved` | `rejected` | `feedback`.
 2. **Si vous tapez `approved`** :
   - Le script envoie `Command(resume={"status":"approved"})` à LangServe.  
   - Le graphe reprend sur Calypso.  
@@ -1095,7 +1308,7 @@ python run_graph.py --project-id mon-projet --start-phase E3 --thread-id mon-pro
 1. **Effet** :
   - `load_context` route vers **Albert Scrum Master** (ou directement vers Albert Dev Team si le Sprint Backlog existe déjà).  
   - Albert Scrum Master découpe le Sprint Backlog à partir du Product Backlog et du contexte RAG.  
-  - À la fin, interrupt **H3 (validation Sprint Backlog)** : Nghia Product Owner valide.  
+  - À la fin, interrupt **H3 (validation Sprint Backlog)** : Nghia (Product Owner) valide.  
   - Puis Albert Dev Team exécute le code (phase E4), Albert QA & DevOps lance les tests (phase E5), etc.
 
 ---
