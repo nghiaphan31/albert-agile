@@ -1,0 +1,156 @@
+# SYNTHÈSE DES RÈGLES ET LOIS — specs/00_UNIVERSEL
+**Référence** : `specs/00_UNIVERSEL/SYNTHESE_REGLES_ET_LOIS.md`
+**Version** : 1.0.0
+**Date** : 2026-03-02
+**Portée** : 🌍 UNIVERSEL — Synthèse rigoureuse et concise de l'ensemble des règles et lois définies dans le pack 00_UNIVERSEL.
+
+---
+
+## 1. MÉTA-LOI (U02) — AUTO-APPLICATION ET UNIVERSALITÉ
+
+Les 21 lois définies dans U03 sont des **constantes fondamentales**. Elles s'appliquent à :
+- La conception et à la création d'Albert lui-même ;
+- Tous les projets futurs gérés par Albert.
+
+| Propriété | Description |
+|-----------|-------------|
+| **Auto-application** | Albert applique les Lois à sa propre conception. Il ne peut exiger d'un projet-fils ce qu'il ne s'impose pas. |
+| **Héritage obligatoire** | Tout projet initié par Albert hérite automatiquement des Lois (injection dans le System Prompt). |
+| **Non-négociabilité** | Les Lois sont des axiomes, modifiables uniquement par révision formelle du CDC (Rétrofit validé par le Client). |
+| **Priorité absolue** | En conflit entre une instruction du Client et une Loi universelle, la Loi prévaut. L'IA signale le conflit avant d'agir. |
+
+---
+
+## 2. RÔLES DE L'ÉCOSYSTÈME (U01)
+
+| Rôle | Nature | Rôle principal |
+|------|--------|----------------|
+| **Bio-Processeur** | Humain unique | Arbitre final, donneur d'ordre, validateur (ACCEPT/REJECT), garant de la cohérence specs ↔ code. Ne tape pas de code. |
+| **Cursor** | Environnement | Seule interface pour tout travail IA. Chat, Agent, Terminal, accès `@specs`. |
+| **IA (Claude)** | Modèle par défaut | Utilisé pour 100 % des tâches. |
+| **IA (Gemini)** | Dérogation | Utilisé uniquement sur approbation explicite `ACCEPT-GEMINI` du Bio-Processeur, sous protocole strict. |
+
+**Règle absolue** : Cursor Only — tout travail IA se déroule exclusivement dans Cursor IDE.
+
+---
+
+## 3. 21 LOIS UNIVERSELLES DE DÉVELOPPEMENT (U03)
+
+### 3.1 Niveau I — Méta & Méthodologie (La Pensée)
+
+| # | Nom | Principe |
+|---|-----|----------|
+| **0** | Auto-application | Ces lois s'appliquent à tout projet et à la conception d'Albert. |
+| **1** | Anti-précipitation | Aucun code/spec final tant que l'intention du client n'est pas univoque. Décomposition socratique, Sign-off obligatoire. |
+| **2** | Traçabilité verticale | Chaque exigence vérifiable (tests) et liée explicitement à son parent. |
+| **3** | Rétrofit permanent | Toute découverte technique majeure → d'abord mettre à jour `/specs`, valider, puis adapter le code. Pas de développement « en cachette ». |
+
+### 3.2 Niveau II — Structure Documentaire (L'Espace)
+
+| # | Nom | Principe |
+|---|-----|----------|
+| **4** | Gabarit CDC | Tout projet doit contenir : modélisation visuelle (Mermaid), specs transverses, matrice d'exigences, manuel d'implémentation. |
+| **5** | Confinement spatial | Séparation stricte : dossiers nobles vs opérationnels. Aucun fichier IA directement dans les nobles (quarantaine obligatoire). |
+
+### 3.3 Niveau III — Exécution (L'Action)
+
+| # | Nom | Principe |
+|---|-----|----------|
+| **6** | V.A.R. | Plans exécutables en mode « aveugle » : blocs complets, nomenclature 4D, checkpoints V.A.R., règles A/B/C (bash, tableaux, prompts). |
+| **7** | Transparence | Logs exhaustifs, attribution du modèle IA dans les manifestes. |
+| **8** | Non-destruction | Interdiction de `eval`, `exec`, `rm -rf` hors périmètre. |
+| **9** | Zéro-hardcode | Aucun chemin absolu ni secret en dur. Variables d'environnement ou `project.json`. |
+
+### 3.4 Niveau IV — Intégration Framework (Les Pièges)
+
+| # | Nom | Principe |
+|---|-----|----------|
+| **10** | Non-collision parent | Ne jamais redéfinir une méthode du framework parent (même préfixée `_`). |
+| **11** | Env explicite | `load_dotenv()` obligatoire AVANT toute utilisation d'API ou `os.environ`. |
+| **12** | Structure avant install | Structure physique (`__init__.py`, etc.) créée AVANT `poetry install`. |
+| **13** | Env managé | Toujours `poetry run python`, jamais `python` nu. |
+| **14** | Signature avant instanciation | Vérifier la signature de `__init__` avant d'instancier. |
+| **16** | Rendu multi-plateforme | Tester la doc (Markdown, Mermaid, code fences) dans tous les outils cibles (Cursor, GitHub, MkDocs). |
+| **17** | PROJECT_ROOT programmatique | Recherche ascendante de marqueur (`pyproject.toml`, `.git`) — pas de `.parent` hardcodé. |
+
+### 3.5 Niveau V — Architecture Projet (Le Câblage & La Cohérence)
+
+| # | Nom | Principe |
+|---|-----|----------|
+| **15** | Intégration E2E | Manuel avec >3 phases doit inclure une Phase d'intégration (câblage) + test E2E + diagramme de séquence. |
+| **18** | Arrêt sur contradiction | Si deux specs se contredisent : citer les deux, expliquer l'impact, proposer, attendre Sign-off. Jamais arbitrer silencieusement. |
+| **19** | Idempotence avant création | Avant de créer un fichier : vérifier s'il existe. Si conforme ou supérieur → conserver. Pas d'écrasement sans comparaison. |
+| **20** | Taille max document | Fichier `.md` dans `/specs` ≤ **800 lignes**. Au-delà : split en fichiers partiels. |
+
+**Sanction** : Le non-respect d'une seule loi entraîne le **rejet immédiat** de la proposition.
+
+---
+
+## 4. RÈGLES DE MISE EN FORME (Règles A, B, C)
+
+| Règle | Objet | Format |
+|-------|-------|--------|
+| **A** | Commandes / scripts | Code fence ` ```bash ` — une commande par ligne, bouton Copy GitHub. |
+| **B** | Tableaux / spécifications | Markdown standard avec pipes `\|`. Utiliser `<br>` pour les cellules denses. |
+| **C** | Prompts IA | Un seul bloc ` ```text ` incluant frontmatter YAML + corps (un seul Copy). |
+
+---
+
+## 5. IDENTITÉ ET VISION (U04)
+
+| Attribut | Valeur |
+|----------|--------|
+| **Albert** | Écosystème modulaire — Steward numérique global. |
+| **Albert Core** | Orchestration, prompting, exécution. Chef d'orchestre, pas le cerveau. |
+| **Architecture** | Loose coupling. |
+| **Auto-amorçage** | La méthode s'applique à elle-même : les lois des futurs projets s'appliquent à la conception d'Albert. |
+
+---
+
+## 6. SÉPARATION CODE / CONFIGURATION (U05)
+
+| Entité | Contenu | Versioning |
+|--------|---------|------------|
+| **Système** | Code, logique. Immutable entre utilisateurs. Aucun secret. | Versionné Git. Distribuable. |
+| **Propriétaire** | Clés API, identité, préférences. | Jamais commité. Fichiers locaux (`.env`, `owner_profile.json`). |
+
+**Règles** : Zéro hardcode. Templates (`.env.template`, `owner_profile.template.json`) versionnés. `.env` et `owner_profile.json` dans `.gitignore`.
+
+---
+
+## 7. CYCLE DE SPÉCIFICATION ITÉRATIVE (U06)
+
+Modèle **organique, itératif et fractal** (pas en cascade) — 4 étapes :
+
+| # | Étape | Contenu |
+|---|-------|---------|
+| **1** | Idéation | Narratif validé. Pas de code ni spec technique. |
+| **2** | Décomposition | N1 → N2 → … → Nn, sans limite de profondeur. Traçabilité + testabilité à chaque niveau. |
+| **3** | Rétrofit | Toute découverte ou contrainte nouvelle → mise à jour `/specs` d'abord, validation Client, puis adaptation du code. |
+| **4** | Héritage documentaire | Mermaid, contrats, manuel de pilotage pour tout nouveau projet. |
+
+---
+
+## 8. CYCLE DE VIE ET STRUCTURE PROJET (U07)
+
+| Règle | Description |
+|-------|-------------|
+| **Centralisation** | Projets obligatoirement dans `$HOME/PROJECTS_WITH_ALBERT`. Nommage slugifié. |
+| **Arborescence nobles** | `/specs`, `/src`, `/docs`, `/workbench`, `/dev_laws` (versionnés). |
+| **Opérationnels** | `/.operations` (artifacts, logs, queue, run, manifests) — non versionnés. |
+| **Artifacts** | Génération → quarantaine (`.operations/artifacts`) → promotion (validation Bio-Processeur pour nobles) → Smart Commit. |
+| **Sécurité** | Clés API dans `.env`. Audit permanent (scan `sk-`, `AIza`). Hook pre-commit. |
+
+---
+
+## 9. SYNTHÈSE BIO-PROCESSOR (SYNTHESE_REGLES_BIO_PROCESSOR)
+
+Document copiable pour contexte externe (ex. Gemini C16) : condensé des 21 lois, règles A/B/C, gabarit minimal de document, checklist de revue, signaux d'alerte anti-hallucination.
+
+---
+
+## 10. HISTORIQUE DES RÉVISIONS
+
+| Version | Date | Auteur | Nature de la modification |
+|---------|------|--------|---------------------------|
+| `1.0.0` | 2026-03-02 | Albert-Core (IA) | Création — Synthèse rigoureuse et concise de l'ensemble des règles et lois du pack 00_UNIVERSEL. |
