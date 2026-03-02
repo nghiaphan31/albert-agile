@@ -107,6 +107,7 @@ flowchart TB
 - [Phase 8 — Bootstrap du projet albert-agile](#phase-8--bootstrap-du-projet-albert-agile)
 - [Phase 9 — Validation end-to-end](#phase-9--validation-end-to-end)
 - [Phase 10 — Implémentation réelle des agents (logique métier)](#phase-10--implémentation-réelle-des-agents-logique-métier)
+  - [10.3bis Gateway anonymisation cloud (L-ANON)](#103bis-gateway-anonymisation-cloud-l-anon)
 - [Guide utilisateur basique — Initier un projet de développement](#guide-utilisateur-basique--initier-un-projet-de-développement)
 - [Fichiers clés à créer/modifier](#fichiers-clés-à-créermodifier)
 - [Points d'attention pour un débutant](#points-dattention-pour-un-débutant)
@@ -719,7 +720,7 @@ python scripts/status.py
 ### 10.0 Lois Albert Core — laws.py et REGLES_AGENTS_AGILE (plan lois)
 
 - [ PC > Cursor > Éditeur ] -> (Calypso) Créer `specs/REGLES_AGENTS_AGILE.md` :
-  - Synthèse opérationnelle : mapping lois→agents (L0, L3, L7, L8, L9, L11, L18 transverses ; L1, L2, L4, L5, L6, L15, L19, L21 par rôle)
+  - Synthèse opérationnelle : mapping lois→agents (L0, L3, L7, L8, L9, L11, L18 transverses ; L-ANON Anonymisation cloud transversale ; L1, L2, L4, L5, L6, L15, L19, L21 par rôle)
   - Règles A (commandes par ligne), B (tableaux Markdown), C (prompts YAML), D (doc-in-code)
   - Règles Tests (unit→intégration→E2E)
   - Règles validation R-1 (Nghia Product Owner)/R-7 (Nghia Stakeholder)
@@ -761,6 +762,30 @@ python scripts/status.py
   - Règle B : Backlog, Architecture, Sprint Backlog en **tableaux Markdown**
   - Utiliser `with_structured_output(Schema)` (Pydantic) pour Gros Ticket, Sprint Backlog, Architecture, tickets
   - Sur escalade N2 (cloud payant) : déclencher H5 (approbation escalade API payante) avant d'appeler Claude
+
+### 10.3bis Gateway anonymisation cloud (L-ANON)
+
+**Règle absolue L-ANON** : Aucune donnée personnelle ne quitte Calypso vers le cloud (Gemini, Claude) sans anonymisation préalable ou autorisation explicite de Nghia. L'IA locale (Ollama) est la gateway de sortie.
+
+- [ PC > Cursor > Éditeur ] -> (Calypso) Créer `specs/REGLES_ANONYMISATION.md` (règles métier, lisibles) :
+  - **Données considérées personnelles** : noms, emails, chemins `/home/...`, adresses IP, URLs internes, clés API, tokens, identifiants
+  - **Patterns de détection** : regex pour emails, chemins Unix (`/home/[^/]+/`), noms de machines, patterns courants
+  - **Règles de remplacement** : ex. `nghia-phan` → `[USER]`, `/home/nghia-phan/PROJECTS_WITH_ALBERT/` → `[PROJECT_ROOT]/`, emails → `[EMAIL_REDACTED]`
+  - **Procédure d'autorisation explicite** : si `AGILE_ALLOW_PERSONAL_CLOUD=true` + confirmation via interrupt ou `handle_interrupt.py` — seul Nghia peut débloquer
+
+- [ PC > Cursor > Éditeur ] -> (Calypso) Créer `config/anonymisation.yaml` (config exploitable par le code) :
+  - Patterns à détecter (regex)
+  - Mappings de remplacement (chaîne → placeholder)
+  - Liste des champs interdits par défaut
+
+- [ PC > Cursor > Éditeur ] -> (Calypso) Créer `graph/anonymizer.py` :
+  - `scrub(text: str) -> str` : applique les règles sur un texte
+  - `apply_rules(messages: list) -> list` : anonymise system prompt, messages utilisateur, contexte RAG
+  - Charger les règles depuis `config/anonymisation.yaml` et `specs/REGLES_ANONYMISATION.md` (référence)
+
+- [ PC > Cursor > Éditeur ] -> (Calypso) Intégrer dans `graph/cascade.py` :
+  - Avant chaque appel à `ChatGoogleGenerativeAI` ou `ChatAnthropic`, appeler l'anonymizer sur le contenu à envoyer (prompt, messages, contexte injecté)
+  - Ne pas anonymiser les appels à Ollama (local, données restent sur Calypso)
 
 ### 10.4 Tools R-4 et R-5 (spec III.8-H, F9, plan lois L8, L19)
 
@@ -814,12 +839,13 @@ python scripts/status.py
 1. 10.0 Lois et REGLES_AGENTS_AGILE (prérequis pour les prompts)
 2. 10.1 BaseStore + load_context (prérequis pour tout)
 3. 10.3 LLM dans les nœuds (avec injection lois, sans tools ni interrupts)
-4. 10.2 Interrupts (H1 validation Gros Ticket après R-0, puis H2, H3, etc.)
-5. 10.6 handle_interrupt (pour tester)
-6. 10.4 Tools R-4 (Albert Dev Team)/R-5 (Albert Release Manager) (allowlist, L19)
-7. 10.5 RAG dans les nœuds
-8. 10.7 Self-Healing R-6→R-4 + L21 (contrôles R-6 Albert QA & DevOps)
-9. 10.8 Structure nobles/opérationnels (documentation)
+4. 10.3bis Gateway anonymisation cloud (L-ANON) — avant toute escalade Gemini/Claude
+5. 10.2 Interrupts (H1 validation Gros Ticket après R-0, puis H2, H3, etc.)
+6. 10.6 handle_interrupt (pour tester)
+7. 10.4 Tools R-4 (Albert Dev Team)/R-5 (Albert Release Manager) (allowlist, L19)
+8. 10.5 RAG dans les nœuds
+9. 10.7 Self-Healing R-6→R-4 + L21 (contrôles R-6 Albert QA & DevOps)
+10. 10.8 Structure nobles/opérationnels (documentation)
 
 ### 10.11 Ce que nous obtenons à la fin de la phase 10
 
@@ -857,6 +883,7 @@ python scripts/status.py
 
 **Comportements garantis :**
 
+- **L-ANON (anonymisation cloud)** : aucune donnée personnelle ne part vers Gemini/Claude sans anonymisation préalable ; l'IA locale est la gateway ; règles dans `specs/REGLES_ANONYMISATION.md` et `config/anonymisation.yaml`.
 - **Self-Healing** : si Albert QA & DevOps détecte un échec de tests, il renvoie vers Albert Dev Team pour correction (jusqu'à 3 fois, puis H5 escalade ou arrêt).
 - **Cascade IA** : Ollama (N0 local) → Gemini (N1 cloud gratuit) → Claude (N2 cloud payant), avec H5 avant d'appeler Claude.
 - **Lois Albert Core** : L1 Anti-précipitation, L4 Gabarit CDC, L8 Non-destruction, L9, L18 Arrêt sur contradiction, L19 Idempotence, L21 Doc-as-code et règles de tests injectées dans les prompts.
@@ -1073,11 +1100,14 @@ python run_graph.py --project-id mon-projet --start-phase HOTFIX --thread-id mon
 | [scripts/status.py](scripts/status.py)                                       | Créer                                                                              |
 | [scripts/index_rag.py](scripts/index_rag.py)                                 | Vérifier/compléter                                                                 |
 | graph/state.py, graph/nodes.py, graph/graph.py                               | Créer (Phase 4)                                                                    |
-| graph/cascade.py                                                             | Créer (F8, Phase 4)                                                                |
-| graph/tools.py                                                               | Créer (Phase 10.4)                                                                 |
-| graph/laws.py                                                                | Créer (Phase 10.0)                                                                 |
-| graph/prompts/ ou config/prompts/                                            | Créer (Phase 10.3, Règle C)                                                        |
-| specs/REGLES_AGENTS_AGILE.md                                                 | Créer (Phase 10.0)                                                                 |
+| graph/cascade.py                                                             | Créer (F8, Phase 4) ; intégrer anonymizer (Phase 10.3bis)                           |
+| graph/anonymizer.py                                                          | Créer (Phase 10.3bis, L-ANON)                                                       |
+| graph/tools.py                                                               | Créer (Phase 10.4)                                                                  |
+| graph/laws.py                                                                | Créer (Phase 10.0)                                                                  |
+| graph/prompts/ ou config/prompts/                                            | Créer (Phase 10.3, Règle C)                                                         |
+| specs/REGLES_AGENTS_AGILE.md                                                 | Créer (Phase 10.0)                                                                  |
+| specs/REGLES_ANONYMISATION.md                                                | Créer (Phase 10.3bis, L-ANON)                                                       |
+| config/anonymisation.yaml                                                    | Créer (Phase 10.3bis, L-ANON)                                                       |
 | run_graph.py                                                                 | Créer                                                                              |
 | serve.py                                                                     | Créer (LangServe)                                                                  |
 | ~/.bashrc                                                                    | Ajouter OLLAMA_KEEP_ALIVE, AGILE_*, LANGCHAIN_*, GOOGLE_API_KEY, ANTHROPIC_API_KEY |
