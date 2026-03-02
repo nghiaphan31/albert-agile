@@ -19,7 +19,7 @@
 | VIII | Rapports de simulation (références, corrections intégrées) |
 | IX | Layout architectural (Mermaid) |
 | Annexe A | Cartographie financière (synthèse par coût) |
-| Annexe B | Historique des corrections par simulation (001–013) |
+| Annexe B | Historique des corrections par simulation (001–014) |
 
 ---
 
@@ -116,6 +116,8 @@ III. Outils, Frameworks et Modèles IA — Spécifications Techniques Détaillé
 
 **Architecture d'intégration** : Un service Python héberge le graphe LangGraph. Les nœuds appellent Ollama (N0), Google API (N1) ou Anthropic (N2) selon la logique de cascade. Pydantic modélise l'état (Backlog, Architecture, SprintBacklog) et les sorties de chaque agent. LangSmith trace chaque exécution. L'humain (R-1, R-7) intervient via `interrupt()` aux points définis ci-dessous.
 
+**Gestion des exceptions Ollama comme "échec N0" (F8)** : Toute exception levée lors d'un appel à `ChatOllama` — quelle que soit sa nature (`ConnectionError`, `TimeoutError`, `OllamaRuntimeError`, VRAM épuisée / OOM GPU, modèle non chargé) — doit être capturée dans un bloc `try/except Exception` autour de l'appel N0 et traitée comme un **échec N0**, déclenchant immédiatement l'escalade vers N1 (Google AI Studio). L'exception **ne doit jamais remonter** comme erreur fatale du graphe LangGraph. Implémenter dans une fonction utilitaire `call_with_cascade(llm_n0, llm_n1, llm_n2, prompt, schema)` appelée par tous les nœuds, qui encapsule la logique try/except + escalade + retry HTTP 429. Log structuré à chaque escalade : `{"level": "WARNING", "event": "n0_failure", "reason": str(e), "escalating_to": "N1"}`. Sur RTX 3060, les OOM GPU sont le cas d'échec N0 le plus probable en début de session (modèle pas encore chargé ou VRAM fragmentée).
+
 **Pydantic vs Pydantic AI** : Pydantic (bibliothèque de validation) est utilisée. Pydantic AI est un framework d'agents concurrent de LangChain ; pour éviter la fragmentation et profiter de l'écosystème LangGraph (Human-in-the-Loop mature, communauté large), on retient LangGraph + Pydantic (validation).
 
 #### 3.5bis Modèle de codage (paradigme d'implémentation)
@@ -146,7 +148,7 @@ III. Outils, Frameworks et Modèles IA — Spécifications Techniques Détaillé
 |-------------------|-------|-------------|----------------|---------------|
 | **H1** | Fin Phase 0 | R-0 a produit le Gros Ticket | R-1 (Product Owner) valide ou corrige le Gros Ticket avant injection dans le Backlog. | Décision stratégique : engagement sur la vision. Pas de délégation à l'IA. |
 | **H2** | Fin E2 | R-2 a produit Architecture.md + draft DoD | R-7/R-1 valident l'architecture **et** co-construisent la DoD. Le payload H2 contient Architecture.md et un draft DoD généré par R-2. R-1 amende la DoD (critères d'acceptation), R-7 valide l'ensemble. La DoD finalisée est écrite dans l'état et dans BaseStore. Voir III.8-B et III.8-O. | Choix techniques engageants. DoD comme contrat d'acceptation partagé. |
-| **H3** | Fin E3 | R-3 a produit le Sprint Backlog | R-1 valide le découpage et la priorisation des tickets. | Ajustement de la vélocité, risques de sur/sous-découpage. |
+| **H3** | Fin E3 | R-3 a produit le Sprint Backlog | R-1 valide le découpage et la priorisation des tickets. **Option : forcer `architectural_change=True`** — si R-1 estime que des tickets impliquent des changements architecturaux non détectés par R-3, il peut positionner ce flag via le payload de résumé H3 (`Command(resume={"status":"approved","force_architectural_change":true})`), ce qui redéclenche E2 avant E4. | Ajustement de la vélocité, risques de sur/sous-découpage. Filet de sécurité humain si R-3 n'a pas détecté la nature architecturale des changements (voir F2). |
 | **H4** | Fin E5 | CI local (R-6) ET CI 1 GitHub Actions verts | **Séquence** : (1) R-5 push unique en fin de E4 → PR feature/{project_id}-sprint-{NN}→develop ouverte. (2) CI 1 (GitHub Actions, feature→develop) et CI local (R-6) tournent en parallèle. R-6 poll CI 1 via `gh run watch` (timeout GITHUB_ACTIONS_TIMEOUT=600s). (3) H4 déclenché si les deux CI sont verts. R-7 Sprint Review. (4) E6 : R-5 merge feature→develop. (5) Post-E6 : R-5 ouvre PR develop→main → CI 2 (GitHub Actions, develop→main). Merge develop→main après CI 2 vert. Voir III.8-B et III.8-F. | Double validation pré-H4. Merge main séparé (post-E6). |
 | **H5** | Escalade N2 | L'IA sollicite Claude Opus/Sonnet (coût) | R-1 ou R-7 approuve l'escalade vers l'API payante. | Contrôle des coûts. Évite les appels non intentionnels. |
 | **H6** | Conflit Git | R-5 échoue à résoudre un conflit après 2 tentatives | R-1 résout manuellement (git mergetool), commit, puis reprend le graphe. | Fallback pour conflits complexes. Voir III.8. |
@@ -202,7 +204,7 @@ III. Outils, Frameworks et Modèles IA — Spécifications Techniques Détaillé
 |--------|-------------|----------|--------|
 | **File watcher** | Déclenche index_rag à la sauvegarde de fichier (hors E4/E5) | `AGILE_RAG_FILE_WATCHER=true` | `false` |
 | **Indexation incrémentale** | Ré-indexer uniquement les fichiers modifiés (hash ou mtime) | `AGILE_RAG_INCREMENTAL=true` | `true` si file watcher actif |
-| **AGILE_DEFER_INDEX** | Conserver : évite conflit GPU pendant E4/E5 | — | Voir III.8-C |
+| **AGILE_DEFER_INDEX** | Indexation différée : évite conflit GPU pendant E4/E5 | `AGILE_DEFER_INDEX=true` | `true` (défaut — voir III.8-C, F7) |
 
 **Règle GPU** : Si `AGILE_RAG_FILE_WATCHER=true`, le watcher ne lance **pas** d'indexation pendant E4/E5 (qwen2.5-coder sur GPU). Détection : processus LangGraph actif ou variable `AGILE_E4_E5_ACTIVE`. En mode différé, le watcher écrit dans `pending_index.log` comme le hook Git.
 
@@ -232,7 +234,9 @@ Exécuté en tout premier à chaque démarrage de thread (avant E1 pour un nouve
 3. `dod` depuis `project/{id}/dod/{sprint_number}`. Fallback : `dod/{sprint_number-1}`. Si sprint_number=1 et aucune DoD : `None` (E2 la créera).
 4. Injecte les valeurs dans l'état initial du thread.
 
-**Résilience BaseStore** : Variable `AGILE_BASESTORE_STRICT` (défaut : `false`). Si `false` et BaseStore inaccessible : valeurs par défaut + log WARNING. Si `true` : exception explicite avec message d'aide.
+**Résilience BaseStore** : Variable `AGILE_BASESTORE_STRICT` (défaut : `true` en production, `false` en développement — F10). Si `false` et BaseStore inaccessible : valeurs par défaut + log WARNING (risque d'incohérence silencieuse : un projet au sprint 5 redémarre avec sprint_number=1). Si `true` : exception explicite avec message d'aide — **recommandé dès qu'un projet a dépassé le sprint 1**. `setup_project_hooks.sh` génère `.agile-env` avec `AGILE_BASESTORE_STRICT=true` par défaut.
+
+**Vérification d'intégrité au démarrage (F10)** : Avant d'accepter les valeurs par défaut en mode `false`, load_context vérifie que le BaseStore est réellement inaccessible (connexion refusée, fichier absent) plutôt que simplement vide (cas normal au premier lancement). Si le BaseStore est accessible mais renvoie des valeurs manquantes, les valeurs par défaut sont utilisées normalement (premier sprint). Si le BaseStore est inaccessible et que `sprint_number > 1` est détectable via un autre moyen (ex. présence de branches `feature/{id}-sprint-0{N}` en Git) : log ERROR au lieu de WARNING, et suggestion d'activer `AGILE_BASESTORE_STRICT=true`.
 
 **Routing start_phase** : load_context route le graphe selon le paramètre `start_phase` (`"E1"` | `"E3"` | `"HOTFIX"`). Valeur par défaut : `"E1"`. Commandes types :
 - Nouveau projet : `python run_graph.py --project-id <id> --start-phase E1 --thread-id <id>-phase-0`
@@ -250,12 +254,13 @@ Pour `start_phase HOTFIX` : load_context crée un Sprint Backlog synthétique `S
 - Si `--thread-id` fourni mais thread sans interrupt : message d'erreur explicite, exit code 1.
 - Exit codes : 0=succès, 1=erreur (thread invalide), 2=usage (arguments invalides).
 - Séquence : (1) lit l'état via l'API LangServe, (2) affiche le payload `__interrupt__`, (3) attend l'entrée (`approved` | `rejected` | `feedback`), (4) envoie `graph.invoke(Command(resume=...), config)`.
-- En absence de l'humain : option `resume={"status":"rejected","resume_after":"<date>"}`. Notification si interrupt non traité > 48h.
+- En absence de l'humain : option `resume={"status":"rejected","resume_after":"<date>"}`. **Notification obligatoire si interrupt non traité > 48h** (F5) : un script cron `scripts/notify_pending_interrupts.py` (lancé toutes les heures par `setup_project_hooks.sh`) vérifie les threads en attente et émet une alerte — par défaut via log `logs/pending_interrupts_alert.log` + affichage terminal. Pour notification email ou webhook : configurer `AGILE_NOTIFY_CMD="<commande>"` dans `.agile-env` (ex. `"mail -s 'Interrupt en attente' nghia@example.com"` ou `"curl -X POST <webhook_url> -d '...'"`) ; si absent, la notification reste locale (log). Variable `AGILE_INTERRUPT_TIMEOUT_HOURS=48` (défaut).
 
 **Branches rejected** :
 - **H1 rejected** → injecte feedback dans `state.h1_feedback`, reboucle vers R-0 (nouveau Gros Ticket). Limite : 3 cycles → H5 `reason="max_rejections_H1"`.
 - **H2 rejected** → injecte dans `state.h2_feedback`, reboucle vers R-2 (Architecture + DoD revisitées). Limite : 3 cycles → H5 `reason="max_rejections_H2"`.
 - **H3 rejected** → injecte dans `state.h3_feedback`, reboucle vers R-3 (Sprint Backlog refait). Limite : 3 cycles → H5 `reason="max_rejections_H3"`.
+- **H3 approved avec `force_architectural_change=true`** → le nœud post-H3 positionne `state.needs_architecture_review = True` et `state.sprint_backlog.architectural_change = True`, puis route vers E2 au lieu de E4. Voir III.8-O (re-déclenchement E2).
 - **H4 rejected** → commits correctifs sur la même feature branch, nouveau cycle E5 obligatoire. Limite : 3 cycles → H5 `reason="max_h4_rejections"`.
 - **H6** : Si R-5 échoue à résoudre un conflit Git après 2 tentatives → interrupt. L'humain résout (`git mergetool`), commit, puis `Command(resume="resolved")`.
 
@@ -289,7 +294,7 @@ Pour `start_phase HOTFIX` : load_context crée un Sprint Backlog synthétique `S
 - **Hook Git post-commit** : lit `AGILE_PROJECT_ID` (depuis `.agile-project-id`) et `AGILE_ORCHESTRATION_ROOT` (depuis `.agile-env`). Appelle `python $AGILE_ORCHESTRATION_ROOT/scripts/index_rag.py --project-root $(pwd) --project-id $AGILE_PROJECT_ID`. Ne doit **pas** utiliser `$(basename $(pwd))` comme project_id.
 - **File watcher** (optionnel) : Si `AGILE_RAG_FILE_WATCHER=true` dans `.agile-env`, un daemon/watchdog surveille les fichiers du projet et déclenche `index_rag.py --sources code` (ou `all`) sur modification. **Désactivé automatiquement pendant E4/E5** (conflit GPU avec qwen2.5-coder). Si `AGILE_DEFER_INDEX=true` et E4/E5 actif : écrit dans `pending_index.log` comme le hook.
 
-**Mode différé (AGILE_DEFER_INDEX=true)** : Si actif dans `.agile-env`, le hook (et le file watcher si actif) écrit dans `logs/pending_index.log` (`<timestamp> <commit_hash> <project_id>`) au lieu de lancer index_rag. Le nœud sprint_complete traite `pending_index.log` en fin de sprint (hors E4/E5, évite les conflits GPU). Valeur par défaut : `false`.
+**Mode différé (AGILE_DEFER_INDEX=true)** : Si actif dans `.agile-env`, le hook (et le file watcher si actif) écrit dans `logs/pending_index.log` (`<timestamp> <commit_hash> <project_id>`) au lieu de lancer index_rag. Le nœud sprint_complete traite `pending_index.log` en fin de sprint (hors E4/E5, évite les conflits GPU). **Valeur par défaut : `true`** (F7) — `setup_project_hooks.sh` génère `.agile-env` avec `AGILE_DEFER_INDEX=true` par défaut. Pour désactiver (si GPU disposant de > 16 Go VRAM) : modifier manuellement `.agile-env`. Sur RTX 3060 12 Go, ne jamais passer à `false` (nomic-embed-text + qwen2.5-coder partagent le GPU ; indexation pendant E4/E5 = conflit garanti).
 
 **Indexation incrémentale** : Si `AGILE_RAG_INCREMENTAL=true`, index_rag ne ré-indexe que les fichiers modifiés (comparaison mtime ou hash). Réduit charge GPU et latence. Compatible avec file watcher. Valeur par défaut : `true` si file watcher actif, sinon `false`.
 
@@ -301,7 +306,7 @@ Pour `start_phase HOTFIX` : load_context crée un Sprint Backlog synthétique `S
 
 **Bootstrap** : `scripts/setup_project_hooks.sh --orchestration-root <path> --project-root <path> --project-id <id>` :
 - Crée `.agile-project-id` (project_id sur une ligne)
-- Crée `.agile-env` (AGILE_ORCHESTRATION_ROOT, AGILE_PROJECT_ID, AGILE_DEFER_INDEX, AGILE_PROJECTS_JSON, AGILE_RAG_FILE_WATCHER, AGILE_RAG_INCREMENTAL)
+- Crée `.agile-env` (AGILE_ORCHESTRATION_ROOT, AGILE_PROJECT_ID, AGILE_DEFER_INDEX=true, AGILE_PROJECTS_JSON, AGILE_RAG_FILE_WATCHER=false, AGILE_RAG_INCREMENTAL, AGILE_BASESTORE_STRICT=true, AGILE_INTERRUPT_TIMEOUT_HOURS=48, AGILE_NOTIFY_CMD, SYNC_ARTIFACTS_CRON="0 0 * * 0")
 - Crée la branche `develop` depuis `main` si absente : `git checkout -b develop main && git push -u origin develop`
 
 ---
@@ -389,6 +394,22 @@ Modèle **feature-par-sprint** :
 
 E4 est piloté par les nœuds R-4 et R-5 du graphe. R-4 dispose de tools : `read_file`, `write_file`, `run_shell`. R-5 gère Git (`run_shell`). Les tools utilisent `state.project_root` comme répertoire de travail. Roo Code et Continue.dev restent l'interface humaine (hors flux automatisé). R-4 traite les tickets séquentiellement.
 
+**Écriture atomique pour `write_file` (F9)** : Le tool `write_file` doit utiliser le pattern atomic write (écriture dans un fichier temporaire `.tmp`, puis `os.replace()`) pour garantir qu'une coupure d'électricité pendant l'écriture ne laisse pas de fichier partiellement écrit et corrompu. Implémentation Python :
+```python
+import os, tempfile, pathlib
+
+def write_file(path: str, content: str) -> None:
+    target = pathlib.Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(
+        mode="w", dir=target.parent, delete=False, suffix=".tmp"
+    ) as tmp:
+        tmp.write(content)
+        tmp_path = tmp.name
+    os.replace(tmp_path, target)  # atomic sur Linux/macOS
+```
+`os.replace()` est atomique sur Linux (même système de fichiers). En cas de coupure pendant l'écriture du `.tmp`, le fichier cible reste intact dans son état précédent. R-6 n'obtiendra jamais un fichier source partiellement écrit.
+
 ---
 
 ##### I. Self-Healing (R-6→R-4)
@@ -401,7 +422,11 @@ Seuil : `SELF_HEALING_MAX_ITERATIONS=3`. Au-delà → interrupt H5 `reason="cost
 
 ##### J. Stratégie GPU (Ollama)
 
-Un seul modèle chargé à la fois. Priorité : `qwen2.5-coder` (E4, E5) > `gemma3` (Phase 0, E2). Configurer `OLLAMA_KEEP_ALIVE`. Utiliser `AGILE_DEFER_INDEX=true` pour éviter les indexations nomic-embed-text pendant E4/E5.
+Un seul modèle chargé à la fois. Priorité : `qwen2.5-coder` (E4, E5) > `gemma3` (Phase 0, E2). Configurer `OLLAMA_KEEP_ALIVE` (voir checklist 4.1). Utiliser `AGILE_DEFER_INDEX=true` pour éviter les indexations nomic-embed-text pendant E4/E5.
+
+**RTX 3060 12 Go** : Sur configuration 12 Go VRAM, `AGILE_DEFER_INDEX=true` (défaut depuis F7) et `AGILE_RAG_FILE_WATCHER=false` sont appliqués par défaut par `setup_project_hooks.sh` (Sim 014). Un seul modèle tient en VRAM ; nomic-embed-text + qwen2.5-coder en parallèle provoquent des conflits garantis.
+
+**Continue.dev pendant E4/E5** : Si Continue.dev reste ouvert pendant l'exécution du graphe (E4, E5), le configurer sur **qwen2.5-coder:7b** (aligné sur R-4) pour éviter le swapping de modèles. Un modèle différent (ex. gemma3) force Ollama à décharger qwen2.5 → latence et timeouts. Alternative : désactiver l'autocomplétion IA pendant E4/E5.
 
 ---
 
@@ -414,6 +439,8 @@ Si risque de dépassement 5 000 traces/mois (free tier) : `LANGCHAIN_TRACING_SAM
 ##### L. Politique de rétention et archivage
 
 **Checkpoints** : purge `scripts/purge_checkpoints.py [--dry-run] [--max-age-days 90]`. "90 jours" = date du dernier step. Exclure les threads avec `__interrupt__` non résolu. Log des threads supprimés.
+
+**Cas particulier — projet en pause longue (F4)** : Si un sprint est en cours (phase E3–E6, sans interrupt actif) au moment de la purge, ses checkpoints peuvent être supprimés. À la reprise, `load_context` retrouve `sprint_number` et `adr_counter` depuis le BaseStore (qui persiste indéfiniment), mais la reprise exacte du step interrompu n'est plus possible : il faut relancer depuis `--start-phase E3`. Pour éviter cela : (1) `purge_checkpoints.py` exclut par défaut les threads dont `sprint_number` est inférieur à la valeur courante en BaseStore (sprint non clôturé) ; (2) option `--protect-active-sprints` (défaut : `true`) : un thread est "actif" si son `sprint_number` dans l'état correspond au `sprint_counter` en BaseStore. Documenter ce comportement dans le README du projet orchestration.
 
 **Chroma** : une collection par projet. `scripts/export_chroma.py --project-id <id> --output <path>.json`. `scripts/import_chroma.py --project-id <id> --input <path>.json`. Exporter avant suppression.
 
@@ -441,14 +468,50 @@ Checklist (manuelle par R-1/R-7 ou via nœud optionnel `project_close`) :
 
 ##### O. Synchronisation Architecture.md (sync_artifacts)
 
-Optionnel. Nœud `sync_artifacts` ou cron (`SYNC_ARTIFACTS_CRON="0 0 * * 0"` = dimanche minuit) : compare la structure du code à Architecture.md et génère un rapport de dérive. Si non configuré : désactivé.
+**Activé par défaut** via cron hebdomadaire. Variable `SYNC_ARTIFACTS_CRON` (défaut : `"0 0 * * 0"` = dimanche minuit) : compare la structure du code à Architecture.md et génère un rapport de dérive dans `logs/sync_artifacts_<date>.log`. Si `SYNC_ARTIFACTS_CRON=""` (chaîne vide) : désactivé explicitement. `setup_project_hooks.sh` génère l'entrée cron correspondante par défaut — supprimer manuellement si non souhaité.
+
+**Justification (F1)** : Sans ce cron, la dérive entre code réel et Architecture.md peut s'accumuler silencieusement sur plusieurs sprints, sans que les agents ni Nghia ne le détectent. Le rapport hebdomadaire constitue un filet de sécurité contre les régressions documentaires long terme.
 
 **Numérotation ADRs** : `state.adr_counter` (TypedDict, chargé depuis BaseStore `project/{id}/adr_counter`). Incrémenté par R-2 à chaque ADR produit. Fichier : `docs/ADR-{NNN:03d}-{date}-{slug}.md`.
 
 **DoD versionnée** : namespace BaseStore `project/{id}/dod/{sprint_number}`. Chaque sprint conserve sa DoD. Chargée par load_context pour le sprint en cours.
 
-**Re-déclenchement E2** : Si `state.sprint_backlog.architectural_change = True` (champ Pydantic SprintBacklog, défaut `False`, positionné par R-3), sprint_complete met `needs_architecture_review = True` et boucle vers E2 au lieu de E3.
+**Re-déclenchement E2** : Si `state.sprint_backlog.architectural_change = True` (champ Pydantic SprintBacklog, défaut `False`, positionné par R-3 ou forcé manuellement par R-1 via H3), sprint_complete met `needs_architecture_review = True` et boucle vers E2 au lieu de E3.
 
+---
+
+##### P. Dashboard de statut multi-projets (status.py)
+
+**Justification (F6)** : Avec plusieurs projets actifs en parallèle, Nghia ne peut pas surveiller efficacement LangSmith + logs + handle_interrupt.py séparément pour chaque projet. Un script de statut unifié agrège toutes les informations critiques en une seule commande.
+
+**Script `scripts/status.py`** :
+- Signature : `python scripts/status.py [--project-id <id>] [--json]`
+- Sans `--project-id` : affiche l'état de tous les projets listés dans `projects.json` (hors `archived: true`)
+- Avec `--project-id` : vue détaillée d'un seul projet
+
+**Informations affichées par projet** :
+
+| Colonne | Source | Description |
+|---------|--------|-------------|
+| `project_id` | projects.json | Identifiant |
+| `phase_courante` | Checkpointer | Dernier nœud exécuté (`sprint_number`, nœud LangGraph) |
+| `interrupts_en_attente` | Checkpointer | Liste des H1–H6 non traités (thread_id, type, timestamp) |
+| `derniere_indexation_rag` | `logs/index_rag_*.log` | Date/heure de la dernière indexation RAG réussie |
+| `pending_index` | `logs/pending_index.log` | Nombre de commits en attente d'indexation |
+| `tokens_consommes_24h` | LangSmith API (optionnel) | Estimation consommation API (si `LANGCHAIN_API_KEY` défini) |
+| `alertes` | `logs/pending_interrupts_alert.log` | Interrupts en attente > `AGILE_INTERRUPT_TIMEOUT_HOURS` |
+
+**Variables** : `AGILE_PROJECTS_JSON` (chemin projects.json), `LANGCHAIN_API_KEY` (optionnel, pour métadonnées LangSmith).
+
+**Exemple de sortie** :
+```
+PROJECT           PHASE           INTERRUPTS     LAST_INDEX     ALERTS
+kanban            E4/sprint-03    —              2h ago         —
+api-meteo         H2 (attend)     H2 (18h)       5h ago         —
+cli-tool          sprint-01       H1 (52h!)      1j ago         ⚠ interrupt > 48h
+```
+
+`setup_project_hooks.sh` crée le script `status.py` dans le projet orchestration. Exécution manuelle ou via alias shell recommandé (`alias agile-status='python $AGILE_ORCHESTRATION_ROOT/scripts/status.py'`).
 
 ---
 
@@ -468,10 +531,11 @@ IV. Comptes de Services Cloud à Mettre en Place (Priorité Gratuit)
 #### 4.1 Checklist d'Installation (Ordre Recommandé)
 
 1. **Ollama** : `curl -fsSL https://ollama.com/install.sh | sh` puis `ollama pull qwen2.5-coder:7b`, `ollama pull gemma3:12b-it-q4_K_M`, `ollama pull nomic-embed-text`
+   - *RTX 3060 12 Go* : `export OLLAMA_KEEP_ALIVE=qwen2.5-coder:7b` pour sessions E4/E5 longues (évite rechargements). Phase 0/E2 : optionnel `OLLAMA_KEEP_ALIVE=gemma3:12b-it-q4_K_M`.
 2. **VS Code** : Installation standard
 3. **Continue.dev** : Extension depuis le marketplace. Configurer Ollama (`http://localhost:11434`) et les modèles `qwen2.5-coder:7b` / `gemma3:12b-it-q4_K_M`. Option RAG partagé : configurer chroma-mcp (étape 6) dans `.continue/mcpServers/` pour utiliser le même Chroma que les agents.
 4. **Roo Code** : Extension depuis le marketplace. Même configuration Ollama
-5. **LangGraph + LangChain + Pydantic + Chroma** : `pip install langgraph langchain langchain-ollama langchain-anthropic langchain-google-genai langchain-chroma pydantic chromadb`. Créer le projet Python du graphe (III.5), configurer le checkpointer et le RAG (III.7, III.7-bis). État TypedDict : inclure `dod`, `sprint_number` (int, défaut 1), `adr_counter` (int, défaut 0), `needs_architecture_review` (bool). Nœud "load_context" en entrée de thread. Voir III.8 (procédures consolidées). Stratégie branches Git : feature/{project_id}-sprint-{NN} depuis develop (III.8-D). Créer les scripts : `handle_interrupt.py`, `index_rag.py`, `setup_project_hooks.sh`, `purge_checkpoints.py`, `export_chroma.py`, `import_chroma.py` (voir III.8-C, III.8-J, III.8-L). Options RAG : file watcher, indexation incrémentale (III.7-bis). Créer `projects.json` (format III.8-G). Variable `AGILE_PROJECTS_JSON`. `API_429_MAX_RETRIES=3`. GitHub Actions sur `pull_request` (III.8-F). Checklist de clôture (III.8-M). Voir III.8.
+5. **LangGraph + LangChain + Pydantic + Chroma** : `pip install langgraph langchain langchain-ollama langchain-anthropic langchain-google-genai langchain-chroma pydantic chromadb`. Créer le projet Python du graphe (III.5), configurer le checkpointer et le RAG (III.7, III.7-bis). État TypedDict : inclure `dod`, `sprint_number` (int, défaut 1), `adr_counter` (int, défaut 0), `needs_architecture_review` (bool). Nœud "load_context" en entrée de thread. Voir III.8 (procédures consolidées). Stratégie branches Git : feature/{project_id}-sprint-{NN} depuis develop (III.8-D). Créer les scripts : `handle_interrupt.py`, `index_rag.py`, `setup_project_hooks.sh`, `purge_checkpoints.py`, `export_chroma.py`, `import_chroma.py`, `notify_pending_interrupts.py`, `status.py` (voir III.8-B, III.8-C, III.8-J, III.8-L, III.8-P). Options RAG : file watcher, indexation incrémentale (III.7-bis). Créer `projects.json` (format III.8-G). Variable `AGILE_PROJECTS_JSON`. `API_429_MAX_RETRIES=3`. GitHub Actions sur `pull_request` (III.8-F). Checklist de clôture (III.8-M). Voir III.8.
 6. **chroma-mcp** (optionnel, pour RAG partagé IDE) : `uvx chroma-mcp` ou `pip install chroma-mcp`. Configurer pour pointer vers la même Chroma que index_rag (client persistent ou HTTP). Ajouter à `.continue/mcpServers/` (Continue) ou `~/.cursor/mcp.json` (Cursor) pour que l'IDE utilise le même RAG que les agents. Voir III.7-bis.
 7. **LangSmith** : Compte sur https://smith.langchain.com. Clé API à définir dans `LANGCHAIN_TRACING_V2=true` et `LANGCHAIN_API_KEY=...` pour traçage.
 8. **Google AI Studio** : Clé API sur https://aistudio.google.com. Provider de fallback N1.
@@ -597,15 +661,16 @@ VIII. Rapports de Simulation
 | **011** | 2026-03-11 | `specs/Simulation_011_2026-03-11.md` | Z1–Z2 intégrés (section III.17) : sprint_complete en deux phases (sprint_summary puis merge_to_main avec incrément sprint_number après CI 2), branch protection GitHub documentée. |
 | **012** | 2026-03-12 | `specs/Simulation_012_2026-03-12.md` | AA1–AA2 intégrés (section III.18) : sprint_number mode dégradé (incrément phase 1 si github_repo absent), suppression notation H4' (→ H5 reason=pr_review_required), catalogue complet reasons H5. Convergence définitive atteinte. |
 | **013** | 2026-03-13 | `specs/Simulation_013_2026-03-13.md` | BB1–BB4 intégrés (section III.19) : numérotation checklist, W5 start_phase HOTFIX, hotfix→develop merge direct, auto_next_sprint boucle après phase 2. **Convergence définitive — zéro problème résiduel.** |
+| **014** | 2026-03-14 | `specs/Simulation_014_2026-03-14.md` | CC1–CC3 (RTX 3060 12 Go) : OLLAMA_KEEP_ALIVE checklist, Continue.dev pendant E4/E5, AGILE_DEFER_INDEX recommandation explicite. Validation flux sous contrainte VRAM. |
 
-**Règle** : Simulations 001–013 validées et intégrées. Corrections consolidées en III.8. Historique détaillé en Annexe B. Spec **convergé et opérationnel** — prêt pour implémentation.
+**Règle** : Simulations 001–014 validées et intégrées. Corrections consolidées en III.8. Historique détaillé en Annexe B. Spec **convergé et opérationnel** — prêt pour implémentation.
 
 
 ---
 
 ### Annexe B. Historique des Corrections par Simulation (001–013)
 
-*Cette annexe conserve l'intégralité des listes de corrections incrémentales issues des simulations 001 à 013. Elle constitue la traçabilité complète des décisions de conception. Le document opérationnel de référence est la section III.8.*
+*Cette annexe conserve l'intégralité des listes de corrections incrémentales issues des simulations 001 à 014. Elle constitue la traçabilité complète des décisions de conception. Le document opérationnel de référence est la section III.8.*
 
 
 #### B.1 Corrections Simulation 001 — Procédures opérationnelles initiales
@@ -929,6 +994,19 @@ Si `auto_next_sprint=true`, la boucle vers E3 (sprint N+1) se déclenche :
 - Après **phase 2** (merge_to_main vert, sprint_number incrémenté) si `github_repo` présent.  
 - Après **phase 1** (sprint_summary, incrément immédiat) si mode dégradé (github_repo absent).  
 Cela garantit que E3 du sprint N+1 démarre avec un sprint_number et un develop à jour.
+
+#### B.13 Corrections Simulation 014 (CC1–CC3)
+
+*Les éléments ci-dessous proviennent du rapport Simulation_014_2026-03-14 — validation flux sous RTX 3060 12 Go.*
+
+**CC1 — OLLAMA_KEEP_ALIVE dans checklist 4.1**  
+Ajout dans l'étape 1 (Ollama) : pour RTX 3060 12 Go, configurer `export OLLAMA_KEEP_ALIVE=qwen2.5-coder:7b` pendant E4/E5 (évite rechargements). Phase 0/E2 : optionnel `OLLAMA_KEEP_ALIVE=gemma3:12b-it-q4_K_M`.
+
+**CC2 — Continue.dev pendant E4/E5**  
+Documenter dans III.8-J : si Continue.dev reste ouvert pendant E4/E5, le configurer sur qwen2.5-coder:7b (aligné sur R-4). Un modèle différent provoque swapping → latence et timeouts. Alternative : désactiver l'autocomplétion IA.
+
+**CC3 — AGILE_DEFER_INDEX recommandation RTX 3060**  
+Renforcer dans III.8-C : sur RTX 3060 12 Go, `AGILE_DEFER_INDEX=true` fortement recommandé. nomic-embed-text et qwen2.5-coder partagent le GPU ; indexation pendant E4/E5 = conflit.
 
 ---
 
