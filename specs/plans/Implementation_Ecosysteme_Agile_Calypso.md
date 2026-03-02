@@ -255,7 +255,19 @@ flowchart TB
     linkStyle 23 stroke:#0066ff,stroke-width:3px
 ```
 
-**Convention visuelle** : `(())` = acteur humain (Nghia) ; `[]` = rôle Agile / agent IA (Albert) ; `{}` = point de validation (interrupt) ; `[[]]` = artefact ; `()` = phase.
+**Légende des formes :**
+
+```mermaid
+flowchart LR
+    subgraph Convention [Convention visuelle]
+        direction TB
+        L1(("Cercle = Acteur humain<br/>Nghia"))
+        L2["Rectangle = Rôle / agent IA<br/>Albert"]
+        L3{"Losange = Point de validation<br/>Interrupt"}
+        L4[["Stade = Artefact"]]
+        L5([Capsule = Phase])
+    end
+```
 
 **Flèches vertes** = boucle d'idéation entre Nghia (Product Owner) et Albert (Business Analyst) : Phase Idéation → Albert (Business Analyst) → Validation Epic par Nghia → approbation vers Architecture, ou rejet + feedback.
 
@@ -302,6 +314,110 @@ flowchart LR
 - Si les tests (Phase E5) échouent : Albert (QA et DevOps) renvoie vers Albert (Dev Team) pour correction.
 - Max 3 itérations (`SELF_HEALING_MAX_ITERATIONS=3`).
 - Au-delà : interrupt pour approbation escalade vers API payante Claude.
+
+### Vue Program Increment (PI) — Sprint N → Sprint N+1
+
+Vue macro horizontale du flux Agile sur un Program Increment. Chaque sprint reproduit le cycle E3 → E4 → E5 → H4 → E6.
+
+```mermaid
+flowchart LR
+    subgraph PI_Planning [PI Planning]
+        direction TB
+        P1[["Epic validé"]]
+        P2[["Architecture + DoD"]]
+        P3[["Product Backlog"]]
+    end
+
+    subgraph SprintN [Sprint N]
+        direction TB
+        SN_E3([E3 Sprint Backlog])
+        SN_E4[E4 Exécution]
+        SN_E5[E5 Tests]
+        SN_H4{"H4 Sprint Review"}
+        SN_E6[["E6 Clôture"]]
+        SN_E3 --> SN_E4 --> SN_E5 --> SN_H4 --> SN_E6
+    end
+
+    subgraph SprintN1 [Sprint N+1]
+        direction TB
+        SN1_E3([E3 Sprint Backlog])
+        SN1_E4[E4 Exécution]
+        SN1_E5[E5 Tests]
+        SN1_H4{"H4 Sprint Review"}
+        SN1_E6[["E6 Clôture"]]
+        SN1_E3 --> SN1_E4 --> SN1_E5 --> SN1_H4 --> SN1_E6
+    end
+
+    PI_Planning --> SprintN
+    SN_E6 --> SprintN1
+```
+
+### Détail Sprint N — Acteurs, process et artefacts
+
+Pour chaque phase du sprint : acteurs actifs, process exécuté, artefacts en entrée et en sortie.
+
+```mermaid
+flowchart LR
+    subgraph E3 [E3 Sprint Backlog]
+        direction TB
+        E3_actors["Acteurs: Albert Scrum Master<br/>Nghia Product Owner"]
+        E3_process["Process: Découpage tickets<br/>Validation H3"]
+        E3_in[["Entrée: Backlog, Architecture, DoD"]]
+        E3_out[["Sortie: Sprint Backlog validé"]]
+        E3_in --> E3_process --> E3_out
+        E3_actors -.-> E3_process
+    end
+
+    subgraph E4 [E4 Exécution]
+        direction TB
+        E4_actors["Acteurs: Albert Dev Team<br/>Albert Release Manager"]
+        E4_process["Process: Code, tests unitaires<br/>Feature branch, push"]
+        E4_in[["Entrée: Sprint Backlog, DoD"]]
+        E4_out[["Sortie: Code source, PR feature→develop"]]
+        E4_in --> E4_process --> E4_out
+        E4_actors -.-> E4_process
+    end
+
+    subgraph E5 [E5 Tests]
+        direction TB
+        E5_actors["Acteurs: Albert QA et DevOps<br/>Albert Release Manager"]
+        E5_process["Process: build_docs, tests<br/>CI local + GitHub Actions"]
+        E5_in[["Entrée: Code, DoD"]]
+        E5_out[["Sortie: Test reports, verdict CI"]]
+        E5_in --> E5_process --> E5_out
+        E5_actors -.-> E5_process
+    end
+
+    subgraph H4 [H4 Sprint Review]
+        direction TB
+        H4_actors["Acteurs: Nghia Stakeholder"]
+        H4_process["Process: Validation incrément<br/>Go / No-Go"]
+        H4_in[["Entrée: Incrément, CI verts"]]
+        H4_out[["Sortie: Incrément accepté ou rejet"]]
+        H4_in --> H4_process --> H4_out
+        H4_actors -.-> H4_process
+    end
+
+    subgraph E6 [E6 Clôture]
+        direction TB
+        E6_actors["Acteurs: Albert Release Manager"]
+        E6_process["Process: Merge feature→develop<br/>sprint_summary, index_rag"]
+        E6_in[["Entrée: Incrément validé"]]
+        E6_out[["Sortie: sprint_summary, PR develop→main"]]
+        E6_in --> E6_process --> E6_out
+        E6_actors -.-> E6_process
+    end
+
+    E3 --> E4 --> E5 --> H4 --> E6
+```
+
+| Phase | Acteurs actifs | Process | Artefacts entrée | Artefacts sortie |
+|-------|----------------|---------|------------------|------------------|
+| **E3** | Albert (Scrum Master), Nghia (Product Owner) | Découpage tickets, validation H3 | Backlog, Architecture.md, DoD | Sprint Backlog validé |
+| **E4** | Albert (Dev Team), Albert (Release Manager) | Code, tests unitaires, feature branch, push | Sprint Backlog, DoD | Code source, PR feature→develop |
+| **E5** | Albert (QA et DevOps), Albert (Release Manager) | build_docs, tests unit/intégration/E2E, CI | Code, DoD | Test reports, verdict CI |
+| **H4** | Nghia (Stakeholder) | Sprint Review, Go/No-Go | Incrément, CI verts | Incrément accepté ou rejet |
+| **E6** | Albert (Release Manager) | Merge feature→develop, sprint_summary, index_rag | Incrément validé | sprint_summary, PR develop→main |
 
 ---
 
