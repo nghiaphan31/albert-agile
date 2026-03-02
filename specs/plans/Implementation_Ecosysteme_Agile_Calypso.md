@@ -1,9 +1,6 @@
 ---
-name: Implémentation Ecosysteme Agile Calypso
-overview: "Plan d'implémentation pas-à-pas de l'écosystème Agile Agent IA sur Calypso (Linux RTX 3060 12G). Cursor est l'outil de bootstrap : toutes les étapes sont exécutées depuis Cursor (Remote SSH) jusqu'à ce que l'écosystème soit complet. L'IDE cible (VS Code + Continue.dev + Roo Code) est installé en dernier. Ordre linéaire sans dépendances circulaires. Chaque action humaine taguée en 4D."
-todos: []
-isProject: false
----
+
+
 
 # Plan d'Implémentation — Écosystème Agile Agent IA sur Calypso
 
@@ -25,7 +22,94 @@ isProject: false
 **Bootstrap vs Cible** :
 
 - **Bootstrap** : Pendant toute l'implémentation (Phases 0 à 8), tu restes dans **Cursor**. C'est l'outil qui exécute les commandes, édite les fichiers et pilote l'installation.
-- **Cible** : L'IDE de l'écosystème (spec III.3, II) est **VS Code + Continue.dev + Roo Code**. Il est installé en Phase 7, une fois Ollama, LangGraph, scripts et comptes cloud opérationnels. Tu bascules vers cet IDE pour le travail quotidien (R-1 (Nghia Product Owner) Product Owner, R-7 (Nghia Stakeholder) Stakeholder) : priorisation backlog, validation H1 (validation Gros Ticket) (Gros Ticket)–H4 (Sprint Review), pair programming. Le flux automatisé (E4 (exécution code) exécution code, E5 (tests CI) tests CI) reste piloté par LangGraph, pas par Roo Code.
+- **Cible** : L'IDE de l'écosystème (spec III.3, II) est **VS Code + Continue.dev + Roo Code**. Il est installé en Phase 7, une fois Ollama, LangGraph, scripts et comptes cloud opérationnels. Tu bascules vers cet IDE pour le travail quotidien (R-1 (Nghia Product Owner), R-7 (Nghia Stakeholder)) : priorisation backlog, validation H1 (validation Gros Ticket)–H4 (Sprint Review), pair programming. Le flux automatisé (E4 (exécution code), E5 (tests CI)) reste piloté par LangGraph, pas par Roo Code.
+
+---
+
+## Vue d'ensemble des dépendances (ordre sans cycle)
+
+```mermaid
+flowchart TB
+    subgraph Phase0 [Phase 0 - Prérequis]
+        Sys[Python Git Docker NVIDIA]
+    end
+
+    subgraph Phase1 [Phase 1 - Ollama]
+        Ollama[Ollama]
+        Models[qwen gemma3 nomic-embed]
+    end
+
+    subgraph Phase2 [Phase 2 - Python]
+        Venv[venv]
+        Libs[LangChain LangGraph Chroma]
+    end
+
+    subgraph Phase3 [Phase 3 - Scripts]
+        Scripts[index_rag setup hooks handle_interrupt etc]
+    end
+
+    subgraph Phase4 [Phase 4 - Graphe]
+        Graph[Graphe LangGraph]
+        LangServe[LangServe]
+    end
+
+    subgraph Phase5 [Phase 5 - Cloud]
+        Keys[Clés API LangSmith Google Anthropic]
+    end
+
+    subgraph Phase6 [Phase 6 - CI]
+        GH[GitHub gh CLI]
+    end
+
+    subgraph Phase7 [Phase 7 - IDE cible]
+        VSCode[VS Code Continue Roo Code]
+    end
+
+    subgraph Phase10 [Phase 10 - Agents réels]
+        BaseStore[BaseStore load_context]
+        Interrupts[Interrupts H1-H6]
+        LLM[LLM cascade dans nœuds]
+        Tools[Tools R-4 Dev Team R-5 Release Manager]
+        Handle[handle_interrupt]
+    end
+
+    Sys --> Ollama
+    Ollama --> Models
+    Models --> Venv
+    Venv --> Libs
+    Libs --> Scripts
+    Scripts --> Graph
+    Libs --> Graph
+    Graph --> LangServe
+    Keys --> Graph
+    GH --> LangServe
+    Libs --> VSCode
+    LangServe --> BaseStore
+    BaseStore --> Interrupts
+    Interrupts --> LLM
+    LLM --> Tools
+    Tools --> Handle
+```
+
+---
+
+## Table des matières
+
+- [Conventions](#conventions)
+- [Phase 0 — Prérequis système (Calypso)](#phase-0--prérequis-système-calypso)
+- [Phase 1 — Ollama et modèles (Calypso)](#phase-1--ollama-et-modèles-calypso)
+- [Phase 2 — Projet orchestration Python (Calypso)](#phase-2--projet-orchestration-python-calypso)
+- [Phase 3 — Scripts opérationnels (Calypso)](#phase-3--scripts-opérationnels-calypso)
+- [Phase 4 — Graphe LangGraph (Calypso)](#phase-4--graphe-langgraph-calypso)
+- [Phase 5 — Comptes Cloud et clés API (Navigateur)](#phase-5--comptes-cloud-et-clés-api-navigateur)
+- [Phase 6 — GitHub CLI et Docker (Calypso)](#phase-6--github-cli-et-docker-calypso)
+- [Phase 7 — Installation de l'IDE cible (VS Code + Continue.dev + Roo Code)](#phase-7--installation-de-lide-cible-vs-code--continuedev--roo-code)
+- [Phase 8 — Bootstrap du projet albert-agile](#phase-8--bootstrap-du-projet-albert-agile)
+- [Phase 9 — Validation end-to-end](#phase-9--validation-end-to-end)
+- [Phase 10 — Implémentation réelle des agents (logique métier)](#phase-10--implémentation-réelle-des-agents-logique-métier)
+- [Guide utilisateur basique — Initier un projet de développement](#guide-utilisateur-basique--initier-un-projet-de-développement)
+- [Fichiers clés à créer/modifier](#fichiers-clés-à-créermodifier)
+- [Points d'attention pour un débutant](#points-dattention-pour-un-débutant)
 
 ---
 
@@ -302,7 +386,7 @@ chmod +x scripts/setup_project_hooks.sh
 - [ PC > Cursor > Éditeur ] -> (Calypso) Créer `scripts/handle_interrupt.py` (spec III.8-B). Ce script :
   - Accepte `--thread-id <id>` optionnel
   - Si omis : liste les threads en attente (API LangServe ou accès direct au checkpointer), triés par project_id puis H1 (validation Gros Ticket)→H6 (résolution conflit Git)
-  - Affiche le payload `__interrupt__`, demande `approved` | `rejected` | `feedback`
+  - Affiche le payload `__interrupt_`_, demande `approved` | `rejected` | `feedback`
   - Envoie `graph.invoke(Command(resume=...), config)`
   - Exit codes : 0 succès, 1 erreur, 2 usage
 - Implémentation minimale : appeler l'API LangServe `POST /runs/{thread_id}/resume` avec le payload. Si LangServe n'est pas encore déployé, le script peut être un stub qui affiche "À implémenter : appeler LangServe quand le graphe tourne".
@@ -419,9 +503,10 @@ add_routes(app, graph, path="/agile")
 **INSTRUCTIONS À AFFICHER À L'HUMAIN (quand l'agent atteint cette phase)** :
 
 > Nghia, voici les actions manuelles à effectuer :
-> 1. **LangSmith** : Ouvre https://smith.langchain.com → Crée un compte → Génère une clé API → Ouvre le fichier `.env` à la racine du projet (crée-le si absent, à partir de `.env.example`) et ajoute `LANGCHAIN_TRACING_V2=true` et `LANGCHAIN_API_KEY=<ta_clé>` (remplace par la vraie clé).
-> 2. **Google AI Studio** : Ouvre https://aistudio.google.com → Crée une clé API → Ajoute `GOOGLE_API_KEY=<ta_clé>` dans `.env`.
-> 3. **Anthropic** : Ouvre https://console.anthropic.com → Crée une clé API → Ajoute `ANTHROPIC_API_KEY=<ta_clé>` dans `.env`.
+>
+> 1. **LangSmith** : Ouvre [https://smith.langchain.com](https://smith.langchain.com) → Crée un compte → Génère une clé API → Ouvre le fichier `.env` à la racine du projet (crée-le si absent, à partir de `.env.example`) et ajoute `LANGCHAIN_TRACING_V2=true` et `LANGCHAIN_API_KEY=<ta_clé>` (remplace par la vraie clé).
+> 2. **Google AI Studio** : Ouvre [https://aistudio.google.com](https://aistudio.google.com) → Crée une clé API → Ajoute `GOOGLE_API_KEY=<ta_clé>` dans `.env`.
+> 3. **Anthropic** : Ouvre [https://console.anthropic.com](https://console.anthropic.com) → Crée une clé API → Ajoute `ANTHROPIC_API_KEY=<ta_clé>` dans `.env`.
 > 4. Quand c'est fait, dis « Phase 5 terminée » pour que l'agent poursuive.
 
 Aucune dépendance circulaire : les clés sont nécessaires au graphe mais le graphe peut être codé avant. **Sécurité** : les clés ne doivent jamais être commitées. Utiliser un fichier `.env` à la racine du projet (déjà dans `.gitignore`).
@@ -470,6 +555,7 @@ ANTHROPIC_API_KEY=
 **INSTRUCTIONS À AFFICHER À L'HUMAIN (quand l'agent atteint cette phase)** :
 
 > Nghia, exécute manuellement dans le terminal : `gh auth login`
+>
 > - Choisis « GitHub.com » → « HTTPS » → « Login with a web browser » (ou token si tu préfères).
 > - Copie le code affiché (ex. XXXX-XXXX), appuie sur Entrée, authentifie-toi dans le navigateur qui s'ouvre.
 > - Quand tu vois « Logged in as nghiaphan31 » (ou ton login), dis « Phase 6 terminée » pour que l'agent poursuive.
@@ -497,7 +583,8 @@ sudo apt install -y gh
 **INSTRUCTIONS À AFFICHER À L'HUMAIN (quand l'agent atteint cette phase)** :
 
 > Nghia, cette phase est entièrement manuelle sur ton PC :
-> 1. **Télécharger VS Code** : Ouvre https://code.visualstudio.com/ → Télécharge la version stable pour ton OS (ex. Windows) → Installe-le.
+>
+> 1. **Télécharger VS Code** : Ouvre [https://code.visualstudio.com/](https://code.visualstudio.com/) → Télécharge la version stable pour ton OS (ex. Windows) → Installe-le.
 > 2. **Remote-SSH** : Dans VS Code, Extensions (Ctrl+Shift+X) → Recherche « Remote - SSH » → Installe (Microsoft).
 > 3. **Connexion à Calypso** : Ctrl+Shift+P → « Remote-SSH: Connect to Host » → Ajoute ou sélectionne `nghia-phan@calypso` (ou ton hôte SSH).
 > 4. **Continue.dev** : Une fois connecté à Calypso, Extensions → « Continue » (continue.dev) → Installe. Paramètres Continue : Modèles → Ollama → URL `http://localhost:11434` → Modèles `qwen2.5-coder:7b`, `gemma3:12b-it-q4_K_M`.
@@ -540,7 +627,7 @@ L'IDE cible de l'écosystème (spec III.3, II) est VS Code + Continue.dev + Roo 
 pip install chroma-mcp
 ```
 
-- [ PC > VS Code > Éditeur ] -> (Calypso) Configurer chroma-mcp dans Continue : fichier `.continue/mcpServers/` ou équivalent, pointer vers `$AGILE_ORCHESTRATION_ROOT/chroma_db`. Permet à Continue (et donc à R-1 (Nghia Product Owner) Product Owner / R-7 (Nghia Stakeholder) Stakeholder) d'utiliser le même index RAG (recherche sémantique) que les agents LangGraph.
+- [ PC > VS Code > Éditeur ] -> (Calypso) Configurer chroma-mcp dans Continue : fichier `.continue/mcpServers/` ou équivalent, pointer vers `$AGILE_ORCHESTRATION_ROOT/chroma_db`. Permet à Continue (et donc à R-1 (Nghia Product Owner) / R-7 (Nghia Stakeholder)) d'utiliser le même index RAG (recherche sémantique) que les agents LangGraph.
 
 ### 7.6 Recommandation RTX 3060 (spec III.8-J, CC2)
 
@@ -599,13 +686,13 @@ uvicorn serve:app --host 0.0.0.0 --port 8000
 
 - [ PC > Navigateur Web ] Ouvrir [http://calypso:8000/playground](http://calypso:8000/playground) (ou localhost si tunnel SSH). Vérifier que le graphe est exposé.
 
-### 9.2 Lancer un run Phase 0 (E1 (idéation) idéation)
+### 9.2 Lancer un run Phase 0 (E1 idéation)
 
 - [ PC > Cursor > Terminal ] -> (Calypso) Avec venv activé :
 
 ```
 source .venv/bin/activate
-python run_graph.py --project-id albert-agile --start-phase E1 (idéation) --thread-id albert-agile-phase-0
+python run_graph.py --project-id albert-agile --start-phase E1 --thread-id albert-agile-phase-0
 ```
 
 - Le graphe doit atteindre H1 (validation Gros Ticket). Utiliser `handle_interrupt.py` pour valider.
@@ -623,58 +710,350 @@ python scripts/status.py
 
 ---
 
-## Récapitulatif des dépendances (ordre sans cycle)
+## Phase 10 — Implémentation réelle des agents (logique métier)
 
-```mermaid
-flowchart TB
-    subgraph Phase0 [Phase 0 - Prérequis]
-        Sys[Python Git Docker NVIDIA]
-    end
+**Objectif** : Passer des stubs aux nœuds fonctionnels. Les Phases 0–9 ont mis en place l'infrastructure (graphe, cascade, scripts, Chroma). Cette phase implémente la logique des agents : LLM, interrupts H1–H6, tools, BaseStore, RAG.
 
-    subgraph Phase1 [Phase 1 - Ollama]
-        Ollama[Ollama]
-        Models[qwen gemma3 nomic-embed]
-    end
+**Références** : spec `Specifications Ecosysteme Agile Agent IA.md` III.5, III.6, III.8 ; plan `~/.cursor/plans/lois_albert_core_pour_agents_agile_*.plan.md` ; nomenclature [NOMENCLATURE_R_H_E.md](../NOMENCLATURE_R_H_E.md).
 
-    subgraph Phase2 [Phase 2 - Python]
-        Venv[venv]
-        Libs[LangChain LangGraph Chroma]
-    end
+### 10.0 Lois Albert Core — laws.py et REGLES_AGENTS_AGILE (plan lois)
 
-    subgraph Phase3 [Phase 3 - Scripts]
-        Scripts[index_rag setup hooks handle_interrupt etc]
-    end
+- [ PC > Cursor > Éditeur ] -> (Calypso) Créer `specs/REGLES_AGENTS_AGILE.md` :
+  - Synthèse opérationnelle : mapping lois→agents (L0, L3, L7, L8, L9, L11, L18 transverses ; L1, L2, L4, L5, L6, L15, L19, L21 par rôle)
+  - Règles A (commandes par ligne), B (tableaux Markdown), C (prompts YAML), D (doc-in-code)
+  - Règles Tests (unit→intégration→E2E)
+  - Règles validation R-1 (Nghia Product Owner)/R-7 (Nghia Stakeholder)
+- [ PC > Cursor > Éditeur ] -> (Calypso) Créer `graph/laws.py` (ou `config/agile_laws.yaml`) :
+  - Les 21 lois + L21 (Doc-as-code / Doc-in-code) + Règles A/B/C/D + Règles Tests, en format structuré
+  - Chargé par chaque nœud pour injection dans le system prompt
+  - Référence : plan lois §5.1, §5.2
 
-    subgraph Phase4 [Phase 4 - Graphe]
-        Graph[Graphe LangGraph]
-        LangServe[LangServe]
-    end
+### 10.1 BaseStore et load_context complet (spec III.8-A, F10)
 
-    subgraph Phase5 [Phase 5 - Cloud]
-        Keys[Clés API LangSmith Google Anthropic]
-    end
+- [ PC > Cursor > Éditeur ] -> (Calypso) Implémenter un BaseStore (mémoire long terme) :
+  - **Mode dégradé** : store custom basé sur JSON (`data/basestore/{project_id}/*.json`) ou Chroma avec namespace
+  - **Mode production** : PostgresStore (pgvector) si Postgres dispo
+  - Namespaces : `project/{id}/adr_counter`, `project/{id}/sprint_counter`, `project/{id}/dod/{sprint_number}` (DoD = Definition of Done), `project/{id}/architecture`, `project/{id}/sprints`
+- [ PC > Cursor > Éditeur ] -> (Calypso) Compléter `load_context` :
+  1. Lire `project_root`, `project_id` depuis `config/projects.json` (ou configurable)
+  2. Charger `adr_counter`, `sprint_counter`, `dod` depuis BaseStore
+  3. Gérer `AGILE_BASESTORE_STRICT` (F10 résilience BaseStore) : si `false` et BaseStore inaccessible → valeurs par défaut + WARNING ; si `true` → exception
+  4. **Router selon `start_phase`** (passé via `configurable` au `invoke`) : E1 (idéation) → nœud R-0 (Albert Business Analyst) ; E3 (Sprint Backlog) → nœud R-3 (Albert Scrum Master) ; HOTFIX (correctif urgent) → créer SprintBacklog synthétique HF-001, puis R-4 (Albert Dev Team)
+  5. Injecter les valeurs dans l'état initial
 
-    subgraph Phase6 [Phase 6 - CI]
-        GH[GitHub gh CLI]
-    end
+### 10.2 Interrupts H1–H6 (spec III.6, III.8-B)
 
-    subgraph Phase7 [Phase 7 - IDE cible]
-        VSCode[VS Code Continue Roo Code]
-    end
+- [ PC > Cursor > Éditeur ] -> (Calypso) Modifier le graphe dans `graph/graph.py` :
+  - Remplacer les arêtes fixes par des **arêtes conditionnelles** : après R-0 (Albert Business Analyst), appeler `interrupt()` avec payload (Gros Ticket) → le graphe suspend, le checkpointer sauvegarde
+  - H1 (validation Gros Ticket) : fin R-0 (Albert Business Analyst) ; H2 (validation Architecture + DoD) : fin R-2 (Albert System Architect) ; H3 (validation Sprint Backlog) : fin R-3 (Albert Scrum Master) ; H4 (Sprint Review) : fin R-5 (Albert Release Manager)/R-6 (Albert QA & DevOps) ; H5 (approbation escalade API payante) : sur escalade N2 (cloud payant) ; H6 (résolution conflit Git) : sur conflit Git
+  - Utiliser `NodeInterrupt` ou `interrupt_before/after` selon API LangGraph
+  - Chaque interrupt retourne un payload JSON (`__interrupt__`, `reason`, données)
+- [ PC > Cursor > Éditeur ] -> (Calypso) Gérer les **branches rejected** : `Command(resume={"status":"rejected","feedback":"..."})` → injecter feedback dans état, reboucler vers le nœud précédent (R-0 Albert Business Analyst, R-2 Albert System Architect, R-3 Albert Scrum Master). Limite 3 cycles → H5 (approbation escalade API payante).
+- Référence : spec III.8-B, tableau H1–H6
 
-    Sys --> Ollama
-    Ollama --> Models
-    Models --> Venv
-    Venv --> Libs
-    Libs --> Scripts
-    Scripts --> Graph
-    Libs --> Graph
-    Graph --> LangServe
-    Keys --> Graph
-    GH --> LangServe
-    Libs --> VSCode
+### 10.3 Intégration LLM (cascade) dans les nœuds (spec III.5, F8, plan lois)
+
+- [ PC > Cursor > Éditeur ] -> (Calypso) Dans `graph/nodes.py`, remplacer les stubs par des appels réels :
+  - R-0 (Albert Business Analyst), R-2 (Albert System Architect) : `ChatOllama(gemma3:12b-it-q4_K_M)` → `ChatGoogleGenerativeAI(gemini-2.5-flash)` → `ChatAnthropic(claude-opus-4-6)` via `call_with_cascade`
+  - R-3 (Albert Scrum Master), R-4 (Albert Dev Team), R-5 (Albert Release Manager), R-6 (Albert QA & DevOps) : `ChatOllama(qwen2.5-coder:7b)` → Gemini → `ChatAnthropic(claude-sonnet-4-6)`
+  - Créer des prompts système par rôle dans `graph/prompts/` ou `config/prompts/` (Règle C : templates en bloc texte avec frontmatter YAML)
+  - **Injection des lois** : pour chaque nœud, charger `graph/laws.py` et injecter les lois applicables au rôle dans le system prompt (ex. R-0 (Albert Business Analyst) : L1 Anti-précipitation, L4 Gabarit CDC ; R-4 (Albert Dev Team) : L8, L9, L19, L21, Règles Tests)
+  - Règle B : Backlog, Architecture, Sprint Backlog en **tableaux Markdown**
+  - Utiliser `with_structured_output(Schema)` (Pydantic) pour Gros Ticket, Sprint Backlog, Architecture, tickets
+  - Sur escalade N2 (cloud payant) : déclencher H5 (approbation escalade API payante) avant d'appeler Claude
+
+### 10.4 Tools R-4 et R-5 (spec III.8-H, F9, plan lois L8, L19)
+
+- [ PC > Cursor > Éditeur ] -> (Calypso) Créer `graph/tools.py` :
+  - `read_file(path: str) -> str` : lecture fichier (chemin relatif à `project_root`)
+  - `write_file(path: str, content: str)` : écriture **atomique** (F9 write_file atomique) : `.tmp` puis `os.replace()`. **L19 Idempotence** : vérifier existence du fichier avant écrasement (option `overwrite=False` ou demander confirmation)
+  - `run_shell(cmd: str, cwd: Path)` : exécution avec **allowlist stricte** (L8 Non-destruction) :
+    - **Autorisé** : `pip install`, `pytest`, `ruff`, `git add/commit/push/checkout/merge`, `npm run build/test`, `sphinx-build`, `ollama run`
+    - **Interdit** : `rm -rf`, `eval`, `exec`, chemins absolus en dur (utiliser `project_root` depuis config)
+- [ PC > Cursor > Éditeur ] -> (Calypso) R-4 (Albert Dev Team) : binder `read_file`, `write_file`, `run_shell` au nœud
+- [ PC > Cursor > Éditeur ] -> (Calypso) R-5 (Albert Release Manager) : `run_shell` pour `git checkout`, `git add`, `git commit`, `git merge`, `gh pr create`, `gh pr merge` uniquement
+
+### 10.5 RAG Chroma dans les nœuds (spec III.7)
+
+- [ PC > Cursor > Éditeur ] -> (Calypso) Créer une fonction `query_rag(project_id: str, query: str, top_k: int = 5) -> list[str]` :
+  - Charger la collection Chroma du projet (`chroma_db/` ou via `AGILE_ORCHESTRATION_ROOT`)
+  - Utiliser `OllamaEmbeddings(model="nomic-embed-text")` pour la requête
+  - Retourner les chunks pertinents
+- [ PC > Cursor > Éditeur ] -> (Calypso) R-2 (Albert System Architect), R-3 (Albert Scrum Master), R-4 (Albert Dev Team) : au début de chaque nœud, appeler `query_rag` pour récupérer le contexte (Backlog, Architecture.md, code existant) et l'injecter dans le prompt
+
+### 10.6 handle_interrupt.py branché à LangServe (spec III.8-B)
+
+- [ PC > Cursor > Éditeur ] -> (Calypso) Compléter `scripts/handle_interrupt.py` :
+  1. Sans `--thread-id` : appeler l'API LangServe pour lister les runs avec interrupt en attente (ou lire le checkpointer)
+  2. Avec `--thread-id` : récupérer le payload `__interrupt_`_, l'afficher, demander `approved` | `rejected` | `feedback`
+  3. Envoyer `POST {LANGSERVE_BASE}/runs/{thread_id}/resume` avec `Command(resume=...)` (format LangServe)
+  4. Exit codes : 0 succès, 1 erreur, 2 usage
+- Référence : spec III.8-B, F5 (notification interrupt si > 48h)
+
+### 10.7 Self-Healing R-6→R-4 (spec III.8-I, plan lois)
+
+- [ PC > Cursor > Éditeur ] -> (Calypso) Dans le graphe, ajouter une arête conditionnelle : R-6 (Albert QA & DevOps) → R-4 (Albert Dev Team) si tests en échec, avec compteur `self_healing_iterations` dans l'état
+  - Seuil : `SELF_HEALING_MAX_ITERATIONS=3` (variable d'env)
+  - Au-delà : interrupt H5 (approbation escalade API payante) `reason="cost_escalation"` ou arrêt avec rapport
+  - **Ordre pipeline E5 (tests CI)** (plan lois) : build_docs → unit → intégration → E2E. Premier échec → Self-Healing
+  - **L21 Doc-as-code** : R-6 (Albert QA & DevOps) refuse tout commit R-4 (Albert Dev Team) qui ajoute du code sans docstrings sur les éléments publics, ou qui modifie l'API sans mise à jour de la doc générée (si `BUILD_DOCS_REQUIRED=true`)
+
+### 10.8 Structure nobles/opérationnels (plan lois §3.4)
+
+- [ PC > Cursor > Éditeur ] -> (Calypso) Documenter dans `specs/REGLES_AGENTS_AGILE.md` :
+  - **Nobles** : `/specs`, `/src`, `/docs`, `Architecture.md`, `Product Backlog.md`, ADRs (Architecture Decision Record)
+  - **Opérationnels** : `/.operations` (artefacts temporaires, logs, chroma_db local au projet)
+  - R-2 (Albert System Architect) et R-4 (Albert Dev Team) : artefacts IA en quarantaine (ex. `.operations/artifacts`) avant promotion par R-1 (Nghia Product Owner)/R-7 (Nghia Stakeholder)
+
+### 10.9 Contradictions (L18) et interrupt
+
+- [ PC > Cursor > Éditeur ] -> (Calypso) Si RAG (recherche sémantique)/Backlog/Architecture.md se contredisent : l'agent produit un payload `__interrupt_`_ avec `reason="spec_contradiction"` et liste les sources. R-1 (Nghia Product Owner) ou R-7 (Nghia Stakeholder) résout (plan lois L18 Arrêt sur contradiction).
+
+### 10.10 Ordre d'exécution recommandé
+
+1. 10.0 Lois et REGLES_AGENTS_AGILE (prérequis pour les prompts)
+2. 10.1 BaseStore + load_context (prérequis pour tout)
+3. 10.3 LLM dans les nœuds (avec injection lois, sans tools ni interrupts)
+4. 10.2 Interrupts (H1 validation Gros Ticket après R-0, puis H2, H3, etc.)
+5. 10.6 handle_interrupt (pour tester)
+6. 10.4 Tools R-4 (Albert Dev Team)/R-5 (Albert Release Manager) (allowlist, L19)
+7. 10.5 RAG dans les nœuds
+8. 10.7 Self-Healing R-6→R-4 + L21 (contrôles R-6 Albert QA & DevOps)
+9. 10.8 Structure nobles/opérationnels (documentation)
+
+### 10.11 Ce que nous obtenons à la fin de la phase 10
+
+À la fin de la Phase 10, on dispose d'un **système complet** : un graphe d'agents Agile fonctionnel, où les nœuds ne sont plus des stubs mais des agents IA réels. Les Phases 0 à 9 ont fourni l'infrastructure ; la Phase 10 branche la logique métier : LLM, interrupts, tools, BaseStore, RAG (recherche sémantique).
+
+**Les 7 rôles Agile opérationnels :**
+
+- **Albert Business Analyst** : produit les Gros Tickets (idéation, phase E1 idéation), utilise la cascade IA (Ollama local → Gemini cloud gratuit → Claude cloud payant) et le gabarit CDC (Cahier des charges).
+- **Nghia Product Owner** : priorise le backlog, valide les Gros Tickets (H1 validation Gros Ticket), le Sprint Backlog (H3 validation Sprint Backlog) et la Sprint Review (H4 Sprint Review).
+- **Albert System Architect** : définit l'architecture et le DoD (Definition of Done) en phase E2 architecture, valide la cohérence, interroge le RAG pour le contexte.
+- **Albert Scrum Master** : découpe le Sprint Backlog (phase E3 Sprint Backlog) à partir du backlog et du contexte RAG.
+- **Albert Dev Team** : exécute le code en sprint (phase E4 exécution code), avec les tools `read_file`, `write_file`, `run_shell` sécurisés (allowlist L8 Non-destruction), et le Self-Healing en cas de tests en échec.
+- **Albert Release Manager** : gère Git et les PR (pull requests), clôture le sprint (phase E6 clôture sprint, merge).
+- **Nghia Stakeholder** : valide l'architecture et le DoD (H2 validation Architecture + DoD), participe à la Sprint Review (H4), résout les contradictions de spec (L18 Arrêt sur contradiction) et les conflits Git (H6 résolution conflit Git).
+
+**Les 6 points d'interruption human-in-the-loop :**
+
+
+| Interrupt                           | Moment                                                                                     |
+| ----------------------------------- | ------------------------------------------------------------------------------------------ |
+| H1 validation Gros Ticket           | Après Albert Business Analyst — Nghia Product Owner valide le Gros Ticket                  |
+| H2 validation Architecture + DoD    | Après Albert System Architect — Nghia Stakeholder valide l'architecture                    |
+| H3 validation Sprint Backlog        | Après Albert Scrum Master — Nghia Product Owner valide le Sprint Backlog                   |
+| H4 Sprint Review                    | Après Albert Release Manager / Albert QA & DevOps — CI verts, validation Nghia Stakeholder |
+| H5 approbation escalade API payante | Sur escalade vers Claude (cloud payant) ou après 3 cycles de rejet                         |
+| H6 résolution conflit Git           | Sur conflit Git non résolu par l'IA — intervention manuelle                                |
+
+
+**Ce qui est en place :**
+
+- **BaseStore** (mémoire long terme) : ADRs (Architecture Decision Record), sprints, DoD versionnée.
+- **load_context** : initialise le thread, route selon la phase (E1 idéation, E3 Sprint Backlog, HOTFIX correctif urgent).
+- **RAG** (recherche sémantique) : fournit à Albert System Architect, Albert Scrum Master et Albert Dev Team le contexte (backlog, Architecture.md, code) pour leurs décisions.
+- **handle_interrupt.py** : liste les runs en attente, affiche le payload, demande approbation/rejet/feedback, reprend le graphe via LangServe.
+
+**Comportements garantis :**
+
+- **Self-Healing** : si Albert QA & DevOps détecte un échec de tests, il renvoie vers Albert Dev Team pour correction (jusqu'à 3 fois, puis H5 escalade ou arrêt).
+- **Cascade IA** : Ollama (N0 local) → Gemini (N1 cloud gratuit) → Claude (N2 cloud payant), avec H5 avant d'appeler Claude.
+- **Lois Albert Core** : L1 Anti-précipitation, L4 Gabarit CDC, L8 Non-destruction, L9, L18 Arrêt sur contradiction, L19 Idempotence, L21 Doc-as-code et règles de tests injectées dans les prompts.
+- **Doc-as-code (L21)** : Albert QA & DevOps refuse tout commit d'Albert Dev Team qui ajoute du code sans docstrings ou qui modifie l'API sans mise à jour de la doc.
+
+**En résumé** : un flux Agile complet piloté par des agents IA, avec des checkpoints humains explicites (Nghia Product Owner, Nghia Stakeholder) et des garde-fous (L8, L19, allowlist des tools).
+
+---
+
+## Guide utilisateur basique — Initier un projet de développement
+
+Ce guide explique comment démarrer un nouveau projet de développement avec l'écosystème Agile Agent IA, une fois les Phases 0 à 10 terminées. Chaque action humaine est taguée selon la **Nomenclature 4D** pour éviter toute ambiguïté entre la machine où vous tapez et celle où la commande s'exécute.
+
+### Nomenclature 4D — Rappel
+
+
+| Format                                         | Signification                                                                                        |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `[ PC > Cursor > Terminal ] -> (Calypso)`      | Vous tapez dans le terminal Cursor sur votre PC ; la commande s'exécute sur Calypso (serveur Linux). |
+| `[ PC > Cursor > Éditeur ] -> (Calypso)`       | Vous modifiez un fichier via Cursor ; le fichier réside sur le disque de Calypso.                    |
+| `[ PC > Cursor > Chat ] -> (Cloud Opus 4.6)`   | Vous interagissez avec l'assistant IA dans le volet Chat ; le modèle tourne dans le cloud.           |
+| `[ PC > Navigateur Web > Console ] -> (Cloud)` | Vous êtes sur un site web (ex. LangSmith) ; l'interface s'exécute dans le cloud.                     |
+
+
+**Règle d'or** : Toute action humaine doit être préfixée par le tag 4D approprié. Aucune ambiguïté n'est tolérée dans un environnement distribué (Laptop Windows vs Calypso).
+
+---
+
+### Prérequis
+
+- L'écosystème est installé et opérationnel sur Calypso (Ollama, LangGraph, LangServe, scripts, clés API dans `.env`).
+- Vous êtes connecté à Calypso via Cursor en Remote SSH.
+- Le venv du projet d'orchestration est activé sur Calypso.
+
+---
+
+### Étape 1 — Déclarer le projet dans le registre
+
+**Qui** : Nghia (ou tout humain configurant un nouveau projet).  
+**Où** : Le fichier `config/projects.json` réside sur Calypso ; vous l'éditez depuis Cursor.
+
+1. [ PC > Cursor > Explorateur ] -> (Calypso) Naviguer vers le dossier racine du projet d'orchestration (ex. `albert-agile`).
+2. [ PC > Cursor > Éditeur ] -> (Calypso) Ouvrir `config/projects.json`.
+3. [ PC > Cursor > Éditeur ] -> (Calypso) Ajouter une entrée pour le nouveau projet. Exemple pour un projet nommé `mon-projet` :
+
+```json
+"mon-projet": {
+  "path": "/home/nghia-phan/PROJECTS_WITH_ALBERT/mon-projet",
+  "auto_next_sprint": false,
+  "archived": false,
+  "github_repo": "nghiaphan31/mon-projet"
+}
 ```
 
+1. [ PC > Cursor > Éditeur ] -> (Calypso) Vérifier que le chemin `path` pointe vers un dossier existant. Si le projet n'existe pas encore :
+  - [ PC > Cursor > Terminal ] -> (Calypso) Créer le dossier et optionnellement cloner un dépôt :  
+   `mkdir -p /home/nghia-phan/PROJECTS_WITH_ALBERT/mon-projet`  
+   (ou `git clone https://github.com/owner/repo.git mon-projet` selon le cas)
+2. [ PC > Cursor > Éditeur ] -> (Calypso) Sauvegarder `config/projects.json`.
+
+---
+
+### Étape 2 — Indexer le projet (RAG, recherche sémantique)
+
+**Qui** : Vous (humain).  
+**Quoi** : Lancer le script d'indexation.  
+**Où** : Le script s'exécute sur Calypso ; il lit les fichiers du projet (depuis le `path` déclaré) et écrit dans Chroma (base vectorielle).
+
+**Pourquoi** : Les agents (Albert System Architect, Albert Scrum Master, Albert Dev Team) interrogent le RAG pour récupérer le contexte (backlog, Architecture.md, code). Sans index, ils n'ont pas accès au contenu du projet.
+
+1. [ PC > Cursor > Terminal ] -> (Calypso) Se placer à la racine du projet d'orchestration et activer le venv :
+
+```
+cd /home/nghia-phan/PROJECTS_WITH_ALBERT/albert-agile
+source .venv/bin/activate
+```
+
+1. [ PC > Cursor > Terminal ] -> (Calypso) Lancer l'indexation :
+
+```
+python scripts/index_rag.py --project-id mon-projet
+```
+
+1. **Effet** : Le script parcourt les fichiers du projet (specs, code source, Architecture.md, Product Backlog, etc.), les chunkifie, génère les embeddings via Ollama (`nomic-embed-text`) et les stocke dans Chroma. Les agents pourront ensuite faire des requêtes sémantiques.
+2. [ PC > Cursor > Terminal ] -> (Calypso) Vérifier qu'aucune erreur n'apparaît. En cas d'échec, contrôler que le `path` dans `config/projects.json` est correct et accessible.
+
+---
+
+### Étape 3 — Lancer la phase d'idéation (E1)
+
+**Qui** : Vous (humain) lancez le graphe.  
+**Quoi** : Démarrage du flux Agile en phase E1 (idéation, Gros Ticket).  
+**Où** : `run_graph.py` s'exécute sur Calypso ; le graphe LangGraph tourne sur Calypso ; les appels LLM passent par Ollama (local) puis éventuellement Gemini/Claude (cloud).
+
+1. [ PC > Cursor > Terminal ] -> (Calypso) Avec le venv activé :
+
+```
+python run_graph.py --project-id mon-projet --start-phase E1 --thread-id mon-projet-phase-0
+```
+
+1. **Effet** :
+  - `load_context` charge le projet depuis `config/projects.json` et le BaseStore.  
+  - Le graphe route vers **Albert Business Analyst** (agent IA).  
+  - Albert Business Analyst produit un **Gros Ticket** (idéation, cahier des charges) en s'appuyant sur le RAG et les lois (L1, L4, gabarit CDC).  
+  - À la fin du nœud, le graphe appelle `interrupt()` et se suspend sur **H1 (validation Gros Ticket)**.  
+  - Le checkpointer sauvegarde l'état ; le thread reste en attente.
+2. [ PC > Cursor > Terminal ] -> (Calypso) Le script affiche que le graphe est suspendu (ou qu'il a terminé si LangServe gère l'asynchrone). Vous devez valider l'interrupt via `handle_interrupt.py`.
+
+---
+
+### Étape 4 — Valider les interrupts (H1, H2, H3, H4, etc.)
+
+**Qui** : Nghia Product Owner (H1, H3), Nghia Stakeholder (H2, H4), ou vous en leur qualité.  
+**Quoi** : Consulter les runs en attente, voir le payload proposé par l'IA, et décider : approuver, rejeter avec feedback, ou (pour H5) autoriser l'escalade API payante.  
+**Où** : `handle_interrupt.py` s'exécute sur Calypso ; il communique avec LangServe (ou le checkpointer) pour reprendre le graphe.
+
+#### 4.1 Lister les interrupts en attente
+
+1. [ PC > Cursor > Terminal ] -> (Calypso)
+
+```
+python scripts/handle_interrupt.py
+```
+
+1. **Effet** : Sans `--thread-id`, le script interroge l'API LangServe (ou le checkpointer) et affiche la liste des runs suspendus, triés par `project_id` puis par type d'interrupt (H1 validation Gros Ticket → H6 résolution conflit Git). Vous voyez les `thread_id` en attente.
+
+#### 4.2 Valider ou rejeter un interrupt spécifique
+
+1. [ PC > Cursor > Terminal ] -> (Calypso)
+
+```
+python scripts/handle_interrupt.py --thread-id mon-projet-phase-0
+```
+
+1. **Effet** : Le script récupère le payload `__interrupt__` (ex. le Gros Ticket proposé par Albert Business Analyst), l'affiche à l'écran, et demande : `approved` | `rejected` | `feedback`.
+2. **Si vous tapez `approved`** :
+  - Le script envoie `Command(resume={"status":"approved"})` à LangServe.  
+  - Le graphe reprend sur Calypso.  
+  - Albert System Architect prend le relais (phase E2 architecture).  
+  - Le flux continue jusqu'au prochain interrupt (H2 validation Architecture + DoD).
+3. **Si vous tapez `rejected` puis un message** :
+  - Le feedback est injecté dans l'état.  
+  - Le graphe reboucle vers Albert Business Analyst.  
+  - Après 3 rejets successifs, le graphe déclenche H5 (approbation escalade API payante) ou s'arrête avec un rapport.
+4. **Répéter** pour chaque interrupt (H2 après Albert System Architect, H3 après Albert Scrum Master, H4 après Albert Release Manager / Albert QA & DevOps, etc.) jusqu'à la fin du flux ou jusqu'à la clôture du sprint.
+
+---
+
+### Étape 5 — Lancer un sprint (E3 Sprint Backlog)
+
+**Qui** : Vous (humain).  
+**Quoi** : Démarrer le flux en phase E3 pour construire ou exécuter un Sprint Backlog.  
+**Où** : Même principe qu'étape 3 ; le graphe route vers Albert Scrum Master puis Albert Dev Team.
+
+1. [ PC > Cursor > Terminal ] -> (Calypso)
+
+```
+python run_graph.py --project-id mon-projet --start-phase E3 --thread-id mon-projet-sprint-01
+```
+
+1. **Effet** :
+  - `load_context` route vers **Albert Scrum Master** (ou directement vers Albert Dev Team si le Sprint Backlog existe déjà).  
+  - Albert Scrum Master découpe le Sprint Backlog à partir du Product Backlog et du contexte RAG.  
+  - À la fin, interrupt **H3 (validation Sprint Backlog)** : Nghia Product Owner valide.  
+  - Puis Albert Dev Team exécute le code (phase E4), Albert QA & DevOps lance les tests (phase E5), etc.
+
+---
+
+### Étape 6 — Lancer un correctif urgent (HOTFIX)
+
+**Qui** : Vous (humain).  
+**Quoi** : Créer un correctif urgent depuis `main` sans passer par le flux E1→E2→E3.  
+**Où** : Calypso ; le graphe crée un Sprint Backlog synthétique (HF-001) et route vers Albert Dev Team.
+
+1. [ PC > Cursor > Terminal ] -> (Calypso)
+
+```
+python run_graph.py --project-id mon-projet --start-phase HOTFIX --thread-id mon-projet-hotfix-001 --hotfix-description "Correction bug critique sur la connexion API"
+```
+
+1. **Effet** :
+  - Un Sprint Backlog synthétique (ex. HF-001) est créé à partir de la description.  
+  - Le graphe route directement vers **Albert Dev Team**.  
+  - Albert Dev Team implémente le correctif, Albert QA & DevOps exécute les tests ; les interrupts H3/H4 peuvent être contournés ou simplifiés selon la spec.
+
+---
+
+### Points d'attention
+
+
+| Point                                  | Action 4D                                                            | Détail                                                                                                                                                              |
+| -------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Vérifier les interrupts en attente** | [ PC > Cursor > Terminal ] -> (Calypso)                              | `python scripts/handle_interrupt.py` sans arguments pour lister les runs suspendus.                                                                                 |
+| **Ollama — modèle en mémoire**         | [ PC > Cursor > Terminal ] -> (Calypso)                              | Pour E4 (exécution code) / E5 (tests CI), définir `OLLAMA_KEEP_ALIVE=qwen2.5-coder:7b` pour éviter le swapping GPU.                                                 |
+| **Indexation différée (F7)**           | [ PC > Cursor > Terminal ] ou [ PC > Cursor > Éditeur ] -> (Calypso) | Ne pas lancer `index_rag` pendant E4/E5 sur une machine avec une seule GPU (RTX 3060) ; utiliser `AGILE_DEFER_INDEX=true` ; le hook écrit dans `pending_index.log`. |
+| **LangServe en arrière-plan**          | [ PC > Cursor > Terminal ] -> (Calypso)                              | Si vous utilisez l'API LangServe : `uvicorn serve:app --host 0.0.0.0 --port 8000` ; le graphe est alors invoqué via HTTP.                                           |
+| **Playground**                         | [ PC > Navigateur Web ] -> (Cloud ou tunnel)                         | Ouvrir `http://calypso:8000/playground` (ou localhost si tunnel SSH) pour tester le graphe interactivement.                                                         |
 
 
 ---
@@ -693,8 +1072,12 @@ flowchart TB
 | [scripts/notify_pending_interrupts.py](scripts/notify_pending_interrupts.py) | Créer                                                                              |
 | [scripts/status.py](scripts/status.py)                                       | Créer                                                                              |
 | [scripts/index_rag.py](scripts/index_rag.py)                                 | Vérifier/compléter                                                                 |
-| graph/state.py, graph/nodes.py, graph/graph.py                               | Créer                                                                              |
-| graph/cascade.py                                                             | Créer (F8 (cascade échec N0))                                                                         |
+| graph/state.py, graph/nodes.py, graph/graph.py                               | Créer (Phase 4)                                                                    |
+| graph/cascade.py                                                             | Créer (F8, Phase 4)                                                                |
+| graph/tools.py                                                               | Créer (Phase 10.4)                                                                 |
+| graph/laws.py                                                                | Créer (Phase 10.0)                                                                 |
+| graph/prompts/ ou config/prompts/                                            | Créer (Phase 10.3, Règle C)                                                        |
+| specs/REGLES_AGENTS_AGILE.md                                                 | Créer (Phase 10.0)                                                                 |
 | run_graph.py                                                                 | Créer                                                                              |
 | serve.py                                                                     | Créer (LangServe)                                                                  |
 | ~/.bashrc                                                                    | Ajouter OLLAMA_KEEP_ALIVE, AGILE_*, LANGCHAIN_*, GOOGLE_API_KEY, ANTHROPIC_API_KEY |

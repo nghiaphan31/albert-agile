@@ -18,13 +18,14 @@
 | 7 | ✅ | VS Code, Remote-SSH, Continue.dev, Roo Code (PC) |
 | 8 | ✅ | setup_project_hooks exécuté, index RAG (recherche sémantique) (442 chunks) |
 | 9 | ✅ | LangServe OK, run_graph OK, status.py OK |
+| 10 | ⏳ | Implémentation réelle des agents (voir plan Phase 10) |
 
 ## Graphe LangGraph
 
-- **Structure** : load_context → r0 (R-0 (Albert Business Analyst) Business Analyst) → r2 (R-2 (Albert System Architect) System Architect) → r3 (R-3 (Albert Scrum Master) Scrum Master) → r4 (R-4 (Albert Dev Team) Dev Team) → r5 (R-5 (Albert Release Manager) Release Manager) → r6 (R-6 (Albert QA & DevOps) QA & DevOps) → END
+- **Structure** : load_context → r0 (R-0 Albert Business Analyst) → r2 → r3 → r4 → r5 → r6 → END
 - **Checkpointer** : SqliteSaver (checkpoints.sqlite)
 - **Exposition** : uvicorn serve:app, path /agile
-- **CLI** : `python run_graph.py --project-id albert-agile --start-phase E1 (idéation)`
+- **CLI** : `python run_graph.py --project-id albert-agile --start-phase E1`
 
 ## Agents (nœuds) — Stubs
 
