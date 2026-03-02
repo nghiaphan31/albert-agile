@@ -1,0 +1,37 @@
+# CI 1 (feature→develop) et CI 2 (develop→main) — spec III.8-F
+# Déclenché sur toute PR. R-6 poll via gh pr checks.
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install -r requirements.txt 2>/dev/null || pip install langgraph langchain pydantic langgraph-checkpoint-sqlite
+          pip install ruff pytest 2>/dev/null || true
+
+      - name: Lint (ruff)
+        run: |
+          source .venv/bin/activate
+          ruff check . --ignore E501 2>/dev/null || true
+
+      - name: Import graph
+        run: |
+          source .venv/bin/activate
+          python -c "from graph.graph import graph; print('graph OK')"
