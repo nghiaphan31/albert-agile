@@ -74,7 +74,9 @@ docker --version
 docker run hello-world
 ```
 
-- Si absent : `sudo apt install -y docker.io` puis `sudo usermod -aG docker $USER` ; se déconnecter/reconnecter pour que le groupe soit pris en compte.
+- Si absent : `sudo apt install -y docker.io` puis `sudo usermod -aG docker $USER`.
+
+**INSTRUCTIONS À AFFICHER À L'HUMAIN (si Docker venait d'être installé)** : Déconnecte Cursor de Calypso (File > Close Remote Connection), reconnecte-toi (File > Connect to Host), puis reprends à l'étape 0.5. Le groupe `docker` n'est actif qu'après reconnexion.
 
 ### 0.5 Vérifier NVIDIA + pilote + VRAM
 
@@ -189,7 +191,7 @@ mkdir -p scripts config logs chroma_db
 
 ### 2.4 Créer ou mettre à jour config/projects.json
 
-- [ PC > Cursor > Éditeur ] -> (Calypso) Ouvrir `config/projects.json`. Format attendu (spec III.8-G) :
+- [ PC > Cursor > Éditeur ] -> (Calypso) Ouvrir `config/projects.json`. **Ne pas écraser** les clés `_comment` et `_exemple` si présentes ; fusionner ou ajouter le bloc `albert-agile` au lieu de remplacer tout le fichier. Format attendu pour le bloc projet (spec III.8-G) :
 
 ```json
 {
@@ -414,6 +416,14 @@ add_routes(app, graph, path="/agile")
 
 **ARRÊT : action humaine requise.** L'agent ne peut pas créer de comptes ni récupérer de clés. Cette phase est exécutée par Nghia.
 
+**INSTRUCTIONS À AFFICHER À L'HUMAIN (quand l'agent atteint cette phase)** :
+
+> Nghia, voici les actions manuelles à effectuer :
+> 1. **LangSmith** : Ouvre https://smith.langchain.com → Crée un compte → Génère une clé API → Ouvre le fichier `.env` à la racine du projet (crée-le si absent, à partir de `.env.example`) et ajoute `LANGCHAIN_TRACING_V2=true` et `LANGCHAIN_API_KEY=<ta_clé>` (remplace par la vraie clé).
+> 2. **Google AI Studio** : Ouvre https://aistudio.google.com → Crée une clé API → Ajoute `GOOGLE_API_KEY=<ta_clé>` dans `.env`.
+> 3. **Anthropic** : Ouvre https://console.anthropic.com → Crée une clé API → Ajoute `ANTHROPIC_API_KEY=<ta_clé>` dans `.env`.
+> 4. Quand c'est fait, dis « Phase 5 terminée » pour que l'agent poursuive.
+
 Aucune dépendance circulaire : les clés sont nécessaires au graphe mais le graphe peut être codé avant. **Sécurité** : les clés ne doivent jamais être commitées. Utiliser un fichier `.env` à la racine du projet (déjà dans `.gitignore`).
 
 ### 5.1 Créer le fichier .env.example (template sans secrets)
@@ -457,6 +467,13 @@ ANTHROPIC_API_KEY=
 
 **ARRÊT : action humaine requise.** `gh auth login` est interactif (choix méthode, ouverture navigateur). L'agent ne peut pas le terminer seul.
 
+**INSTRUCTIONS À AFFICHER À L'HUMAIN (quand l'agent atteint cette phase)** :
+
+> Nghia, exécute manuellement dans le terminal : `gh auth login`
+> - Choisis « GitHub.com » → « HTTPS » → « Login with a web browser » (ou token si tu préfères).
+> - Copie le code affiché (ex. XXXX-XXXX), appuie sur Entrée, authentifie-toi dans le navigateur qui s'ouvre.
+> - Quand tu vois « Logged in as nghiaphan31 » (ou ton login), dis « Phase 6 terminée » pour que l'agent poursuive.
+
 ### 6.1 Installer gh (GitHub CLI)
 
 - [ PC > Cursor > Terminal ] -> (Calypso)
@@ -465,7 +482,7 @@ ANTHROPIC_API_KEY=
 sudo apt install -y gh
 ```
 
-- [ PC > Cursor > Terminal ] -> (Calypso) **Action humaine** : lancer `gh auth login` et suivre les invites (GitHub.com, HTTPS, s'authentifier via navigateur ou token). Une seule fois.
+- [ PC > Cursor > Terminal ] -> (Calypso) **Action humaine** : lancer `gh auth login` et suivre les invites. Une seule fois.
 
 ### 6.2 Vérifier Docker
 
@@ -476,6 +493,16 @@ sudo apt install -y gh
 ## Phase 7 — Installation de l'IDE cible (VS Code + Continue.dev + Roo Code)
 
 **ARRÊT : action humaine requise.** Télécharger VS Code, l'installer, configurer les extensions sont des actions sur le poste local. L'agent ne peut pas les exécuter. Cette phase est réalisée manuellement par Nghia.
+
+**INSTRUCTIONS À AFFICHER À L'HUMAIN (quand l'agent atteint cette phase)** :
+
+> Nghia, cette phase est entièrement manuelle sur ton PC :
+> 1. **Télécharger VS Code** : Ouvre https://code.visualstudio.com/ → Télécharge la version stable pour ton OS (ex. Windows) → Installe-le.
+> 2. **Remote-SSH** : Dans VS Code, Extensions (Ctrl+Shift+X) → Recherche « Remote - SSH » → Installe (Microsoft).
+> 3. **Connexion à Calypso** : Ctrl+Shift+P → « Remote-SSH: Connect to Host » → Ajoute ou sélectionne `nghia-phan@calypso` (ou ton hôte SSH).
+> 4. **Continue.dev** : Une fois connecté à Calypso, Extensions → « Continue » (continue.dev) → Installe. Paramètres Continue : Modèles → Ollama → URL `http://localhost:11434` → Modèles `qwen2.5-coder:7b`, `gemma3:12b-it-q4_K_M`.
+> 5. **Roo Code** : Extensions → « Roo Code » → Installe. Même config Ollama : `http://localhost:11434`.
+> 6. Quand c'est fait, dis « Phase 7 terminée » pour que l'agent poursuive (ou considère le plan complet).
 
 L'IDE cible de l'écosystème (spec III.3, II) est VS Code + Continue.dev + Roo Code. Cette phase s'exécute **une fois** Ollama, LangGraph, les scripts et les comptes cloud en place. Jusque-là, tu continues à utiliser Cursor en bootstrap.
 
