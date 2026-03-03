@@ -18,7 +18,7 @@
 | 7 | ✅ | VS Code, Remote-SSH, Continue.dev, Roo Code (PC) |
 | 8 | ✅ | setup_project_hooks exécuté, index RAG (recherche sémantique) (442 chunks) |
 | 9 | ✅ | LangServe OK, run_graph OK, status.py OK |
-| 10 | ⏳ | Implémentation réelle des agents (voir plan Phase 10) |
+| 10 | ✅ | Lois, BaseStore, LLM cascade, anonymisation, interrupts H1-H6, tools, RAG, Self-Healing, L18 |
 
 ## Graphe LangGraph
 
@@ -27,14 +27,14 @@
 - **Exposition** : uvicorn serve:app, path /agile
 - **CLI** : `python run_graph.py --project-id albert-agile --start-phase E1`
 
-## Agents (nœuds) — Stubs
+## Agents (nœuds) — Implémentation Phase 10
 
-Les nœuds R-0 (Albert Business Analyst) à R-6 (Albert QA & DevOps) existent mais retournent des messages statiques. Non implémenté :
-- Appels LLM (cascade N0 (local Ollama)→N1 (cloud gratuit)→N2 (cloud payant))
-- interrupt() H1 (validation Gros Ticket)–H6 (résolution conflit Git)
-- Tools R-4 (Albert Dev Team)/R-5 (Albert Release Manager) (read_file, write_file, run_shell)
-- RAG (recherche sémantique) Chroma, BaseStore (mémoire long terme)
-- load_context complet (routing E1 (idéation)/E3 (Sprint Backlog)/HOTFIX (correctif urgent))
+- **LLM cascade** : N0 (Ollama) → N1 (Gemini) → N2 (Claude), H5 avant N2
+- **interrupt()** : H1 (Epic), H2 (Architecture), H3 (Sprint Backlog), H4 (Sprint Review), H5 (escalade), L18 (spec_contradiction)
+- **Tools** : graph/tools.py (read_file, write_file, run_shell), create_tools_r4/r5
+- **RAG** : query_rag() dans R-2, R-3, R-4
+- **BaseStore** : graph/basestore.py, load_context complet
+- **Self-Healing** : R-6→R-4 si tests échouent (max 3), puis H5
 
 ## Scripts
 

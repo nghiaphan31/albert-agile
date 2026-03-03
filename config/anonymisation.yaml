@@ -1,0 +1,31 @@
+# Config anonymisation cloud (L-ANON)
+# Référence: specs/REGLES_ANONYMISATION.md
+
+patterns:
+  - name: email
+    regex: '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}'
+    replacement: '[EMAIL_REDACTED]'
+  - name: unix_home
+    regex: '/home/[^/]+/'
+    replacement: '[HOME]/'
+  - name: project_root
+    regex: '\\[HOME\\]PROJECTS_WITH_ALBERT'
+    replacement: '[PROJECT_ROOT]'
+  - name: username_common
+    regex: 'nghia-phan'
+    replacement: '[USER]'
+  - name: ip_v4
+    regex: '\\b(?:[0-9]{1,3}\\.){3}[0-9]{1,3}\\b'
+    replacement: '[IP_REDACTED]'
+  - name: api_key_sk
+    regex: 'sk-[a-zA-Z0-9]{20,}'
+    replacement: '[API_KEY_REDACTED]'
+  - name: api_key_google
+    regex: 'AIza[a-zA-Z0-9_-]{35}'
+    replacement: '[GOOGLE_KEY_REDACTED]'
+
+fields_forbidden_by_default:
+  - password
+  - api_key
+  - token
+  - secret

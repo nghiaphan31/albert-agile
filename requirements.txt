@@ -11,6 +11,7 @@ chromadb>=1.5
 fastapi
 uvicorn
 python-dotenv
+pyyaml
 langserve
 langgraph-checkpoint-sqlite
 sse-starlette

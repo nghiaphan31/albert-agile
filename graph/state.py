@@ -16,6 +16,13 @@ class State(TypedDict, total=False):
     messages: list
     start_phase: str
     h1_feedback: str
+    h2_feedback: str
+    h3_feedback: str
     hotfix_description: str
     self_healing_iterations: int
     tests_passed: bool
+    h1_approved: bool
+    h2_approved: bool
+    h3_approved: bool
+    h4_approved: bool
+    h5_rejected: bool
