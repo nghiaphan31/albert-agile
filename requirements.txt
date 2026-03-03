@@ -16,6 +16,9 @@ langserve
 langgraph-checkpoint-sqlite
 sse-starlette
 
+# Tests
+pytest>=8.0
+
 # RAG fallback (si Ollama indisponible)
 langchain-huggingface>=1.0
 sentence-transformers>=2.0
