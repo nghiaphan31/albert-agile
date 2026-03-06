@@ -78,13 +78,13 @@ def check_prereq() -> int:
 
 def run_e1(project_id: str, thread_id: str, timeout: int, auto_approved: bool) -> int:
     """Lance run_graph E1. Attend interrupt H1 ou timeout.
-    E1 utilise tier1 (gemma3) — OLLAMA_KEEP_ALIVE=gemma3 évite le 500 lors du swap modèle.
+    E1 utilise tier1 (qwen2.5:14b) — OLLAMA_KEEP_ALIVE évite le swap modèle.
     """
     py = ORCH_ROOT / ".venv" / "bin" / "python"
     cmd = [str(py), str(ORCH_ROOT / "run_graph.py"), "--project-id", project_id, "--start-phase", "E1", "--thread-id", thread_id]
     print(f"Lancement: python run_graph.py --project-id {project_id} --start-phase E1 --thread-id {thread_id} (timeout={timeout}s)")
-    # E1 utilise tier1 (gemma3) ; OLLAMA_KEEP_ALIVE=gemma3 évite 500 lors du swap (H1 root cause).
-    code, out = _run(cmd, timeout=timeout, extra_env={"OLLAMA_KEEP_ALIVE": "gemma3:12b-it-q4_K_M"})
+    # E1 utilise tier1 (qwen2.5:14b) ; OLLAMA_KEEP_ALIVE évite 500 lors du swap (H1 root cause).
+    code, out = _run(cmd, timeout=timeout, extra_env={"OLLAMA_KEEP_ALIVE": "qwen2.5:14b"})
     print(out)
     if code != 0:
         print("RUN E1 KO (exit code", code, ")")
