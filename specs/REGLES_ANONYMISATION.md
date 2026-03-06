@@ -1,6 +1,6 @@
 # Règles d'anonymisation cloud (L-ANON)
 
-**Règle absolue** : Aucune donnée personnelle ne quitte Calypso vers le cloud (Gemini, Claude) sans anonymisation préalable ou autorisation explicite de Nghia. L'IA locale (Ollama) est la gateway de sortie.
+**Règle absolue** : Aucune donnée personnelle ne quitte Calypso vers le cloud (Gemini, Claude) sans anonymisation préalable ou autorisation explicite du superviseur désigné (rôle R-1/R-7). L'IA locale (Ollama) est la gateway de sortie.
 
 ## Données considérées personnelles
 
@@ -29,4 +29,4 @@
 
 ## Procédure d'autorisation explicite
 
-- Si `AGILE_ALLOW_PERSONAL_CLOUD=true` + confirmation via interrupt ou `handle_interrupt.py` — seul Nghia peut débloquer l'envoi de données non anonymisées.
+- Si `AGILE_ALLOW_PERSONAL_CLOUD=true` + confirmation via interrupt ou `handle_interrupt.py` — seul le superviseur désigné (rôle R-1/R-7) peut débloquer l'envoi de données non anonymisées.

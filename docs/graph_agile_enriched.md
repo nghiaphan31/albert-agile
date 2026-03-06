@@ -12,13 +12,13 @@ flowchart TD
         load_context["load_context<br/>────────────<br/>• Lit config/projects.json<br/>• Charge BaseStore: adr_counter, sprint_number, dod<br/>• SprintBacklog synthétique si HOTFIX<br/>• Route selon start_phase"]
     end
 
-    subgraph Agents [Agents IA — Albert]
-        r0["r0 — R-0 Albert Business Analyst<br/>────────────<br/>• Produit Epic (CDC)<br/>• Cascade: gemma → Gemini → Claude Opus<br/>• Interrupt H1 (validation Product Owner)<br/>• L1 Anti-précipitation, L4 Gabarit CDC"]
-        r2["r2 — R-2 Albert System Architect<br/>────────────<br/>• Architecture + Definition of Done<br/>• RAG: contexte Backlog/Architecture<br/>• L18 spec_contradiction si contradiction<br/>• Interrupt H2 (validation Stakeholder)"]
-        r3["r3 — R-3 Albert Scrum Master<br/>────────────<br/>• Découpe Sprint Backlog<br/>• RAG: Backlog, Architecture<br/>• Interrupt H3 (validation Product Owner)"]
-        r4["r4 — R-4 Albert Dev Team<br/>────────────<br/>• Exécution code (phase E4)<br/>• Tools: read_file, write_file, run_shell<br/>• RAG: contexte code<br/>• Cascade: qwen → Gemini → Claude Sonnet"]
-        r5["r5 — R-5 Albert Release Manager<br/>────────────<br/>• Git: checkout, add, commit, merge<br/>• gh pr create, gh pr merge<br/>• Cascade qwen/Gemini/Claude"]
-        r6["r6 — R-6 Albert QA et DevOps<br/>────────────<br/>• Pipeline E5: build_docs → unit → intégration → E2E<br/>• L21 Doc-as-code<br/>• Interrupt H4 (Sprint Review Stakeholder)<br/>• Self-Healing: si tests fail, → r4 (max 3x puis H5)"]
+    subgraph Agents [Agents IA]
+        r0["r0 — R-0 Business Analyst IA<br/>────────────<br/>• Produit Epic (CDC)<br/>• Cascade: gemma → Gemini → Claude Opus<br/>• Interrupt H1 (validation Product Owner)<br/>• L1 Anti-précipitation, L4 Gabarit CDC"]
+        r2["r2 — R-2 System Architect IA<br/>────────────<br/>• Architecture + Definition of Done<br/>• RAG: contexte Backlog/Architecture<br/>• L18 spec_contradiction si contradiction<br/>• Interrupt H2 (validation Stakeholder)"]
+        r3["r3 — R-3 Scrum Master IA<br/>────────────<br/>• Découpe Sprint Backlog<br/>• RAG: Backlog, Architecture<br/>• Interrupt H3 (validation Product Owner)"]
+        r4["r4 — R-4 Dev Team IA<br/>────────────<br/>• Exécution code (phase E4)<br/>• Tools: read_file, write_file, run_shell<br/>• RAG: contexte code<br/>• Cascade: qwen → Gemini → Claude Sonnet"]
+        r5["r5 — R-5 Release Manager IA<br/>────────────<br/>• Git: checkout, add, commit, merge<br/>• gh pr create, gh pr merge<br/>• Cascade qwen/Gemini/Claude"]
+        r6["r6 — R-6 QA et DevOps IA<br/>────────────<br/>• Pipeline E5: build_docs → unit → intégration → E2E<br/>• L21 Doc-as-code<br/>• Interrupt H4 (Sprint Review Stakeholder)<br/>• Self-Healing: si tests fail, → r4 (max 3x puis H5)"]
     end
 
     subgraph EndNode [Sortie]
@@ -57,14 +57,14 @@ flowchart TD
 
 | Code | Signification |
 |------|---------------|
-| **R-0** | Albert Business Analyst |
-| **R-2** | Albert System Architect |
-| **R-3** | Albert Scrum Master |
-| **R-4** | Albert Dev Team |
-| **R-5** | Albert Release Manager |
-| **R-6** | Albert QA & DevOps |
-| **R-1** | Nghia Product Owner (humain) |
-| **R-7** | Nghia Stakeholder (humain) |
+| **R-0** | Business Analyst IA |
+| **R-2** | System Architect IA |
+| **R-3** | Scrum Master IA |
+| **R-4** | Dev Team IA |
+| **R-5** | Release Manager IA |
+| **R-6** | QA & DevOps IA |
+| **R-1** | Product Owner (rôle humain de supervision) |
+| **R-7** | Stakeholder (rôle humain de supervision) |
 | **H1** | Validation Epic |
 | **H2** | Validation Architecture + DoD |
 | **H3** | Validation Sprint Backlog |

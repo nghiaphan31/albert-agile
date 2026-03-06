@@ -4,16 +4,16 @@ Référence pour la lecture des documents. À utiliser systématiquement à côt
 
 ## R-x — Rôles Agile
 
-| Code | Rôle Agile |
-|------|------------|
-| R-0 | Albert Business Analyst |
-| R-1 | Nghia Product Owner |
-| R-2 | Albert System Architect |
-| R-3 | Albert Scrum Master |
-| R-4 | Albert Dev Team |
-| R-5 | Albert Release Manager |
-| R-6 | Albert QA & DevOps |
-| R-7 | Nghia Stakeholder |
+| Code | Rôle Agile              |
+|------|-------------------------|
+| R-0  | Business Analyst IA     |
+| R-1  | Product Owner           |
+| R-2  | System Architect IA     |
+| R-3  | Scrum Master IA         |
+| R-4  | Dev Team IA             |
+| R-5  | Release Manager IA      |
+| R-6  | QA & DevOps IA          |
+| R-7  | Stakeholder             |
 
 ## H-x — Points d'interruption (Human-in-the-Loop)
 

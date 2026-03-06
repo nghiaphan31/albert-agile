@@ -41,11 +41,11 @@
 
 | Rôle | Modèle local (N0 (local Ollama)) | Modèle cloud gratuit (N1 (cloud gratuit)) | Modèle cloud payant (N2 (cloud payant)) |
 |------|-------------------|---------------------------|---------------------------|
-| R-0 (Albert Business Analyst) | gemma3:12b-it-q4_K_M | gemini-2.5-flash | claude-opus-4-6 |
-| R-2 (Albert System Architect) | gemma3:12b-it-q4_K_M | gemini-2.5-flash | claude-opus-4-6 |
-| R-3 (Albert Scrum Master), R-4 (Albert Dev Team), R-5 (Albert Release Manager), R-6 (Albert QA & DevOps) | qwen2.5-coder:7b | gemini-2.5-flash | claude-sonnet-4-6 |
+| R-0 (Business Analyst IA) | gemma3:12b-it-q4_K_M | gemini-2.5-flash | claude-opus-4-6 |
+| R-2 (System Architect IA) | gemma3:12b-it-q4_K_M | gemini-2.5-flash | claude-opus-4-6 |
+| R-3 (Scrum Master IA), R-4 (Dev Team IA), R-5 (Release Manager IA), R-6 (QA & DevOps IA) | qwen2.5-coder:7b | gemini-2.5-flash | claude-sonnet-4-6 |
 
-*R-1 (Nghia (Product Owner)) et R-7 (Nghia (Stakeholder)) : humains, pilotent via VS Code + Continue.dev.*
+*R-1 (Product Owner) et R-7 (Stakeholder) : rôles de supervision, pilotent via VS Code + Continue.dev.*
 
 ---
 
@@ -53,14 +53,14 @@
 
 | ID | Rôle Agile & Mission | Entité | Technologie & Régime | Artefact (Livrable) |
 | --- | --- | --- | --- | --- |
-| R-0 (Albert Business Analyst) | **Albert Business Analyst** — Guide la phase d'idéation, challenge les hypothèses métier et aide à définir la proposition de valeur avant tout investissement technique. | Sparring Partner | Cascade : Ollama (gemma3:12b) → AI Studio (Gemini 2.5 Flash) → Opus 4.6 | Notes de Discovery, Epic initial mature |
-| R-1 (Nghia (Product Owner)) | **Nghia (Product Owner)** — Garant de la vision produit. Priorise la valeur métier, gère le backlog interactif via Continue.dev (RAG (recherche sémantique) sur la codebase ; option : chroma-mcp pour RAG (recherche sémantique) partagé avec agents) et s'assure de l'alignement. | Nghia (PM) | VS Code + Continue.dev + Roo Code. Régime : Local / Gratuit | Besoins - Product Backlog.md, Co-rédacteur de la DoD (Definition of Done) |
-| R-2 (Albert System Architect) | **Albert System Architect** — Garant de la viabilité technique. Traduit les besoins métier en choix architecturaux, structures de données et contrats d'API. | L'Architecte | Cascade : Ollama (gemma3:12b) → AI Studio → Opus 4.6 | Architecture.md, Co-rédacteur de la DoD (Definition of Done) |
-| R-3 (Albert Scrum Master) | **Albert Scrum Master** — Facilitateur et orchestrateur. Lève les obstacles, gère le découpage technique pour respecter la vélocité et anonymise les contextes. | Chef de Projet | Cascade : Ollama (qwen2.5-coder:7b) → AI Studio → Sonnet 4.6 | Sprint Backlog (tickets atomiques et ciblés) |
-| R-4 (Albert Dev Team) | **Albert Dev Team** — Force de production exécutive incarnée par Roo Code. Écrit le code source fonctionnel et garantit la non-régression via TDD. | Le Développeur | Cascade : Ollama (qwen2.5-coder:7b) → AI Studio → Sonnet 4.6 | Source Code, Unit Tests (TDD) |
-| R-5 (Albert Release Manager) | **Albert Release Manager** — Garant du versioning et de la stratégie de branching. Gère les conflits de fusion et isole les développements. | L'Archiviste | Git / MCP (Model Context Protocol) + Cascade : Ollama (qwen2.5-coder:7b) → AI Studio → Sonnet 4.6 | Feature Branches, Historique des Commits |
-| R-6 (Albert QA & DevOps) | **Albert QA & DevOps** — Garant de l'intégration continue. Exécute les tests, analyse les logs d'erreurs et déclenche la boucle de correction. | L'Inspecteur | Docker, Jest + Cascade : Ollama (qwen2.5-coder:7b) → AI Studio → Sonnet 4.6 | Test Reports & Logs (application stricte de la DoD (Definition of Done)) |
-| R-7 (Nghia (Stakeholder)) | **Nghia (Stakeholder)** — Sponsor du projet. Évalue le ROI de l'incrément, supervise les tests finaux dans VS Code et valide l'alignement stratégique. | Nghia (Dir) | VS Code + Continue.dev + Roo Code. Régime : Local / Gratuit | Go/No-Go Decision, Valideur final de la DoD (Definition of Done) |
+| R-0 (Business Analyst IA) | **Business Analyst IA** — Guide la phase d'idéation, challenge les hypothèses métier et aide à définir la proposition de valeur avant tout investissement technique. | Sparring Partner | Cascade : Ollama (gemma3:12b) → AI Studio (Gemini 2.5 Flash) → Opus 4.6 | Notes de Discovery, Epic initial mature |
+| R-1 (Product Owner) | **Product Owner** — Garant de la vision produit. Priorise la valeur métier, gère le backlog interactif via Continue.dev (RAG (recherche sémantique) sur la codebase ; option : chroma-mcp pour RAG (recherche sémantique) partagé avec agents) et s'assure de l'alignement. | Superviseur produit | VS Code + Continue.dev + Roo Code. Régime : Local / Gratuit | Besoins - Product Backlog.md, Co-rédacteur de la DoD (Definition of Done) |
+| R-2 (System Architect IA) | **System Architect IA** — Garant de la viabilité technique. Traduit les besoins métier en choix architecturaux, structures de données et contrats d'API. | L'Architecte | Cascade : Ollama (gemma3:12b) → AI Studio → Opus 4.6 | Architecture.md, Co-rédacteur de la DoD (Definition of Done) |
+| R-3 (Scrum Master IA) | **Scrum Master IA** — Facilitateur et orchestrateur. Lève les obstacles, gère le découpage technique pour respecter la vélocité et anonymise les contextes. | Chef de Projet | Cascade : Ollama (qwen2.5-coder:7b) → AI Studio → Sonnet 4.6 | Sprint Backlog (tickets atomiques et ciblés) |
+| R-4 (Dev Team IA) | **Dev Team IA** — Force de production exécutive incarnée par Roo Code. Écrit le code source fonctionnel et garantit la non-régression via TDD. | Le Développeur | Cascade : Ollama (qwen2.5-coder:7b) → AI Studio → Sonnet 4.6 | Source Code, Unit Tests (TDD) |
+| R-5 (Release Manager IA) | **Release Manager IA** — Garant du versioning et de la stratégie de branching. Gère les conflits de fusion et isole les développements. | L'Archiviste | Git / MCP (Model Context Protocol) + Cascade : Ollama (qwen2.5-coder:7b) → AI Studio → Sonnet 4.6 | Feature Branches, Historique des Commits |
+| R-6 (QA & DevOps IA) | **QA & DevOps IA** — Garant de l'intégration continue. Exécute les tests, analyse les logs d'erreurs et déclenche la boucle de correction. | L'Inspecteur | Docker, Jest + Cascade : Ollama (qwen2.5-coder:7b) → AI Studio → Sonnet 4.6 | Test Reports & Logs (application stricte de la DoD (Definition of Done)) |
+| R-7 (Stakeholder) | **Stakeholder** — Sponsor du projet. Évalue le ROI de l'incrément, supervise les tests finaux dans VS Code et valide l'alignement stratégique. | Superviseur stratégique | VS Code + Continue.dev + Roo Code. Régime : Local / Gratuit | Go/No-Go Decision, Valideur final de la DoD (Definition of Done) |
 
 ###
 
@@ -79,8 +79,8 @@ III. Outils, Frameworks et Modèles IA — Spécifications Techniques Détaillé
 
 | Modèle | Commande d'installation | VRAM | Usage principal |
 |--------|-------------------------|------|-----------------|
-| **qwen2.5-coder:7b** | `ollama pull qwen2.5-coder:7b` | ~8–10 Go | R-3 (Albert Scrum Master), R-4 (Albert Dev Team), R-5 (Albert Release Manager), R-6 (Albert QA & DevOps) : code, tests, découpage, merge |
-| **gemma3:12b-it-q4_K_M** | `ollama pull gemma3:12b-it-q4_K_M` | ~8,1 Go | R-0 (Albert Business Analyst), R-2 (Albert System Architect) : idéation, architecture, réflexion stratégique |
+| **qwen2.5-coder:7b** | `ollama pull qwen2.5-coder:7b` | ~8–10 Go | R-3 (Scrum Master IA), R-4 (Dev Team IA), R-5 (Release Manager IA), R-6 (QA & DevOps IA) : code, tests, découpage, merge |
+| **gemma3:12b-it-q4_K_M** | `ollama pull gemma3:12b-it-q4_K_M` | ~8,1 Go | R-0 (Business Analyst IA), R-2 (System Architect IA) : idéation, architecture, réflexion stratégique |
 
 *Contexte : 128K tokens (Qwen), 128K (Gemma 3). Licence : Apache 2.0 / licence ouverte.*
 
@@ -108,17 +108,17 @@ III. Outils, Frameworks et Modèles IA — Spécifications Techniques Détaillé
 
 #### 3.5 Écosystème LangChain/LangGraph — Orchestration Multi-Agents et Human-in-the-Loop
 
-**Justification** : Les rôles R-0 (Albert Business Analyst) à R-6 (Albert QA & DevOps) sont des agents IA qui doivent collaborer selon un graphe de décision (cascade, routage, boucles). LangGraph (1.0 GA, octobre 2025) est le framework de référence pour orchestrer des agents multiples avec état partagé, cycles et human-in-the-loop. LangChain fournit les connecteurs LLM (Ollama, Anthropic, Google). Pydantic garantit des sorties structurées et validées. Cet écosystème permet d'automatiser le flux Agile tout en conservant des points de validation humaine aux moments critiques.
+**Justification** : Les rôles R-0 (Business Analyst IA) à R-6 (QA & DevOps IA) sont des agents IA qui doivent collaborer selon un graphe de décision (cascade, routage, boucles). LangGraph (1.0 GA, octobre 2025) est le framework de référence pour orchestrer des agents multiples avec état partagé, cycles et human-in-the-loop. LangChain fournit les connecteurs LLM (Ollama, Anthropic, Google). Pydantic garantit des sorties structurées et validées. Cet écosystème permet d'automatiser le flux Agile tout en conservant des points de validation humaine aux moments critiques.
 
 | Composant | Rôle | Justification |
 |-----------|------|---------------|
-| **LangGraph** | Orchestration du graphe d'agents. Chaque rôle (R-0 (Albert Business Analyst) à R-6 (Albert QA & DevOps)) = nœud. Arêtes = flux (E1 (idéation, Epic)→E2 (architecture, DoD (Definition of Done))→…). Routage cascade N0 (local Ollama)→N1 (cloud gratuit)→N2 (cloud payant) par branche conditionnelle. | Modèle en graphe (vs chaîne linéaire) : cycles (Self-Healing R-6 (Albert QA & DevOps)→R-4 (Albert Dev Team)), bifurcations, état partagé (TypedDict). `interrupt()` natif pour Human-in-the-Loop. Utilisé en prod par LinkedIn, Uber, Klarna. AgentExecutor LangChain déprécié en faveur de LangGraph. |
+| **LangGraph** | Orchestration du graphe d'agents. Chaque rôle (R-0 (Business Analyst IA) à R-6 (QA & DevOps IA)) = nœud. Arêtes = flux (E1 (idéation, Epic)→E2 (architecture, DoD (Definition of Done))→…). Routage cascade N0 (local Ollama)→N1 (cloud gratuit)→N2 (cloud payant) par branche conditionnelle. | Modèle en graphe (vs chaîne linéaire) : cycles (Self-Healing R-6 (QA & DevOps IA)→R-4 (Dev Team IA)), bifurcations, état partagé (TypedDict). `interrupt()` natif pour Human-in-the-Loop. Utilisé en prod par LinkedIn, Uber, Klarna. AgentExecutor LangChain déprécié en faveur de LangGraph. |
 | **LangChain** | Connecteurs LLM (Ollama, Google AI Studio, Anthropic), gestion des retries/backoff, templates de prompts. | Dépendance de LangGraph. Abstraction unifiée : `ChatOllama`, `ChatAnthropic`, `ChatGoogleGenerativeAI`. Compatible Ollama via `langchain-ollama`. |
 | **Pydantic** | Validation des sorties IA : schémas pour Epic, Sprint Backlog, Architecture.md, tickets. | Évite les outputs invalides (JSON malformé, champs manquants). Intégré à LangChain (`with_structured_output`). Typage strict = moins d'erreurs en production. |
 | **LangSmith** | Traçage, débogage, monitoring des runs. Intégration native avec LangChain/LangGraph. | Free tier : 5000 traces/mois. Indispensable pour débugger des workflows multi-agents (quel agent a échoué, pourquoi, tokens consommés). Rétention 14 jours suffisante pour itérations. |
 | **LangServe** | Exposition du graphe LangGraph en API REST (FastAPI). Endpoints `/invoke`, `/stream`, `/playground`. | Permet de déclencher les phases (E1 (idéation, Epic)–E6 (clôture sprint, merge)) depuis un script, un cron ou GitHub Actions. Déploiement local (pas de coût). Alternative : exécution directe en CLI Python. |
 
-**Architecture d'intégration** : Un service Python héberge le graphe LangGraph. Les nœuds appellent Ollama (N0 (local Ollama)), Google API (N1 (cloud gratuit)) ou Anthropic (N2 (cloud payant)) selon la logique de cascade. Pydantic modélise l'état (Backlog, Architecture, SprintBacklog) et les sorties de chaque agent. LangSmith trace chaque exécution. L'humain (R-1 (Nghia (Product Owner)), R-7 (Nghia (Stakeholder))) intervient via `interrupt()` aux points définis ci-dessous.
+**Architecture d'intégration** : Un service Python héberge le graphe LangGraph. Les nœuds appellent Ollama (N0 (local Ollama)), Google API (N1 (cloud gratuit)) ou Anthropic (N2 (cloud payant)) selon la logique de cascade. Pydantic modélise l'état (Backlog, Architecture, SprintBacklog) et les sorties de chaque agent. LangSmith trace chaque exécution. Les rôles de supervision (R-1 (Product Owner), R-7 (Stakeholder)) interviennent via `interrupt()` aux points définis ci-dessous.
 
 **Gestion des exceptions Ollama comme "échec N0 (local Ollama)" (F8 (cascade échec N0))** : Toute exception levée lors d'un appel à `ChatOllama` — quelle que soit sa nature (`ConnectionError`, `TimeoutError`, `OllamaRuntimeError`, VRAM épuisée / OOM GPU, modèle non chargé) — doit être capturée dans un bloc `try/except Exception` autour de l'appel N0 (local Ollama) et traitée comme un **échec N0 (local Ollama)**, déclenchant immédiatement l'escalade vers N1 (cloud gratuit) (Google AI Studio). L'exception **ne doit jamais remonter** comme erreur fatale du graphe LangGraph. Implémenter dans une fonction utilitaire `call_with_cascade(llm_n0, llm_n1, llm_n2, prompt, schema)` appelée par tous les nœuds, qui encapsule la logique try/except + escalade + retry HTTP 429. Log structuré à chaque escalade : `{"level": "WARNING", "event": "n0_failure", "reason": str(e), "escalating_to": "N1"}`. Sur RTX 3060, les OOM GPU sont le cas d'échec N0 (local Ollama) le plus probable en début de session (modèle pas encore chargé ou VRAM fragmentée).
 
@@ -130,31 +130,31 @@ III. Outils, Frameworks et Modèles IA — Spécifications Techniques Détaillé
 
 | Concept | Implémentation |
 |---------|----------------|
-| **Rôles (R-0 (Albert Business Analyst) à R-6 (Albert QA & DevOps))** | Nœuds du graphe — une fonction Python par rôle, qui reçoit l'état et retourne une mise à jour. |
+| **Rôles (R-0 (Business Analyst IA) à R-6 (QA & DevOps IA))** | Nœuds du graphe — une fonction Python par rôle, qui reçoit l'état et retourne une mise à jour. |
 | **Phases (E1 (idéation, Epic)→E2 (architecture, DoD (Definition of Done))→…)** | Arêtes entre nœuds (transitions définies dans le graphe). |
 | **État partagé** | `TypedDict` : Backlog, Architecture, SprintBacklog, DoD (Definition of Done), messages, **project_root** (Path), **project_id** (str), **sprint_number** (int, défaut 1), **adr_counter** (int, défaut 0), **needs_architecture_review** (bool, défaut false). Initialisés par le nœud "load_context" (III.8-A) en entrée de chaque thread. Invocation : `start_phase "E1 (idéation, Epic)" | "E3 (Sprint Backlog)" | "HOTFIX (correctif urgent)"` via config (III.8-A). |
 | **Appels LLM** | Cascade N0 (local Ollama)→N1 (cloud gratuit)→N2 (cloud payant) : essai Ollama (N0 (local Ollama)), puis Google AI Studio (N1 (cloud gratuit)), puis Anthropic (N2 (cloud payant)) en dernier recours. Logique de routage conditionnelle selon succès/échec/HTTP 429. |
 | **Sorties structurées** | `with_structured_output` (LangChain) + schémas Pydantic sur chaque LLM. Garantit des sorties valides (Epic, tickets, Architecture, etc.). |
-| **Self-Healing (R-6 (Albert QA & DevOps)→R-4 (Albert Dev Team))** | Cycle dans le graphe : arête conditionnelle R-6 (Albert QA & DevOps)→R-4 (Albert Dev Team) si tests en échec. Seuil strict : 3 itérations max, puis interrupt H5 (approbation escalade API payante). |
+| **Self-Healing (R-6 (QA & DevOps IA)→R-4 (Dev Team IA))** | Cycle dans le graphe : arête conditionnelle R-6 (QA & DevOps IA)→R-4 (Dev Team IA) si tests en échec. Seuil strict : 3 itérations max, puis interrupt H5 (approbation escalade API payante). |
 | **Human-in-the-Loop** | `interrupt()` dans les nœuds aux points H1 (validation Epic)–H6 (résolution conflit Git). Le graphe suspend, le checkpointer sauvegarde. Reprise via `Command(resume=...)`. |
-| **Tools (E4 (exécution code, sprint), E5 (tests, CI local))** | R-4 (Albert Dev Team) : `read_file`, `write_file`, `run_shell` (génération de code, exécution). R-5 (Albert Release Manager) : `run_shell` (git checkout, commit, merge). |
+| **Tools (E4 (exécution code, sprint), E5 (tests, CI local))** | R-4 (Dev Team IA) : `read_file`, `write_file`, `run_shell` (génération de code, exécution). R-5 (Release Manager IA) : `run_shell` (git checkout, commit, merge). |
 | **Flux de données par nœud** | (1) Lire l'état (checkpointer). (2) Interroger le RAG (recherche sémantique) (Chroma) pour chunks pertinents. (3) Appeler l'LLM (cascade). (4) Écrire en BaseStore (mémoire long terme) si nécessaire (E2 (architecture, DoD (Definition of Done)), E6 (clôture sprint, merge)). (5) Retourner la mise à jour d'état. |
 | **Persistance** | Checkpointer (SqliteSaver/PostgresSaver) par step. BaseStore (mémoire long terme) pour mémoire long terme. Chroma pour RAG (recherche sémantique). |
 | **Exposition** | LangServe (FastAPI) : `/invoke`, `/stream`, `/playground`. Alternative : invocation directe en CLI Python. |
 
-**Correspondance rôle ↔ nœud** : Chaque ligne du tableau des rôles (section II) correspond à un nœud du graphe. R-1 (Nghia (Product Owner)) et R-7 (Nghia (Stakeholder)) sont humains : ils interviennent via `interrupt()` (validation) et n'ont pas de nœud dédié ; le graphe s'arrête en attente de leur input.
+**Correspondance rôle ↔ nœud** : Chaque ligne du tableau des rôles (section II) correspond à un nœud du graphe. R-1 (Product Owner) et R-7 (Stakeholder) sont des rôles de supervision : ils interviennent via `interrupt()` (validation) et n'ont pas de nœud dédié ; le graphe s'arrête en attente de leur input.
 
-**Lois Albert Core et injection par rôle** : Les agents appliquent les lois définies dans specs/REGLES_AGENTS_AGILE.md (référence : plan lois Albert Core). Chaque nœud charge graph/laws.py et injecte dans le system prompt les lois applicables à son rôle (ex. R-0 : L1 Anti-précipitation, L4 Gabarit CDC ; R-4 : L8 Non-destruction, L9, L19 Idempotence, L21 Doc-as-code). Lois transverses (L0, L3, L7, L8, L9, L11, L18, L-ANON) s'appliquent à tous les nœuds.
+**Lois albert-core et injection par rôle** : Les agents appliquent les lois définies dans specs/REGLES_AGENTS_AGILE.md (référence : plan lois albert-core). Chaque nœud charge graph/laws.py et injecte dans le system prompt les lois applicables à son rôle (ex. R-0 : L1 Anti-précipitation, L4 Gabarit CDC ; R-4 : L8 Non-destruction, L9, L19 Idempotence, L21 Doc-as-code). Lois transverses (L0, L3, L7, L8, L9, L11, L18, L-ANON) s'appliquent à tous les nœuds.
 
 #### 3.5-ter L-ANON — Gateway anonymisation cloud (règle absolue)
 
-**Règle L-ANON** : Aucune donnée personnelle ne quitte la machine locale vers le cloud (Gemini, Claude) sans anonymisation préalable ou autorisation explicite de Nghia. L'IA locale (Ollama) est la **gateway de sortie** : tout contenu envoyé à Gemini ou Anthropic doit passer par une couche d'anonymisation avant l'appel API.
+**Règle L-ANON** : Aucune donnée personnelle ne quitte la machine locale vers le cloud (Gemini, Claude) sans anonymisation préalable ou autorisation explicite du superviseur désigné (rôle R-1/R-7). L'IA locale (Ollama) est la **gateway de sortie** : tout contenu envoyé à Gemini ou Anthropic doit passer par une couche d'anonymisation avant l'appel API.
 
 **Implémentation** :
 - **Fichiers** : specs/REGLES_ANONYMISATION.md (règles métier), config/anonymisation.yaml (patterns et mappings), graph/anonymizer.py avec scrub() et apply_rules().
 - **Point d'intégration** : Dans graph/cascade.py, avant chaque appel à ChatGoogleGenerativeAI ou ChatAnthropic, appliquer l'anonymizer sur le contenu à envoyer (system prompt, messages, contexte RAG). Les appels à Ollama (N0 local) ne sont pas anonymisés — les données restent locales.
 - **Données considérées personnelles** : noms, emails, chemins /home/..., adresses IP, URLs internes, clés API, tokens. Règles de remplacement : ex. chemins utilisateur → [PROJECT_ROOT]/, emails → [EMAIL_REDACTED].
-- **Autorisation explicite** : Variable AGILE_ALLOW_PERSONAL_CLOUD + confirmation via interrupt ou handle_interrupt.py. Seul Nghia peut débloquer l'envoi de données non anonymisées.
+- **Autorisation explicite** : Variable AGILE_ALLOW_PERSONAL_CLOUD + confirmation via interrupt ou handle_interrupt.py. Seul le superviseur désigné (rôle R-1/R-7) peut débloquer l'envoi de données non anonymisées.
 
 Cette règle renforce la "Règle d'or de sécurité" (section V) et la stratégie "Anonymisation systématique" (section VI).
 
@@ -164,18 +164,18 @@ Cette règle renforce la "Règle d'or de sécurité" (section V) et la stratégi
 
 | Point d'interrupt | Étape | Déclencheur | Action humaine | Justification |
 |-------------------|-------|-------------|----------------|---------------|
-| **H1 (validation Epic)** | Fin Phase 0 | R-0 (Albert Business Analyst) a produit l'Epic | R-1 (Nghia (Product Owner)) valide ou corrige l'Epic avant injection dans le Backlog. | Décision stratégique : engagement sur la vision. Pas de délégation à l'IA. |
-| **H2 (validation Architecture + DoD (Definition of Done))** | Fin E2 (architecture, DoD (Definition of Done)) | R-2 (Albert System Architect) a produit Architecture.md + draft DoD (Definition of Done) | R-7 (Nghia (Stakeholder))/R-1 (Nghia (Product Owner)) valident l'architecture **et** co-construisent la DoD (Definition of Done). Le payload H2 (validation Architecture + DoD (Definition of Done)) contient Architecture.md et un draft DoD (Definition of Done) généré par R-2 (Albert System Architect). R-1 (Nghia (Product Owner)) amende la DoD (Definition of Done) (critères d'acceptation), R-7 (Nghia (Stakeholder)) valide l'ensemble. La DoD (Definition of Done) finalisée est écrite dans l'état et dans BaseStore (mémoire long terme). Voir III.8-B et III.8-O. | Choix techniques engageants. DoD (Definition of Done) comme contrat d'acceptation partagé. |
-| **H3 (validation Sprint Backlog)** | Fin E3 (Sprint Backlog) | R-3 (Albert Scrum Master) a produit le Sprint Backlog | R-1 (Nghia (Product Owner)) valide le découpage et la priorisation des tickets. **Option : forcer `architectural_change=True`** — si R-1 (Nghia (Product Owner)) estime que des tickets impliquent des changements architecturaux non détectés par R-3 (Albert Scrum Master), il peut positionner ce flag via le payload de résumé H3 (validation Sprint Backlog) (`Command(resume={"status":"approved","force_architectural_change":true})`), ce qui redéclenche E2 (architecture, DoD (Definition of Done)) avant E4 (exécution code, sprint). | Ajustement de la vélocité, risques de sur/sous-découpage. Filet de sécurité humain si R-3 (Albert Scrum Master) n'a pas détecté la nature architecturale des changements (voir F2 (détection changement architectural)). |
-| **H4 (Sprint Review, CI verts)** | Fin E5 (tests, CI local) | CI local (R-6 (Albert QA & DevOps)) ET CI 1 (feature→develop) GitHub Actions verts | **Séquence** : (1) R-5 (Albert Release Manager) push unique en fin de E4 (exécution code, sprint) → PR feature/{project_id}-sprint-{NN}→develop ouverte. (2) CI 1 (feature→develop) (GitHub Actions, feature→develop) et CI local (R-6 (Albert QA & DevOps)) tournent en parallèle. R-6 (Albert QA & DevOps) poll CI 1 (feature→develop) via `gh run watch` (timeout GITHUB_ACTIONS_TIMEOUT=600s). (3) H4 (Sprint Review, CI verts) déclenché si les deux CI sont verts. R-7 (Nghia (Stakeholder)) Sprint Review. (4) E6 (clôture sprint, merge) : R-5 (Albert Release Manager) merge feature→develop. (5) Post-E6 (clôture sprint, merge) : R-5 (Albert Release Manager) ouvre PR develop→main → CI 2 (develop→main) (GitHub Actions, develop→main). Merge develop→main après CI 2 (develop→main) vert. Voir III.8-B et III.8-F. | Double validation pré-H4 (Sprint Review, CI verts). Merge main séparé (post-E6 (clôture sprint, merge)). |
-| **H5 (approbation escalade API payante)** | Escalade N2 (cloud payant) | L'IA sollicite Claude Opus/Sonnet (coût) | R-1 (Nghia (Product Owner)) ou R-7 (Nghia (Stakeholder)) approuve l'escalade vers l'API payante. | Contrôle des coûts. Évite les appels non intentionnels. |
-| **H6 (résolution conflit Git)** | Conflit Git | R-5 (Albert Release Manager) échoue à résoudre un conflit après 2 tentatives | R-1 (Nghia (Product Owner)) résout manuellement (git mergetool), commit, puis reprend le graphe. | Fallback pour conflits complexes. Voir III.8. |
+| **H1 (validation Epic)** | Fin Phase 0 | R-0 (Business Analyst IA) a produit l'Epic | R-1 (Product Owner) valide ou corrige l'Epic avant injection dans le Backlog. | Décision stratégique : engagement sur la vision. Pas de délégation à l'IA. |
+| **H2 (validation Architecture + DoD (Definition of Done))** | Fin E2 (architecture, DoD (Definition of Done)) | R-2 (System Architect IA) a produit Architecture.md + draft DoD (Definition of Done) | R-7 (Stakeholder)/R-1 (Product Owner) valident l'architecture **et** co-construisent la DoD (Definition of Done). Le payload H2 (validation Architecture + DoD (Definition of Done)) contient Architecture.md et un draft DoD (Definition of Done) généré par R-2 (System Architect IA). R-1 (Product Owner) amende la DoD (Definition of Done) (critères d'acceptation), R-7 (Stakeholder) valide l'ensemble. La DoD (Definition of Done) finalisée est écrite dans l'état et dans BaseStore (mémoire long terme). Voir III.8-B et III.8-O. | Choix techniques engageants. DoD (Definition of Done) comme contrat d'acceptation partagé. |
+| **H3 (validation Sprint Backlog)** | Fin E3 (Sprint Backlog) | R-3 (Scrum Master IA) a produit le Sprint Backlog | R-1 (Product Owner) valide le découpage et la priorisation des tickets. **Option : forcer `architectural_change=True`** — si R-1 (Product Owner) estime que des tickets impliquent des changements architecturaux non détectés par R-3 (Scrum Master IA), il peut positionner ce flag via le payload de résumé H3 (validation Sprint Backlog) (`Command(resume={"status":"approved","force_architectural_change":true})`), ce qui redéclenche E2 (architecture, DoD (Definition of Done)) avant E4 (exécution code, sprint). | Ajustement de la vélocité, risques de sur/sous-découpage. Filet de sécurité humain si R-3 (Scrum Master IA) n'a pas détecté la nature architecturale des changements (voir F2 (détection changement architectural)). |
+| **H4 (Sprint Review, CI verts)** | Fin E5 (tests, CI local) | CI local (R-6 (QA & DevOps IA)) ET CI 1 (feature→develop) GitHub Actions verts | **Séquence** : (1) R-5 (Release Manager IA) push unique en fin de E4 (exécution code, sprint) → PR feature/{project_id}-sprint-{NN}→develop ouverte. (2) CI 1 (feature→develop) (GitHub Actions, feature→develop) et CI local (R-6 (QA & DevOps IA)) tournent en parallèle. R-6 (QA & DevOps IA) poll CI 1 (feature→develop) via `gh run watch` (timeout GITHUB_ACTIONS_TIMEOUT=600s). (3) H4 (Sprint Review, CI verts) déclenché si les deux CI sont verts. R-7 (Stakeholder) réalise la Sprint Review. (4) E6 (clôture sprint, merge) : R-5 (Release Manager IA) merge feature→develop. (5) Post-E6 (clôture sprint, merge) : R-5 (Release Manager IA) ouvre PR develop→main → CI 2 (develop→main) (GitHub Actions, develop→main). Merge develop→main après CI 2 (develop→main) vert. Voir III.8-B et III.8-F. | Double validation pré-H4 (Sprint Review, CI verts). Merge main séparé (post-E6 (clôture sprint, merge)). |
+| **H5 (approbation escalade API payante)** | Escalade N2 (cloud payant) | L'IA sollicite Claude Opus/Sonnet (coût) | R-1 (Product Owner) ou R-7 (Stakeholder) approuve l'escalade vers l'API payante. | Contrôle des coûts. Évite les appels non intentionnels. |
+| **H6 (résolution conflit Git)** | Conflit Git | R-5 (Release Manager IA) échoue à résoudre un conflit après 2 tentatives | R-1 (Product Owner) résout manuellement (git mergetool), commit, puis reprend le graphe. | Fallback pour conflits complexes. Voir III.8. |
 
 **Implémentation** : Utiliser un checkpointer (ex. `SqliteSaver` ou `PostgresSaver`) pour persister l'état. Chaque `interrupt()` retourne un payload JSON. Procédure : script `scripts/handle_interrupt.py` ou endpoint LangServe (voir III.8).
 
-**Branches rejected** : Si `Command(resume={"status":"rejected","feedback":"..."})` : H1 (validation Epic) rejected → relance nœud R-0 (Albert Business Analyst) avec le feedback injecté dans l'état (`state.h1_feedback`). H2 (validation Architecture + DoD (Definition of Done)) rejected → relance R-2 (Albert System Architect) avec feedback. H3 (validation Sprint Backlog) rejected → relance R-3 (Albert Scrum Master) avec feedback. H4 (Sprint Review, CI verts) rejected → commits correctifs sur même feature branch (pas nouvelle branche), nouveau cycle E5 (tests, CI local) obligatoire (CI local + GitHub Actions) avant H4 (Sprint Review, CI verts) suivant ; limite 3 cycles H4 (Sprint Review, CI verts)-rejected → H5 (approbation escalade API payante) avec payload `reason="max_h4_rejections"`. Voir III.8-B pour le catalogue complet des branches rejected et des reasons H5 (approbation escalade API payante).
+**Branches rejected** : Si `Command(resume={"status":"rejected","feedback":"..."})` : H1 (validation Epic) rejected → relance nœud R-0 (Business Analyst IA) avec le feedback injecté dans l'état (`state.h1_feedback`). H2 (validation Architecture + DoD (Definition of Done)) rejected → relance R-2 (System Architect IA) avec feedback. H3 (validation Sprint Backlog) rejected → relance R-3 (Scrum Master IA) avec feedback. H4 (Sprint Review, CI verts) rejected → commits correctifs sur même feature branch (pas nouvelle branche), nouveau cycle E5 (tests, CI local) obligatoire (CI local + GitHub Actions) avant H4 (Sprint Review, CI verts) suivant ; limite 3 cycles H4 (Sprint Review, CI verts)-rejected → H5 (approbation escalade API payante) avec payload `reason="max_h4_rejections"`. Voir III.8-B pour le catalogue complet des branches rejected et des reasons H5 (approbation escalade API payante).
 
-**Automatisation sans interrupt** : E4 (exécution code, sprint), E5 (tests, CI local, Self-Healing) s'exécutent sans blocage. Le Self-Healing (R-6 (Albert QA & DevOps)→R-4 (Albert Dev Team)) est une boucle automatisée avec seuil strict : 3 itérations max (`SELF_HEALING_MAX_ITERATIONS=3`). Au-delà → interrupt H5 (approbation escalade API payante) pour décision humaine.
+**Automatisation sans interrupt** : E4 (exécution code, sprint), E5 (tests, CI local, Self-Healing) s'exécutent sans blocage. Le Self-Healing (R-6 (QA & DevOps IA)→R-4 (Dev Team IA)) est une boucle automatisée avec seuil strict : 3 itérations max (`SELF_HEALING_MAX_ITERATIONS=3`). Au-delà → interrupt H5 (approbation escalade API payante) pour décision humaine.
 
 #### 3.7 Mémoire, Contextes, Persistance et RAG (recherche sémantique) — Architecture Multi-Agents
 
@@ -187,16 +187,16 @@ Cette règle renforce la "Règle d'or de sécurité" (section V) et la stratégi
 |--------|------|-------------|---------------|
 | **Mémoire court terme (état par thread)** | Sauvegarder l'état du graphe à chaque étape. Reprendre après interrupt, crash, ou session suivante. Human-in-the-loop requiert une persistance fiable. | **Checkpointer** : `SqliteSaver` (local simple) ou `PostgresSaver` (production, concurrence) | Cycle read-execute-write : à chaque step, l'état (messages, variables, flags) est sérialisé. `thread_id` identifie une exécution (sprint, projet). Permet le "time-travel" (retour à un état antérieur) et la reprise après `interrupt()`. |
 | **Mémoire long terme (cross-thread, cross-session)** | Stocker décisions, préférences, résumés de sprints, patterns de résolution. Les agents récupèrent des informations pertinentes par similarité sémantique. | **LangGraph BaseStore (mémoire long terme)** avec recherche sémantique : `PostgresStore` (pgvector) ou store custom basé sur **Chroma** | Mémoire partagée entre tous les agents et toutes les sessions. Permet "rappel" : "comment avons-nous résolu un bug similaire ?", "quelles étaient les décisions d'architecture ?". LangGraph propose `PostgresStore` avec `search(query=...)` pour recherche sémantique. |
-| **RAG (recherche sémantique) — Codebase et documents projet** | Fournir aux agents le contexte pertinent : code existant, Architecture.md, Backlog, DoD (Definition of Done), ADRs. Chaque agent (R-2 (Albert System Architect), R-3 (Albert Scrum Master), R-4 (Albert Dev Team)) doit pouvoir récupérer des extraits par requête naturelle. | **Base vectorielle** : **Chroma** + **nomic-embed-text** (Ollama) | Continue.dev a son propre RAG (recherche sémantique) (LanceDB, voyage-code-3) pour l'humain dans VS Code ; les agents LangGraph tournent dans un processus Python distinct et n'y ont pas accès. Ils nécessitent un RAG (recherche sémantique) dédié. Chroma : in-process, sans service externe, ~3,5 Go pour 1M vecteurs (768 dim). nomic-embed-text : 100 % local via Ollama, 0 €, performant. |
+| **RAG (recherche sémantique) — Codebase et documents projet** | Fournir aux agents le contexte pertinent : code existant, Architecture.md, Backlog, DoD (Definition of Done), ADRs. Chaque agent (R-2 (System Architect IA), R-3 (Scrum Master IA), R-4 (Dev Team IA)) doit pouvoir récupérer des extraits par requête naturelle. | **Base vectorielle** : **Chroma** + **nomic-embed-text** (Ollama) | Continue.dev a son propre RAG (recherche sémantique) (LanceDB, voyage-code-3) pour l'humain dans VS Code ; les agents LangGraph tournent dans un processus Python distinct et n'y ont pas accès. Ils nécessitent un RAG (recherche sémantique) dédié. Chroma : in-process, sans service externe, ~3,5 Go pour 1M vecteurs (768 dim). nomic-embed-text : 100 % local via Ollama, 0 €, performant. |
 
 **Contenu à indexer dans le RAG (recherche sémantique) (vecteurs)** :
 
 | Source | Usage par les agents |
 |--------|----------------------|
-| Codebase (`src/`, fichiers principaux) | R-4 (Albert Dev Team) (Dev) : récupérer code existant, patterns, types. R-2 (Albert System Architect) (Architecte) : comprendre la structure actuelle. |
-| Architecture.md, ADRs | R-2 (Albert System Architect), R-3 (Albert Scrum Master), R-4 (Albert Dev Team) : respect des décisions, cohérence architecturale. |
-| Besoins - Product Backlog.md, DoD (Definition of Done) | R-1 (Nghia (Product Owner)), R-3 (Albert Scrum Master) : priorisation, critères d'acceptation. |
-| Tickets résolus, résumés de sprints | R-3 (Albert Scrum Master), R-4 (Albert Dev Team) : patterns de découpage, résolutions passées. |
+| Codebase (`src/`, fichiers principaux) | R-4 (Dev Team IA) (Dev) : récupérer code existant, patterns, types. R-2 (System Architect IA) (Architecte) : comprendre la structure actuelle. |
+| Architecture.md, ADRs | R-2 (System Architect IA), R-3 (Scrum Master IA), R-4 (Dev Team IA) : respect des décisions, cohérence architecturale. |
+| Besoins - Product Backlog.md, DoD (Definition of Done) | R-1 (Product Owner), R-3 (Scrum Master IA) : priorisation, critères d'acceptation. |
+| Tickets résolus, résumés de sprints | R-3 (Scrum Master IA), R-4 (Dev Team IA) : patterns de découpage, résolutions passées. |
 
 **Flux de données** : À chaque étape du graphe, l'agent peut (1) lire l'état court terme (checkpointer), (2) interroger le RAG (recherche sémantique) pour récupérer les K chunks les plus pertinents (ex. top 5), (3) écrire en mémoire long terme (BaseStore (mémoire long terme)) les éléments à retenir pour plus tard. Les embeddings sont produits localement par `nomic-embed-text` (Ollama).
 
@@ -235,7 +235,7 @@ Cette règle renforce la "Règle d'or de sécurité" (section V) et la stratégi
 
 **Flux partagé** : index_rag.py alimente Chroma. Les nœuds LangGraph interrogent Chroma directement. chroma-mcp (ou MCP (Model Context Protocol) custom) expose la même Chroma aux clients MCP (Model Context Protocol). Continue.dev/Cursor configurés avec chroma-mcp → même index pour agents et humains.
 
-**Flux d'écriture BaseStore (mémoire long terme)** (obligatoire pour mémoire long terme) : À la fin de E2 (architecture, DoD (Definition of Done)), le nœud R-2 (Albert System Architect) écrit dans le BaseStore (mémoire long terme) (namespace `project/{id}/architecture`) un résumé "architecture_approved" avec date et version. À la fin de E6 (clôture sprint, merge), un nœud post-review écrit (namespace `project/{id}/sprints`) un "sprint_summary" (résumé incrément, tickets livrés, décisions). Format JSON. Les agents R-3 (Albert Scrum Master) et R-4 (Albert Dev Team) interrogent le BaseStore (mémoire long terme) avant découpage ou implémentation pour récupérer les résumés pertinents.
+**Flux d'écriture BaseStore (mémoire long terme)** (obligatoire pour mémoire long terme) : À la fin de E2 (architecture, DoD (Definition of Done)), le nœud R-2 (System Architect IA) écrit dans le BaseStore (mémoire long terme) (namespace `project/{id}/architecture`) un résumé "architecture_approved" avec date et version. À la fin de E6 (clôture sprint, merge), un nœud post-review écrit (namespace `project/{id}/sprints`) un "sprint_summary" (résumé incrément, tickets livrés, décisions). Format JSON. Les agents R-3 (Scrum Master IA) et R-4 (Dev Team IA) interrogent le BaseStore (mémoire long terme) avant découpage ou implémentation pour récupérer les résumés pertinents.
 
 #### 3.8 Procédures Opérationnelles Consolidées
 
@@ -275,14 +275,14 @@ Pour `start_phase HOTFIX (correctif urgent)` : load_context crée un Sprint Back
 - En absence de l'humain : option `resume={"status":"rejected","resume_after":"<date>"}`. **Notification obligatoire si interrupt non traité > 48h** (F5 (notification interrupt > 48h)) : un script cron `scripts/notify_pending_interrupts.py` (lancé toutes les heures par `setup_project_hooks.sh`) vérifie les threads en attente et émet une alerte — par défaut via log `logs/pending_interrupts_alert.log` + affichage terminal. Pour notification email ou webhook : configurer `AGILE_NOTIFY_CMD="<commande>"` dans `.agile-env` (ex. `"mail -s 'Interrupt en attente' nghia@example.com"` ou `"curl -X POST <webhook_url> -d '...'"`) ; si absent, la notification reste locale (log). Variable `AGILE_INTERRUPT_TIMEOUT_HOURS=48` (défaut).
 
 **Branches rejected** :
-- **H1 (validation Epic) rejected** → injecte feedback dans `state.h1_feedback`, reboucle vers R-0 (Albert Business Analyst) (nouveau Epic). Limite : 3 cycles → H5 (approbation escalade API payante) `reason="max_rejections_H1 (validation Epic)"`.
-- **H2 (validation Architecture + DoD (Definition of Done)) rejected** → injecte dans `state.h2_feedback`, reboucle vers R-2 (Albert System Architect) (Architecture + DoD (Definition of Done) revisitées). Limite : 3 cycles → H5 (approbation escalade API payante) `reason="max_rejections_H2 (validation Architecture + DoD (Definition of Done))"`.
-- **H3 (validation Sprint Backlog) rejected** → injecte dans `state.h3_feedback`, reboucle vers R-3 (Albert Scrum Master) (Sprint Backlog refait). Limite : 3 cycles → H5 (approbation escalade API payante) `reason="max_rejections_H3 (validation Sprint Backlog)"`.
+- **H1 (validation Epic) rejected** → injecte feedback dans `state.h1_feedback`, reboucle vers R-0 (Business Analyst IA) (nouveau Epic). Limite : 3 cycles → H5 (approbation escalade API payante) `reason="max_rejections_H1 (validation Epic)"`.
+- **H2 (validation Architecture + DoD (Definition of Done)) rejected** → injecte dans `state.h2_feedback`, reboucle vers R-2 (System Architect IA) (Architecture + DoD (Definition of Done) revisitées). Limite : 3 cycles → H5 (approbation escalade API payante) `reason="max_rejections_H2 (validation Architecture + DoD (Definition of Done))"`.
+- **H3 (validation Sprint Backlog) rejected** → injecte dans `state.h3_feedback`, reboucle vers R-3 (Scrum Master IA) (Sprint Backlog refait). Limite : 3 cycles → H5 (approbation escalade API payante) `reason="max_rejections_H3 (validation Sprint Backlog)"`.
 - **H3 (validation Sprint Backlog) approved avec `force_architectural_change=true`** → le nœud post-H3 (validation Sprint Backlog) positionne `state.needs_architecture_review = True` et `state.sprint_backlog.architectural_change = True`, puis route vers E2 (architecture, DoD (Definition of Done)) au lieu de E4 (exécution code, sprint). Voir III.8-O (re-déclenchement E2 (architecture, DoD (Definition of Done))).
 - **H4 (Sprint Review, CI verts) rejected** → commits correctifs sur la même feature branch, nouveau cycle E5 (tests, CI local) obligatoire. Limite : 3 cycles → H5 (approbation escalade API payante) `reason="max_h4_rejections"`.
-- **H6 (résolution conflit Git)** : Si R-5 (Albert Release Manager) échoue à résoudre un conflit Git après 2 tentatives → interrupt. L'humain résout (`git mergetool`), commit, puis `Command(resume="resolved")`.
+- **H6 (résolution conflit Git)** : Si R-5 (Release Manager IA) échoue à résoudre un conflit Git après 2 tentatives → interrupt. L'humain résout (`git mergetool`), commit, puis `Command(resume="resolved")`.
 
-**L18 — Contradictions RAG/Backlog/Architecture** : Si les sources (RAG, Backlog, Architecture.md) se contredisent, l'agent produit un payload interrupt avec reason=spec_contradiction et liste les sources en conflit. R-1 (Nghia (Product Owner)) ou R-7 (Nghia (Stakeholder)) résout la contradiction (correction des artefacts, choix explicite). Jamais arbitrer silencieusement (loi L18 Arrêt sur contradiction).
+**L18 — Contradictions RAG/Backlog/Architecture** : Si les sources (RAG, Backlog, Architecture.md) se contredisent, l'agent produit un payload interrupt avec reason=spec_contradiction et liste les sources en conflit. R-1 (Product Owner) ou R-7 (Stakeholder) résout la contradiction (correction des artefacts, choix explicite). Jamais arbitrer silencieusement (loi L18 Arrêt sur contradiction).
 
 **Catalogue complet des reasons H5 (approbation escalade API payante)** :
 
@@ -302,7 +302,7 @@ Pour `start_phase HOTFIX (correctif urgent)` : load_context crée un Sprint Back
 
 **Ordre opérations post-interrupt** (H1 (validation Epic), H2 (validation Architecture + DoD (Definition of Done)), H4 (Sprint Review, CI verts)) : (1) mise à jour état avec feedback, (2) écriture BaseStore (mémoire long terme) si applicable, (3) appel index_rag, (4) transition nœud suivant.
 
-**T1 — Ordre strict pour H1 (validation Epic)** : R-1 (Nghia (Product Owner)) doit avoir créé `Besoins - Product Backlog.md` et committé **avant** d'envoyer `Command(resume)` sur H1 (validation Epic). Sinon post_h1 indexe un fichier vide.
+**T1 — Ordre strict pour H1 (validation Epic)** : R-1 (Product Owner) doit avoir créé `Besoins - Product Backlog.md` et committé **avant** d'envoyer `Command(resume)` sur H1 (validation Epic). Sinon post_h1 indexe un fichier vide.
 
 ---
 
@@ -471,7 +471,7 @@ Si risque de dépassement 5 000 traces/mois (free tier) : `LANGCHAIN_TRACING_SAM
 
 ##### M. Procédure de clôture de projet
 
-Checklist (manuelle par R-1 (Nghia (Product Owner))/R-7 (Nghia (Stakeholder)) ou via nœud optionnel `project_close`) :
+Checklist (manuelle par R-1 (Product Owner)/R-7 (Stakeholder) ou via nœud optionnel `project_close`) :
 1. R-5 (Albert Release Manager) merge final `develop → main` (`git merge --no-ff`) si non déjà fait
 2. `scripts/export_chroma.py --project-id <id> --output archives/<id>-<date>.json`
 3. `projects.json` : `"archived": true`
@@ -493,19 +493,19 @@ Checklist (manuelle par R-1 (Nghia (Product Owner))/R-7 (Nghia (Stakeholder)) ou
 
 **Activé par défaut** via cron hebdomadaire. Variable `SYNC_ARTIFACTS_CRON` (défaut : `"0 0 * * 0"` = dimanche minuit) : compare la structure du code à Architecture.md et génère un rapport de dérive dans `logs/sync_artifacts_<date>.log`. Si `SYNC_ARTIFACTS_CRON=""` (chaîne vide) : désactivé explicitement. `setup_project_hooks.sh` génère l'entrée cron correspondante par défaut — supprimer manuellement si non souhaité.
 
-**Justification (F1 (sync_artifacts cron))** : Sans ce cron, la dérive entre code réel et Architecture.md peut s'accumuler silencieusement sur plusieurs sprints, sans que les agents ni Nghia ne le détectent. Le rapport hebdomadaire constitue un filet de sécurité contre les régressions documentaires long terme.
+**Justification (F1 (sync_artifacts cron))** : Sans ce cron, la dérive entre code réel et Architecture.md peut s'accumuler silencieusement sur plusieurs sprints, sans que les agents ni les superviseurs ne la détectent. Le rapport hebdomadaire constitue un filet de sécurité contre les régressions documentaires long terme.
 
 **Numérotation ADRs** : `state.adr_counter` (TypedDict, chargé depuis BaseStore (mémoire long terme) `project/{id}/adr_counter`). Incrémenté par R-2 (Albert System Architect) à chaque ADR (Architecture Decision Record) produit. Fichier : `docs/ADR (Architecture Decision Record)-{NNN:03d}-{date}-{slug}.md`.
 
 **DoD (Definition of Done) versionnée** : namespace BaseStore (mémoire long terme) `project/{id}/dod/{sprint_number}`. Chaque sprint conserve sa DoD (Definition of Done). Chargée par load_context pour le sprint en cours.
 
-**Re-déclenchement E2 (architecture, DoD (Definition of Done))** : Si `state.sprint_backlog.architectural_change = True` (champ Pydantic SprintBacklog, défaut `False`, positionné par R-3 (Albert Scrum Master) ou forcé manuellement par R-1 (Nghia (Product Owner)) via H3 (validation Sprint Backlog)), sprint_complete met `needs_architecture_review = True` et boucle vers E2 (architecture, DoD (Definition of Done)) au lieu de E3 (Sprint Backlog).
+**Re-déclenchement E2 (architecture, DoD (Definition of Done))** : Si `state.sprint_backlog.architectural_change = True` (champ Pydantic SprintBacklog, défaut `False`, positionné par R-3 (Scrum Master IA) ou forcé manuellement par R-1 (Product Owner) via H3 (validation Sprint Backlog)), sprint_complete met `needs_architecture_review = True` et boucle vers E2 (architecture, DoD (Definition of Done)) au lieu de E3 (Sprint Backlog).
 
 ---
 
 ##### P. Dashboard de statut multi-projets (status.py)
 
-**Justification (F6 (status multi-projets))** : Avec plusieurs projets actifs en parallèle, Nghia ne peut pas surveiller efficacement LangSmith + logs + handle_interrupt.py séparément pour chaque projet. Un script de statut unifié agrège toutes les informations critiques en une seule commande.
+**Justification (F6 (status multi-projets))** : Avec plusieurs projets actifs en parallèle, un superviseur ne peut pas surveiller efficacement LangSmith + logs + handle_interrupt.py séparément pour chaque projet. Un script de statut unifié agrège toutes les informations critiques en une seule commande.
 
 **Script `scripts/status.py`** :
 - Signature : `python scripts/status.py [--project-id <id>] [--json]`
@@ -542,7 +542,7 @@ setup_project_hooks.sh crée le script status.py dans le projet orchestration. E
 
 **Séparation stricte** : Les dossiers **nobles** (versionnés, source de vérité) : `/specs`, `/src`, `/docs`, `Architecture.md`, `Product Backlog.md`, ADRs (Architecture Decision Record). Les dossiers **opérationnels** (artefacts temporaires, logs, chroma local) : `/.operations` (artefacts IA, logs, chroma_db local au projet).
 
-**Quarantaine des artefacts IA** : R-2 (Albert System Architect) et R-4 (Albert Dev Team) déposent les artefacts générés par l'IA en quarantaine (ex. `.operations/artifacts`) avant promotion. La promotion vers les nobles (commit dans `/src`, `/docs`) requiert la validation de R-1 (Nghia (Product Owner)) ou R-7 (Nghia (Stakeholder)). Documenter cette structure dans `specs/REGLES_AGENTS_AGILE.md`.
+**Quarantaine des artefacts IA** : R-2 (System Architect IA) et R-4 (Dev Team IA) déposent les artefacts générés par l'IA en quarantaine (ex. `.operations/artifacts`) avant promotion. La promotion vers les nobles (commit dans `/src`, `/docs`) requiert la validation de R-1 (Product Owner) ou R-7 (Stakeholder). Documenter cette structure dans `specs/REGLES_AGENTS_AGILE.md`.
 
 ---
 
@@ -589,9 +589,9 @@ Avant toute escalade d'une tâche vers le Cloud (Gemini, Google AI Studio ou Cla
 Avant d'entrer dans le cycle Agile (sprints, program increment), un **processus amont** de Product Discovery transforme opportunités et idées en Epic validé :
 
 1. **Discovery** — Exploration du problème, des utilisateurs, recherche, vision produit.
-2. **Ideation** — Nghia (Product Owner) et Albert (Business Analyst) échangent : hypothèses, proposition de valeur, opportunité.
+2. **Ideation** — le Product Owner et le Business Analyst IA échangent : hypothèses, proposition de valeur, opportunité.
 3. **Cristallisation** — Albert (Business Analyst) structure l'initiative en Epic (cahier des charges, critères de haut niveau).
-4. **Validation de l'Epic** — Nghia (Product Owner) valide l'Epic (interrupt H1) avant injection dans le Product Backlog.
+4. **Validation de l'Epic** — le Product Owner valide l'Epic (interrupt H1) avant injection dans le Product Backlog.
 
 L'Epic validé est l'entrée du cycle E2 (Architecture) puis E3 (Sprint Backlog) et des sprints.
 
