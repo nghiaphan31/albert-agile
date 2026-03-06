@@ -2,6 +2,10 @@
 
 Ce dépôt est **GPU-agnostique**. Les réglages ci-dessous servent à éviter les problèmes de **swapping de modèles**, **OOM VRAM** et **contention GPU** (LLM vs embeddings) quand on utilise Ollama + indexation RAG.
 
+## Configuration actuelle (Calypso)
+
+Calypso est équipée de **RTX 5060 Ti 16G** (swap effectué). Profil appliqué : `AGILE_GPU_PROFILE=vram_16gb`.
+
 ## Profil recommandé (VRAM ≥ 16 Go) — RTX 5060 Ti 16G
 
 ### Objectif
