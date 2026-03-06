@@ -65,25 +65,30 @@ ollama run qwen2.5:14b "En 3 bullet points, résume les risques d'une migration 
 
 ### 3. Test avec structured output (comme le graphe)
 
-Utiliser `scripts/test_structured_cli.py` et les variables d'environnement :
+Utiliser `scripts/test_structured_cli.py` et les variables d'environnement. Depuis la racine du projet, avec venv activé et `PYTHONPATH=.` (ou `./scripts/test_models_cli.sh structured`).
 
 ```bash
+# Depuis la racine, venv activé
+source .venv/bin/activate
+
 # Tier 2 — code (sprint backlog)
-AGILE_TIER2_N0_MODEL=qwen2.5-coder:14b python scripts/test_structured_cli.py sprint-backlog --tier tier2 \
+PYTHONPATH=. AGILE_TIER2_N0_MODEL=qwen2.5-coder:14b python scripts/test_structured_cli.py sprint-backlog --tier tier2 \
   -p "Prépare un sprint backlog d'une semaine pour une API REST de gestion de tâches."
 
 # Puis deepseek
-AGILE_TIER2_N0_MODEL=deepseek-coder-v2:16b python scripts/test_structured_cli.py sprint-backlog --tier tier2 \
+PYTHONPATH=. AGILE_TIER2_N0_MODEL=deepseek-coder-v2:16b python scripts/test_structured_cli.py sprint-backlog --tier tier2 \
   -p "Prépare un sprint backlog d'une semaine pour une API REST de gestion de tâches."
 
 # Tier 1 — idéation (epic)
-AGILE_TIER1_N0_MODEL=qwen2.5:14b python scripts/test_structured_cli.py epic --tier tier1 \
+PYTHONPATH=. AGILE_TIER1_N0_MODEL=qwen2.5:14b python scripts/test_structured_cli.py epic --tier tier1 \
   -p "Propose une Epic pour un système de gestion de tâches avec priorisation."
 
 # Architecture
-AGILE_TIER1_N0_MODEL=qwen2.5:14b python scripts/test_structured_cli.py architecture --tier tier1 \
+PYTHONPATH=. AGILE_TIER1_N0_MODEL=qwen2.5:14b python scripts/test_structured_cli.py architecture --tier tier1 \
   -p "Décris l'architecture logique pour une app de notes collaborative."
 ```
+
+Ou : `./scripts/test_models_cli.sh structured`
 
 ---
 
@@ -124,6 +129,18 @@ Créer `scripts/test_models_cli.sh` qui :
 4. Pull `qwen2.5:14b` + tests I1, I2, I3 en CLI
 5. Test structured : `AGILE_TIER1_N0_MODEL=qwen2.5:14b` + `test_structured_cli.py epic` et `architecture`
 6. Documenter les résultats (quel modèle garde structured output sans panic) avant de modifier les specs
+
+---
+
+## Résultats des tests (2026-03-06)
+
+| Modèle | Usage | Structured output | Statut |
+|--------|-------|-------------------|--------|
+| qwen2.5-coder:14b | Tier2 (sprint-backlog) | OK | Validé |
+| deepseek-coder-v2:16b | Tier2 (sprint-backlog) | OK | Validé |
+| qwen2.5:14b | Tier1 (epic, architecture) | OK | Validé |
+
+Tous les modèles recommandés fonctionnent sans panic Ollama avec `with_structured_output` (Pydantic).
 
 ---
 
