@@ -59,6 +59,8 @@ chroma-mcp est déjà installé dans le venv du projet. Pour le configurer dans 
 
 ---
 
-## 7.7 Recommandation RTX 3060
+## 7.7 Recommandation GPU (profil)
 
-Pendant E4 (exécution code)/E5 (tests CI) (quand le graphe LangGraph tourne sur Calypso), configure Continue/Roo Code sur **qwen2.5-coder:7b** pour éviter le swapping de modèles (un seul modèle en VRAM sur RTX 3060).
+Pendant E4 (exécution code)/E5 (tests CI) (quand le graphe LangGraph tourne sur Calypso), configure Continue/Roo Code sur **le même modèle prioritaire** que le graphe (souvent `qwen2.5-coder`) pour limiter le swapping de modèles et les latences.
+
+Voir `docs/HARDWARE_GPU.md` pour les profils VRAM (recommandé 16 Go, legacy 12 Go) et la checklist.

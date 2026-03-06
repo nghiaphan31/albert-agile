@@ -115,4 +115,4 @@ Codes des problèmes identifiés et corrections intégrées dans le spec. Voir `
 | 011 | Z1–Z2 | sprint_number ordre CI 2, branch protection |
 | 012 | AA1–AA2 | sprint_number mode dégradé, notation H4 |
 | 013 | BB1–BB4 | Checklist, W5 vs Y4 hotfix, merge develop, auto_next_sprint timing |
-| 014 | CC1–CC3 | OLLAMA_KEEP_ALIVE, recommandations RTX 3060 |
+| 014 | CC1–CC3 | OLLAMA_KEEP_ALIVE, recommandations legacy 12 Go (RTX 3060) |

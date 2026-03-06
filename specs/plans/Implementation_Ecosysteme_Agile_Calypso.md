@@ -14,7 +14,7 @@
 | SOURCE    | `PC` (machine où tu tapes, Laptop Windows)      |
 | APP       | `Cursor`, `Navigateur Web`, `PowerShell`        |
 | VUE       | `Terminal`, `Chat`, `Éditeur`, `Explorateur`    |
-| CIBLE     | `Calypso` (Linux RTX 3060), `Cloud` (sites web) |
+| CIBLE     | `Calypso` (Linux + GPU NVIDIA), `Cloud` (sites web) |
 
 
 **Règle d'exécution** : Tu es connecté à Calypso via Remote SSH depuis Cursor. Les commandes dans le Terminal Cursor s'exécutent sur Calypso sauf indication contraire.
@@ -500,7 +500,8 @@ docker run hello-world
 nvidia-smi
 ```
 
-- Vérifier : "NVIDIA GeForce RTX 3060", "12288MiB" (12 Go). Si pilote manquant, installer les drivers NVIDIA appropriés (hors scope détaillé ici).
+- Vérifier : GPU NVIDIA détecté + VRAM cohérente (ex. ~16 Go sur RTX 5060 Ti 16G). Si pilote manquant, installer les drivers NVIDIA appropriés (hors scope détaillé ici).
+- Recommandations profils VRAM + checklist : voir `docs/HARDWARE_GPU.md`.
 
 ---
 
@@ -527,7 +528,7 @@ curl -fsSL https://ollama.com/install.sh | sh
 
 ### 1.3 Télécharger les modèles (ordre recommandé)
 
-Chaque `ollama pull` peut prendre plusieurs minutes. Un seul modèle à la fois en VRAM sur RTX 3060.
+Chaque `ollama pull` peut prendre plusieurs minutes. Sur VRAM limitée (profil legacy 12 Go), un seul modèle “lourd” peut être réellement confortable en VRAM à un instant donné.
 
 - [ PC > Cursor > Terminal ] -> (Calypso)
 
@@ -549,16 +550,16 @@ ollama pull nomic-embed-text
 
 - Vérifier : `ollama list` — les trois modèles apparaissent.
 
-### 1.4 Configurer OLLAMA_KEEP_ALIVE (RTX 3060)
+### 1.4 Configurer OLLAMA_KEEP_ALIVE (recommandé)
 
 - [ PC > Cursor > Terminal ] -> (Calypso) Ajouter à `~/.bashrc` de manière **idempotente** (évite duplication si le plan est relancé) :
 
 ```
-grep -q 'OLLAMA_KEEP_ALIVE' ~/.bashrc || echo 'export OLLAMA_KEEP_ALIVE=qwen2.5-coder:7b' >> ~/.bashrc
+grep -q 'OLLAMA_KEEP_ALIVE' ~/.bashrc || echo 'export OLLAMA_KEEP_ALIVE=24h' >> ~/.bashrc
 source ~/.bashrc
 ```
 
-- Cette variable évite le déchargement du modèle pendant E4 (exécution code) / E5 (tests CI). Pour Phase 0 / E2 (architecture), tu peux optionnellement passer à `gemma3:12b-it-q4_K_M` avant de lancer ces phases.
+- Cette variable évite le déchargement du/des modèles après inactivité. Pour limiter le swapping, garder un modèle “prioritaire” pendant E4/E5 et précharger via un warmup (voir `docs/HARDWARE_GPU.md`).
 
 ---
 
@@ -959,9 +960,10 @@ pip install chroma-mcp
 
 - [ PC > VS Code > Éditeur ] -> (Calypso) Configurer chroma-mcp dans Continue : fichier `.continue/mcpServers/` ou équivalent, pointer vers `$AGILE_ORCHESTRATION_ROOT/chroma_db`. Permet à Continue (et donc à R-1 (Nghia (Product Owner)) / R-7 (Nghia (Stakeholder))) d'utiliser le même index RAG (recherche sémantique) que les agents LangGraph.
 
-### 7.6 Recommandation RTX 3060 (spec III.8-J, CC2)
+### 7.6 Recommandation GPU (spec III.8-J, CC2)
 
-- Pendant E4 (exécution code) / E5 (tests CI), si VS Code + Continue ou Roo Code restent ouverts, les configurer sur **qwen2.5-coder:7b** pour éviter le swapping de modèles (un seul modèle en VRAM sur RTX 3060). Alternative : désactiver l'autocomplétion IA pendant E4 (exécution code)/E5 (tests CI).
+- Pendant E4 (exécution code) / E5 (tests CI), si VS Code + Continue ou Roo Code restent ouverts, les configurer sur **le même modèle prioritaire** que le graphe (souvent `qwen2.5-coder`) pour limiter le swapping et les latences. Alternative : désactiver l'autocomplétion IA pendant E4/E5.
+- Profils VRAM (recommandé 16 Go, legacy 12 Go) + checklist : voir `docs/HARDWARE_GPU.md`.
 
 ---
 
@@ -1454,8 +1456,8 @@ python run_graph.py --project-id mon-projet --start-phase HOTFIX --thread-id mon
 | Point                                  | Action 4D                                                            | Détail                                                                                                                                                              |
 | -------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Vérifier les interrupts en attente** | [ PC > Cursor > Terminal ] -> (Calypso)                              | `python scripts/handle_interrupt.py` sans arguments pour lister les runs suspendus.                                                                                 |
-| **Ollama — modèle en mémoire**         | [ PC > Cursor > Terminal ] -> (Calypso)                              | Pour E4 (exécution code) / E5 (tests CI), définir `OLLAMA_KEEP_ALIVE=qwen2.5-coder:7b` pour éviter le swapping GPU.                                                 |
-| **Indexation différée (F7)**           | [ PC > Cursor > Terminal ] ou [ PC > Cursor > Éditeur ] -> (Calypso) | Ne pas lancer `index_rag` pendant E4/E5 sur une machine avec une seule GPU (RTX 3060) ; utiliser `AGILE_DEFER_INDEX=true` ; le hook écrit dans `pending_index.log`. |
+| **Ollama — modèles en mémoire**        | [ PC > Cursor > Terminal ] -> (Calypso)                              | Pour E4/E5, utiliser `OLLAMA_KEEP_ALIVE=24h` + précharger le modèle prioritaire (`ollama run ... "warmup"`). Voir `docs/HARDWARE_GPU.md`.                           |
+| **Indexation différée (F7)**           | [ PC > Cursor > Terminal ] ou [ PC > Cursor > Éditeur ] -> (Calypso) | Éviter de lancer `index_rag` pendant E4/E5 si tu observes une contention GPU (LLM vs embeddings). Garder `AGILE_DEFER_INDEX=true` (défaut).                          |
 | **LangServe en arrière-plan**          | [ PC > Cursor > Terminal ] -> (Calypso)                              | Si vous utilisez l'API LangServe : `uvicorn serve:app --host 0.0.0.0 --port 8000` ; le graphe est alors invoqué via HTTP.                                           |
 | **Playground**                         | [ PC > Navigateur Web ] -> (Cloud ou tunnel)                         | Ouvrir `http://calypso:8000/playground` (ou localhost si tunnel SSH) pour tester le graphe interactivement.                                                         |
 
@@ -1497,5 +1499,5 @@ python run_graph.py --project-id mon-projet --start-phase HOTFIX --thread-id mon
 1. **Toujours activer le venv** avant de lancer Python : `source .venv/bin/activate`
 2. **Vérifier la CIBLE** : le Terminal Cursor en Remote SSH exécute sur Calypso ; les commandes `curl`, `ollama`, `python` tournent donc sur la machine Linux
 3. **Ne pas lancer index_rag pendant E4 (exécution code)/E5 (tests CI)** : AGILE_DEFER_INDEX=true évite les conflits GPU ; le hook écrit dans pending_index.log
-4. **Un seul modèle Ollama à la fois** sur RTX 3060 : OLLAMA_KEEP_ALIVE=qwen2.5-coder:7b pour E4 (exécution code) / E5 (tests CI)
+4. **GPU / VRAM** : appliquer le profil et les bonnes pratiques (keep-alive `OLLAMA_KEEP_ALIVE=24h`, warmup, indexation hors E4/E5 si contention). Voir `docs/HARDWARE_GPU.md`.
 

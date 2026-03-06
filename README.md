@@ -48,6 +48,8 @@ L'IA ne fait rien sans validation explicite aux jalons critiques (H1 (validation
 
 **Règle de cascade :** N0 (local Ollama) → N1 (cloud gratuit) (Gemini gratuit) → N2 (cloud payant) (Claude payant). On n'escalade que si le niveau inférieur échoue ou renvoie HTTP 429.
 
+**GPU / VRAM :** voir `docs/HARDWARE_GPU.md` (profil recommandé VRAM ≥ 16 Go, legacy 12 Go, checklist swap RTX 3060 → RTX 5060 Ti 16G).
+
 ---
 
 ## Cycle de vie d'un projet avec l'écosystème Agile Agent IA
