@@ -26,8 +26,11 @@ from pathlib import Path
 ORCH_ROOT = Path(__file__).resolve().parent.parent
 
 
-def _run(cmd: list[str], timeout: int | None = 30, capture: bool = True) -> tuple[int, str]:
+def _run(cmd: list[str], timeout: int | None = 30, capture: bool = True, extra_env: dict | None = None) -> tuple[int, str]:
     """Exécute une commande, retourne (exit_code, output)."""
+    env = {**os.environ, "AGILE_ORCHESTRATION_ROOT": str(ORCH_ROOT)}
+    if extra_env:
+        env.update(extra_env)
     try:
         r = subprocess.run(
             cmd,
@@ -35,7 +38,7 @@ def _run(cmd: list[str], timeout: int | None = 30, capture: bool = True) -> tupl
             capture_output=capture,
             text=True,
             timeout=timeout,
-            env={**os.environ, "AGILE_ORCHESTRATION_ROOT": str(ORCH_ROOT)},
+            env=env,
         )
         out = (r.stdout or "") + (r.stderr or "")
         return r.returncode, out
@@ -74,11 +77,14 @@ def check_prereq() -> int:
 
 
 def run_e1(project_id: str, thread_id: str, timeout: int, auto_approved: bool) -> int:
-    """Lance run_graph E1. Attend interrupt H1 ou timeout."""
+    """Lance run_graph E1. Attend interrupt H1 ou timeout.
+    E1 utilise tier1 (gemma3) — OLLAMA_KEEP_ALIVE=gemma3 évite le 500 lors du swap modèle.
+    """
     py = ORCH_ROOT / ".venv" / "bin" / "python"
     cmd = [str(py), str(ORCH_ROOT / "run_graph.py"), "--project-id", project_id, "--start-phase", "E1", "--thread-id", thread_id]
     print(f"Lancement: python run_graph.py --project-id {project_id} --start-phase E1 --thread-id {thread_id} (timeout={timeout}s)")
-    code, out = _run(cmd, timeout=timeout)
+    # E1 utilise tier1 (gemma3) ; OLLAMA_KEEP_ALIVE=gemma3 évite 500 lors du swap (H1 root cause).
+    code, out = _run(cmd, timeout=timeout, extra_env={"OLLAMA_KEEP_ALIVE": "gemma3:12b-it-q4_K_M"})
     print(out)
     if code != 0:
         print("RUN E1 KO (exit code", code, ")")
