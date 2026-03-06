@@ -32,8 +32,8 @@ Plan formel des cas de validation pour les tests end-to-end. À cocher manuellem
 
 | # | Cas | Commande / Action | Résultat attendu | ☐ |
 |---|-----|-------------------|------------------|---|
-| 3.1 | Lancement E3 | `python run_graph.py --project-id albert-agile --start-phase E3 --thread-id albert-agile-sprint-01` | Graphe suspendu sur H3 | ☐ |
-| 3.2 | Validation H3 | `handle_interrupt.py --thread-id albert-agile-sprint-01 --approved` | Graphe poursuit vers r4 | ☐ |
+| 3.1 | Lancement E3 | `python run_graph.py --project-id albert-agile --start-phase E3 --thread-id albert-agile-sprint-01` | Graphe suspendu sur H3 | ☑ |
+| 3.2 | Validation H3 | `handle_interrupt.py --thread-id albert-agile-sprint-01 --approved` | Graphe poursuit vers r4 | ☑ |
 
 ---
 
@@ -59,7 +59,7 @@ Plan formel des cas de validation pour les tests end-to-end. À cocher manuellem
 | # | Cas | Commande / Action | Résultat attendu | ☐ |
 |---|-----|-------------------|------------------|---|
 | 6.1 | Démarrage serveur | `uvicorn serve:app --host 0.0.0.0 --port 8000` | Serveur démarre sans erreur | ☐ |
-| 6.2 | Playground | Ouvrir http://calypso:8000/playground (ou localhost) | Interface accessible | ☐ |
+| 6.2 | Playground | Ouvrir http://localhost:8000/agile/playground/ | Interface accessible | ☑ |
 
 ---
 
