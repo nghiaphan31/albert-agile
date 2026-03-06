@@ -10,7 +10,7 @@ Plan formel des cas de validation pour les tests end-to-end. À cocher manuellem
 
 | # | Cas | Commande / Action | Résultat attendu | ☐ |
 |---|-----|-------------------|------------------|---|
-| 1.1 | Ollama actif | `ollama list` | qwen2.5-coder, gemma3, nomic-embed présents | ☐ |
+| 1.1 | Ollama actif | `ollama list` | qwen2.5-coder:14b, qwen2.5:14b, nomic-embed-text présents | ☐ |
 | 1.2 | Venv + import graphe | `python -c "from graph.graph import graph; print('OK')"` | OK affiché | ☐ |
 | 1.3 | config/projects.json | Vérifier existence et format | albert-agile présent | ☐ |
 | 1.4 | Script test prereq | `python scripts/test_e2e_manual.py --check-prereq` | PREREQ OK | ☐ |

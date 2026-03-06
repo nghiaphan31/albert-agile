@@ -9,7 +9,7 @@
 | Phase | Statut | Détail |
 |-------|--------|--------|
 | 0 | ✅ | Python 3.12, Git, Docker, GPU NVIDIA (Calypso : RTX 5060 Ti 16G installé), Ollama |
-| 1 | ✅ | Ollama, qwen2.5-coder, gemma3, nomic-embed-text, profil GPU (voir docs/HARDWARE_GPU.md) |
+| 1 | ✅ | Ollama, qwen2.5-coder:14b, qwen2.5:14b, nomic-embed-text, profil GPU (voir docs/HARDWARE_GPU.md) |
 | 2 | ✅ | venv, langgraph/langchain/chroma/etc., config/projects.json, AGILE_* dans .bashrc |
 | 3 | ✅ | setup_project_hooks.sh, handle_interrupt, purge_checkpoints, export/import_chroma, notify_pending_interrupts, status, index_rag |
 | 4 | ✅ | graph/, serve.py, run_graph.py, SqliteSaver, LangServe |

@@ -33,7 +33,7 @@
 
 | Niveau | Technologie | Modèle exact | Usage typique | Coût |
 |--------|-------------|--------------|---------------|------|
-| **N0 (local Ollama) – Local** | Ollama sur GPU NVIDIA (profil VRAM — voir `docs/HARDWARE_GPU.md`) | `qwen2.5-coder:7b` (code) ou `gemma3:12b-it-q4_K_M` (idéation) | Tâches courantes, ~80% des cas | 0 € |
+| **N0 (local Ollama) – Local** | Ollama sur GPU NVIDIA (profil VRAM — voir `docs/HARDWARE_GPU.md`) | `qwen2.5-coder:14b` (code) ou `qwen2.5:14b` (idéation) ; *legacy 12 Go* : qwen2.5-coder:7b/3b, gemma3:12b (voir Simulation 014) | Tâches courantes, ~80% des cas | 0 € |
 | **N1 (cloud gratuit) – Cloud gratuit** | Google AI Studio API | `gemini-2.5-flash` ou `gemini-2.5-flash-lite` | Fallback après N0 (local Ollama) | 0 € |
 | **N2 (cloud payant) – Cloud payant** | Anthropic API | `claude-sonnet-4-6` (exécution) / `claude-opus-4-6` (architecture) | Dernier recours, décisions critiques | Pay-as-you-go |
 
@@ -41,9 +41,9 @@
 
 | Rôle | Modèle local (N0 (local Ollama)) | Modèle cloud gratuit (N1 (cloud gratuit)) | Modèle cloud payant (N2 (cloud payant)) |
 |------|-------------------|---------------------------|---------------------------|
-| R-0 (Business Analyst IA) | gemma3:12b-it-q4_K_M | gemini-2.5-flash | claude-opus-4-6 |
-| R-2 (System Architect IA) | gemma3:12b-it-q4_K_M | gemini-2.5-flash | claude-opus-4-6 |
-| R-3 (Scrum Master IA), R-4 (Dev Team IA), R-5 (Release Manager IA), R-6 (QA & DevOps IA) | qwen2.5-coder:7b | gemini-2.5-flash | claude-sonnet-4-6 |
+| R-0 (Business Analyst IA) | qwen2.5:14b | gemini-2.5-flash | claude-opus-4-6 |
+| R-2 (System Architect IA) | qwen2.5:14b | gemini-2.5-flash | claude-opus-4-6 |
+| R-3 (Scrum Master IA), R-4 (Dev Team IA), R-5 (Release Manager IA), R-6 (QA & DevOps IA) | qwen2.5-coder:14b | gemini-2.5-flash | claude-sonnet-4-6 |
 
 *R-1 (Product Owner) et R-7 (Stakeholder) : rôles de supervision, pilotent via VS Code + Continue.dev.*
 
@@ -53,13 +53,13 @@
 
 | ID | Rôle Agile & Mission | Entité | Technologie & Régime | Artefact (Livrable) |
 | --- | --- | --- | --- | --- |
-| R-0 (Business Analyst IA) | **Business Analyst IA** — Guide la phase d'idéation, challenge les hypothèses métier et aide à définir la proposition de valeur avant tout investissement technique. | Sparring Partner | Cascade : Ollama (gemma3:12b) → AI Studio (Gemini 2.5 Flash) → Opus 4.6 | Notes de Discovery, Epic initial mature |
+| R-0 (Business Analyst IA) | **Business Analyst IA** — Guide la phase d'idéation, challenge les hypothèses métier et aide à définir la proposition de valeur avant tout investissement technique. | Sparring Partner | Cascade : Ollama (qwen2.5:14b) → AI Studio (Gemini 2.5 Flash) → Opus 4.6 | Notes de Discovery, Epic initial mature |
 | R-1 (Product Owner) | **Product Owner** — Garant de la vision produit. Priorise la valeur métier, gère le backlog interactif via Continue.dev (RAG (recherche sémantique) sur la codebase ; option : chroma-mcp pour RAG (recherche sémantique) partagé avec agents) et s'assure de l'alignement. | Superviseur produit | VS Code + Continue.dev + Roo Code. Régime : Local / Gratuit | Besoins - Product Backlog.md, Co-rédacteur de la DoD (Definition of Done) |
-| R-2 (System Architect IA) | **System Architect IA** — Garant de la viabilité technique. Traduit les besoins métier en choix architecturaux, structures de données et contrats d'API. | L'Architecte | Cascade : Ollama (gemma3:12b) → AI Studio → Opus 4.6 | Architecture.md, Co-rédacteur de la DoD (Definition of Done) |
-| R-3 (Scrum Master IA) | **Scrum Master IA** — Facilitateur et orchestrateur. Lève les obstacles, gère le découpage technique pour respecter la vélocité et anonymise les contextes. | Chef de Projet | Cascade : Ollama (qwen2.5-coder:7b) → AI Studio → Sonnet 4.6 | Sprint Backlog (tickets atomiques et ciblés) |
-| R-4 (Dev Team IA) | **Dev Team IA** — Force de production exécutive incarnée par Roo Code. Écrit le code source fonctionnel et garantit la non-régression via TDD. | Le Développeur | Cascade : Ollama (qwen2.5-coder:7b) → AI Studio → Sonnet 4.6 | Source Code, Unit Tests (TDD) |
-| R-5 (Release Manager IA) | **Release Manager IA** — Garant du versioning et de la stratégie de branching. Gère les conflits de fusion et isole les développements. | L'Archiviste | Git / MCP (Model Context Protocol) + Cascade : Ollama (qwen2.5-coder:7b) → AI Studio → Sonnet 4.6 | Feature Branches, Historique des Commits |
-| R-6 (QA & DevOps IA) | **QA & DevOps IA** — Garant de l'intégration continue. Exécute les tests, analyse les logs d'erreurs et déclenche la boucle de correction. | L'Inspecteur | Docker, Jest + Cascade : Ollama (qwen2.5-coder:7b) → AI Studio → Sonnet 4.6 | Test Reports & Logs (application stricte de la DoD (Definition of Done)) |
+| R-2 (System Architect IA) | **System Architect IA** — Garant de la viabilité technique. Traduit les besoins métier en choix architecturaux, structures de données et contrats d'API. | L'Architecte | Cascade : Ollama (qwen2.5:14b) → AI Studio → Opus 4.6 | Architecture.md, Co-rédacteur de la DoD (Definition of Done) |
+| R-3 (Scrum Master IA) | **Scrum Master IA** — Facilitateur et orchestrateur. Lève les obstacles, gère le découpage technique pour respecter la vélocité et anonymise les contextes. | Chef de Projet | Cascade : Ollama (qwen2.5-coder:14b) → AI Studio → Sonnet 4.6 | Sprint Backlog (tickets atomiques et ciblés) |
+| R-4 (Dev Team IA) | **Dev Team IA** — Force de production exécutive incarnée par Roo Code. Écrit le code source fonctionnel et garantit la non-régression via TDD. | Le Développeur | Cascade : Ollama (qwen2.5-coder:14b) → AI Studio → Sonnet 4.6 | Source Code, Unit Tests (TDD) |
+| R-5 (Release Manager IA) | **Release Manager IA** — Garant du versioning et de la stratégie de branching. Gère les conflits de fusion et isole les développements. | L'Archiviste | Git / MCP (Model Context Protocol) + Cascade : Ollama (qwen2.5-coder:14b) → AI Studio → Sonnet 4.6 | Feature Branches, Historique des Commits |
+| R-6 (QA & DevOps IA) | **QA & DevOps IA** — Garant de l'intégration continue. Exécute les tests, analyse les logs d'erreurs et déclenche la boucle de correction. | L'Inspecteur | Docker, Jest + Cascade : Ollama (qwen2.5-coder:14b) → AI Studio → Sonnet 4.6 | Test Reports & Logs (application stricte de la DoD (Definition of Done)) |
 | R-7 (Stakeholder) | **Stakeholder** — Sponsor du projet. Évalue le ROI de l'incrément, supervise les tests finaux dans VS Code et valide l'alignement stratégique. | Superviseur stratégique | VS Code + Continue.dev + Roo Code. Régime : Local / Gratuit | Go/No-Go Decision, Valideur final de la DoD (Definition of Done) |
 
 ###
@@ -79,10 +79,11 @@ III. Outils, Frameworks et Modèles IA — Spécifications Techniques Détaillé
 
 | Modèle | Commande d'installation | VRAM | Usage principal |
 |--------|-------------------------|------|-----------------|
-| **qwen2.5-coder:7b** | `ollama pull qwen2.5-coder:7b` | ~8–10 Go | R-3 (Scrum Master IA), R-4 (Dev Team IA), R-5 (Release Manager IA), R-6 (QA & DevOps IA) : code, tests, découpage, merge |
-| **gemma3:12b-it-q4_K_M** | `ollama pull gemma3:12b-it-q4_K_M` | ~8,1 Go | R-0 (Business Analyst IA), R-2 (System Architect IA) : idéation, architecture, réflexion stratégique |
+| **qwen2.5-coder:14b** | `ollama pull qwen2.5-coder:14b` | ~9–10 Go | R-3 (Scrum Master IA), R-4 (Dev Team IA), R-5 (Release Manager IA), R-6 (QA & DevOps IA) : code, tests, découpage, merge |
+| **qwen2.5:14b** | `ollama pull qwen2.5:14b` | ~9 Go | R-0 (Business Analyst IA), R-2 (System Architect IA) : idéation, architecture, réflexion stratégique |
+| **nomic-embed-text** | `ollama pull nomic-embed-text` | ~0,5 Go | Embeddings RAG (recherche sémantique) |
 
-*Contexte : 128K tokens (Qwen), 128K (Gemma 3). Licence : Apache 2.0 / licence ouverte.*
+*Contexte : 128K tokens (Qwen). Licence : Apache 2.0. Profil VRAM 16 Go (RTX 5060 Ti). Alternatives : `deepseek-coder-v2:16b` (Tier2), `qwen2.5:14b-instruct-q4_K_M` (Tier1). Legacy 12 Go : voir `docs/HARDWARE_GPU.md` + Simulation 014.*
 
 #### 3.3 Interface et Orchestration
 
@@ -443,15 +444,15 @@ Seuil : `SELF_HEALING_MAX_ITERATIONS=3`. Au-delà → interrupt H5 (approbation 
 
 ##### J. Stratégie GPU (Ollama)
 
-Priorité : `qwen2.5-coder` (E4 (exécution code, sprint), E5 (tests, CI local)) > `gemma3` (Phase 0, E2 (architecture, DoD (Definition of Done))).
+Priorité : `qwen2.5-coder:14b` (E4 (exécution code, sprint), E5 (tests, CI local)) > `qwen2.5:14b` (Phase 0, E2 (architecture, DoD (Definition of Done))).
 
 - Keep-alive (évite le déchargement après inactivité) : `export OLLAMA_KEEP_ALIVE=24h` (voir checklist 4.1).
-- Warmup : précharger le modèle prioritaire (ex. `ollama run qwen2.5-coder:7b "warmup"`).
+- Warmup : précharger le modèle prioritaire (ex. `ollama run qwen2.5-coder:14b "warmup"`).
 - Éviter les indexations embeddings lourdes (nomic-embed-text) pendant E4/E5 ; utiliser `AGILE_DEFER_INDEX=true` (défaut) si contention GPU.
 
 **Legacy 12 Go (RTX 3060)** : Sur configuration 12 Go VRAM, `AGILE_DEFER_INDEX=true` et `AGILE_RAG_FILE_WATCHER=false` sont recommandés par défaut (Sim 014). Voir `docs/HARDWARE_GPU.md`.
 
-**Continue.dev pendant E4 (exécution code, sprint)/E5 (tests, CI local)** : Si Continue.dev reste ouvert pendant l'exécution du graphe (E4 (exécution code, sprint), E5 (tests, CI local)), le configurer sur **qwen2.5-coder:7b** (aligné sur R-4 (Albert Dev Team)) pour éviter le swapping de modèles. Un modèle différent (ex. gemma3) force Ollama à décharger qwen2.5 → latence et timeouts. Alternative : désactiver l'autocomplétion IA pendant E4 (exécution code, sprint)/E5 (tests, CI local).
+**Continue.dev pendant E4 (exécution code, sprint)/E5 (tests, CI local)** : Si Continue.dev reste ouvert pendant l'exécution du graphe (E4 (exécution code, sprint), E5 (tests, CI local)), le configurer sur **qwen2.5-coder:14b** (aligné sur R-4 (Albert Dev Team)) pour éviter le swapping de modèles. Un modèle différent (ex. qwen2.5:14b) force Ollama à décharger qwen2.5-coder → latence et timeouts. Alternative : désactiver l'autocomplétion IA pendant E4 (exécution code, sprint)/E5 (tests, CI local).
 
 ---
 
@@ -565,12 +566,12 @@ IV. Comptes de Services Cloud à Mettre en Place (Priorité Gratuit)
 
 #### 4.1 Checklist d'Installation (Ordre Recommandé)
 
-1. **Ollama** : `curl -fsSL https://ollama.com/install.sh | sh` puis `ollama pull qwen2.5-coder:7b`, `ollama pull gemma3:12b-it-q4_K_M`, `ollama pull nomic-embed-text`
+1. **Ollama** : `curl -fsSL https://ollama.com/install.sh | sh` puis `ollama pull qwen2.5-coder:14b`, `ollama pull qwen2.5:14b`, `ollama pull nomic-embed-text`
    - Reco keep-alive (tous profils) : `export OLLAMA_KEEP_ALIVE=24h` (évite le déchargement après inactivité).
-   - Reco warmup (E4/E5) : `ollama run qwen2.5-coder:7b "warmup"` (précharge le modèle prioritaire).
+   - Reco warmup (E4/E5) : `ollama run qwen2.5-coder:14b "warmup"` (précharge le modèle prioritaire).
    - Legacy 12 Go (RTX 3060) : voir `docs/HARDWARE_GPU.md` + Simulation 014 (conflits VRAM/indexation).
 2. **VS Code** : Installation standard
-3. **Continue.dev** : Extension depuis le marketplace. Configurer Ollama (`http://localhost:11434`) et les modèles `qwen2.5-coder:7b` / `gemma3:12b-it-q4_K_M`. Option RAG (recherche sémantique) partagé : configurer chroma-mcp (étape 6) dans `.continue/mcpServers/` pour utiliser le même Chroma que les agents.
+3. **Continue.dev** : Extension depuis le marketplace. Configurer Ollama (`http://localhost:11434`) et les modèles `qwen2.5-coder:14b` / `qwen2.5:14b`. Option RAG (recherche sémantique) partagé : configurer chroma-mcp (étape 6) dans `.continue/mcpServers/` pour utiliser le même Chroma que les agents.
 4. **Roo Code** : Extension depuis le marketplace. Même configuration Ollama
 5. **LangGraph + LangChain + Pydantic + Chroma** : pip install langgraph langchain langchain-ollama langchain-anthropic langchain-google-genai langchain-chroma pydantic chromadb. Créer le projet Python du graphe (III.5), configurer le checkpointer et le RAG (III.7, III.7-bis). État TypedDict : inclure dod, sprint_number, adr_counter, needs_architecture_review. Nœud load_context en entrée de thread. Voir III.8. Stratégie branches Git : feature depuis develop (III.8-D). Créer les scripts : handle_interrupt.py, index_rag.py, setup_project_hooks.sh, purge_checkpoints.py, export_chroma.py, import_chroma.py, notify_pending_interrupts.py, status.py (III.8-B, III.8-C, III.8-J, III.8-L, III.8-P). Créer graph/anonymizer.py, specs/REGLES_ANONYMISATION.md, config/anonymisation.yaml (III.5-ter L-ANON). Créer specs/REGLES_AGENTS_AGILE.md, graph/laws.py (lois Albert Core). Créer projects.json (format III.8-G). Variable AGILE_PROJECTS_JSON. API_429_MAX_RETRIES=3. GitHub Actions sur pull_request (III.8-F). Checklist de clôture (III.8-M). Voir III.8.
 6. **chroma-mcp** (optionnel, pour RAG (recherche sémantique) partagé IDE) : `uvx chroma-mcp` ou `pip install chroma-mcp`. Configurer pour pointer vers la même Chroma que index_rag (client persistent ou HTTP). Ajouter à `.continue/mcpServers/` (Continue) ou `~/.cursor/mcp.json` (Cursor) pour que l'IDE utilise le même RAG (recherche sémantique) que les agents. Voir III.7-bis.
@@ -607,10 +608,10 @@ Cette phase préliminaire se déroule en dehors de la rigueur et du coût du cyc
 
 | Étape | Acteur | Input | Outil / Modèle | Livrable |
 |-------|--------|-------|----------------|----------|
-| Discovery & Ideation | R-1 (Nghia (Product Owner)) (humain) + R-0 (Albert Business Analyst) (IA) | Idée initiale, hypothèses | Cascade : gemma3:12b → Gemini 2.5 Flash (Web/API) → Opus 4.6 | Notes de Discovery |
+| Discovery & Ideation | R-1 (Nghia (Product Owner)) (humain) + R-0 (Albert Business Analyst) (IA) | Idée initiale, hypothèses | Cascade : qwen2.5:14b → Gemini 2.5 Flash (Web/API) → Opus 4.6 | Notes de Discovery |
 | Cristallisation | R-0 (Albert Business Analyst) (IA) | Notes de Discovery | Idem | **Epic initial mature** (Epic) |
 
-*Règle : privilégier gemma3:12b en local. Escalade uniquement si blocage ou limite 429. **H1 (validation Epic)** : R-1 (Nghia (Product Owner)) valide l'Epic avant passage en Phase 1.*
+*Règle : privilégier qwen2.5:14b en local. Escalade uniquement si blocage ou limite 429. **H1 (validation Epic)** : R-1 (Nghia (Product Owner)) valide l'Epic avant passage en Phase 1.*
 
 **Guide utilisateur** : Pour le guide pas-à-pas d'initiation d'un nouveau projet (déclaration dans projects.json, indexation RAG, lancement E1, validation des interrupts), voir specs/plans/Implementation_Ecosysteme_Agile_Calypso.md — section "Guide utilisateur basique — Initier un projet de développement".
 
@@ -619,8 +620,8 @@ Cette phase préliminaire se déroule en dehors de la rigueur et du coût du cyc
 | Étape | Acteur | Input | Outil / Modèle | Livrable | Qui délivre quoi | Human-in-the-Loop |
 |-------|--------|-------|----------------|----------|------------------|-------------------|
 | **E1 (idéation, Epic) – Initialisation** | R-1 (Nghia (Product Owner)) | Epic | VS Code, Continue.dev, `index_rag.py` | **Besoins - Product Backlog.md** | R-1 (Nghia (Product Owner)) injecte l'Epic validé (H1 (validation Epic)) dans le Backlog. Indexation RAG (recherche sémantique) (Backlog) déclenchée. Continue.dev indexe la codebase. | **H1 (validation Epic)** : R-1 (Nghia (Product Owner)) valide l'Epic avant E1 (idéation, Epic) |
-| **E2 (architecture, DoD (Definition of Done)) – Backlog Refinement** | R-2 (Albert System Architect) | Backlog, Epic | Cascade : gemma3:12b → AI Studio → Opus 4.6 | **Architecture.md**, **DoD (Definition of Done)** (draft), **ADR (Architecture Decision Record)-{NNN}** | R-2 (Albert System Architect) produit Architecture.md + draft DoD (Definition of Done) (Pydantic) + ADR (Architecture Decision Record) (compteur adr_counter). Payload H2 (validation Architecture + DoD (Definition of Done)) : Architecture.md + draft DoD (Definition of Done). R-1 (Nghia (Product Owner)) amende DoD (Definition of Done), R-7 (Nghia (Stakeholder)) valide. Indexation RAG (recherche sémantique) (architecture + dod). BaseStore (mémoire long terme) : architecture_approved + DoD (Definition of Done). Si rejected : relance R-2 (Albert System Architect) avec feedback (max 3 cycles). Voir III.8-B et III.8-O. | **H2 (validation Architecture + DoD (Definition of Done))** : R-7 (Nghia (Stakeholder))/R-1 (Nghia (Product Owner)) valident architecture et finalisent DoD (Definition of Done) |
-| **E3 (Sprint Backlog) – Sprint Planning** | R-3 (Albert Scrum Master) | Backlog, Architecture.md, DoD (Definition of Done) | Cascade : qwen2.5-coder:7b → AI Studio → Sonnet 4.6 | **Sprint Backlog** | R-3 (Albert Scrum Master) découpe en micro-tâches. Priorité local. Si rejected : relance R-3 (Albert Scrum Master) avec feedback (max 3 cycles). Voir III.8-B. | **H3 (validation Sprint Backlog)** : R-1 (Nghia (Product Owner)) valide le découpage avant E4 (exécution code, sprint) |
+| **E2 (architecture, DoD (Definition of Done)) – Backlog Refinement** | R-2 (Albert System Architect) | Backlog, Epic | Cascade : qwen2.5:14b → AI Studio → Opus 4.6 | **Architecture.md**, **DoD (Definition of Done)** (draft), **ADR (Architecture Decision Record)-{NNN}** | R-2 (Albert System Architect) produit Architecture.md + draft DoD (Definition of Done) (Pydantic) + ADR (Architecture Decision Record) (compteur adr_counter). Payload H2 (validation Architecture + DoD (Definition of Done)) : Architecture.md + draft DoD (Definition of Done). R-1 (Nghia (Product Owner)) amende DoD (Definition of Done), R-7 (Nghia (Stakeholder)) valide. Indexation RAG (recherche sémantique) (architecture + dod). BaseStore (mémoire long terme) : architecture_approved + DoD (Definition of Done). Si rejected : relance R-2 (Albert System Architect) avec feedback (max 3 cycles). Voir III.8-B et III.8-O. | **H2 (validation Architecture + DoD (Definition of Done))** : R-7 (Nghia (Stakeholder))/R-1 (Nghia (Product Owner)) valident architecture et finalisent DoD (Definition of Done) |
+| **E3 (Sprint Backlog) – Sprint Planning** | R-3 (Albert Scrum Master) | Backlog, Architecture.md, DoD (Definition of Done) | Cascade : qwen2.5-coder:14b → AI Studio → Sonnet 4.6 | **Sprint Backlog** | R-3 (Albert Scrum Master) découpe en micro-tâches. Priorité local. Si rejected : relance R-3 (Albert Scrum Master) avec feedback (max 3 cycles). Voir III.8-B. | **H3 (validation Sprint Backlog)** : R-1 (Nghia (Product Owner)) valide le découpage avant E4 (exécution code, sprint) |
 | **E4 (exécution code, sprint) – Sprint Execution** | R-4 (Albert Dev Team), R-5 (Albert Release Manager) | Sprint Backlog, DoD (Definition of Done) | LangGraph (nœuds R-4 (Albert Dev Team), R-5 (Albert Release Manager)) + tools (read_file, write_file, run_shell) | Code source, tests unitaires, feature branch | R-4 (Albert Dev Team) génère le code via tools. R-5 (Albert Release Manager) gère Git. Automatique. Hook post-commit : différé si AGILE_DEFER_INDEX=true (pending_index.log). En cas de conflit Git : H6 (résolution conflit Git). Voir III.8-C. | — |
 | **E5 (tests, CI local) – CI/CD Pipeline (local)** | R-6 (Albert QA & DevOps) | Code, DoD (Definition of Done) | Docker, Jest/Pytest, Linters, Sphinx/JSDoc + Cascade | **Test Reports**, verdict Pass/Fail | R-6 (Albert QA & DevOps) exécute build_docs puis tests locaux. Self-Healing R-6 (Albert QA & DevOps)→R-4 (Albert Dev Team) si échec (max 3). CI vert → déclenche H4 (Sprint Review, CI verts). GitHub Actions = CI de validation PR (avant merge main). Voir III.8-F et III.8-N. | **H4 (Sprint Review, CI verts)** : CI vert déclenche H4 (Sprint Review, CI verts) (Sprint Review R-7 (Nghia (Stakeholder))). **H5 (approbation escalade API payante)** si escalade N2 (cloud payant). |
 | **E6 (clôture sprint, merge) – Sprint Review & Retrofit** | R-7 (Nghia (Stakeholder)) | Incrément, DoD (Definition of Done) | VS Code, Continue.dev | **Go/No-Go**, mise à jour Backlog | E6 (clôture sprint, merge) = phase post-H4 (Sprint Review, CI verts). R-7 (Nghia (Stakeholder)) prononce Go/No-Go (via H4 (Sprint Review, CI verts) resume). Si rejected : nouveau cycle E4 (exécution code, sprint)→E5 (tests, CI local). Si approved : Retrofit Backlog (R-1 (Nghia (Product Owner))). Nœud sprint_complete : sprint_summary, sprint_number++, index_rag (traite pending_index.log si AGILE_DEFER_INDEX). Si auto_next_sprint : boucle E3 (Sprint Backlog). Voir III.8-E et III.8-M. | — (H4 (Sprint Review, CI verts) géré en E5 (tests, CI local)) |
@@ -638,7 +639,7 @@ Cette cartographie répertorie les technologies selon leur impact financier, val
 L'arsenal qui tourne sur votre machine, maximisant la rentabilité de votre matériel (0€ au-delà de l'électricité).
 
 * **GPU NVIDIA (référence actuelle : RTX 5060 Ti 16G) :** Le cœur matériel de l'usine, offrant la VRAM nécessaire pour l'exécution d'IA locale (modèles Q4) sans latence réseau, sans coût par token, et avec une confidentialité absolue à 100%. *Legacy 12 Go (RTX 3060) : voir Simulation 014 + `docs/HARDWARE_GPU.md`.*
-* **Ollama :** Moteur d'exécution des LLMs locaux. Modèles installés : `qwen2.5-coder:7b` (code) et `gemma3:12b-it-q4_K_M` (idéation/architecture).
+* **Ollama :** Moteur d'exécution des LLMs locaux. Modèles installés : `qwen2.5-coder:14b` (code) et `qwen2.5:14b` (idéation/architecture).
 * **LangGraph + LangChain** : Backbone d'orchestration des agents. Voir section III.5.
 * **Git & MCP (Model Context Protocol) :** Contexte structuré de la codebase. chroma-mcp pour RAG (recherche sémantique) partagé agents + IDE (voir III.7-bis).
 * **Chroma + nomic-embed-text :** RAG (recherche sémantique) pour les agents (codebase, Architecture.md, Backlog, ADRs). Mémoire long terme via LangGraph BaseStore (mémoire long terme). Voir III.7.
@@ -1053,7 +1054,7 @@ Cela garantit que E3 (Sprint Backlog) du sprint N+1 démarre avec un sprint_numb
 Ajout dans l'étape 1 (Ollama) : pour RTX 3060 12 Go, activer un keep-alive long (ex. `export OLLAMA_KEEP_ALIVE=24h`) pour éviter le déchargement après inactivité, et précharger le modèle prioritaire par warmup (ex. `ollama run qwen2.5-coder:7b "warmup"`). En legacy 12 Go, garder `AGILE_DEFER_INDEX=true` pour éviter la contention embeddings (nomic-embed-text) pendant E4/E5.
 
 **CC2 — Continue.dev pendant E4 (exécution code, sprint)/E5 (tests, CI local)**  
-Documenter dans III.8-J : si Continue.dev reste ouvert pendant E4 (exécution code, sprint)/E5 (tests, CI local), le configurer sur qwen2.5-coder:7b (aligné sur R-4 (Albert Dev Team)). Un modèle différent provoque swapping → latence et timeouts. Alternative : désactiver l'autocomplétion IA.
+Documenter dans III.8-J : si Continue.dev reste ouvert pendant E4 (exécution code, sprint)/E5 (tests, CI local), le configurer sur qwen2.5-coder:14b (aligné sur R-4 (Albert Dev Team)). Un modèle différent provoque swapping → latence et timeouts. Alternative : désactiver l'autocomplétion IA.
 
 **CC3 — AGILE_DEFER_INDEX recommandation RTX 3060**  
 Renforcer dans III.8-C : sur RTX 3060 12 Go, `AGILE_DEFER_INDEX=true` fortement recommandé. nomic-embed-text et qwen2.5-coder partagent le GPU ; indexation pendant E4 (exécution code, sprint)/E5 (tests, CI local) = conflit.
@@ -1083,7 +1084,7 @@ classDef artifact fill:#ffffff,stroke:#9e9e9e,stroke-width:2px,color:#000,stroke
 subgraph PHASE\_0 \[ 🛠️ PHASE 0 : DISCOVERY HORS AGILE \]
 direction LR
 R1\_Init(("R-1 (Nghia (Product Owner)): Product Owner<br/>Nghia (PM)<br/>(Porteur de la vision initiale)")):::humain
-R0\["R-0 (Albert Business Analyst): Business Analyst<br/>Cascade: gemma3:12b -> Gemini -> Opus 4.6"\]:::aiFree
+R0\["R-0 (Albert Business Analyst): Business Analyst<br/>Cascade: qwen2.5:14b -> Gemini -> Opus 4.6"\]:::aiFree
 R1\_Init <-->|Iterations illimitees| R0
 end
 
@@ -1099,8 +1100,8 @@ direction TB
 
 %% COUCHE STRATÉGIQUE
 subgraph ENV\_C \[ENV-C : EXPERTISE INTELLIGENCE EN CASCADE\]
-R2\["R-2 (Albert System Architect): System Architect<br/>Cascade: gemma3:12b -> AI Studio -> Opus 4.6"\]:::aiPaid
-R4\["R-4 (Albert Dev Team): Dev Team<br/>Cascade: qwen2.5-coder:7b -> AI Studio -> Sonnet 4.6"\]:::aiPaid
+R2\["R-2 (Albert System Architect): System Architect<br/>Cascade: qwen2.5:14b -> AI Studio -> Opus 4.6"\]:::aiPaid
+R4\["R-4 (Albert Dev Team): Dev Team<br/>Cascade: qwen2.5-coder:14b -> AI Studio -> Sonnet 4.6"\]:::aiPaid
 end
 
 %% COUCHE PILOTAGE
@@ -1116,7 +1117,7 @@ end
 %% COUCHE EXÉCUTION
 subgraph ENV\_D \[ENV-D : FACTORY LOCALE GRATUITE\]
 direction TB
-R3\["R-3 (Albert Scrum Master): Scrum Master<br/>Cascade: qwen2.5-coder:7b -> AI Studio -> Sonnet"\]:::localNode
+R3\["R-3 (Albert Scrum Master): Scrum Master<br/>Cascade: qwen2.5-coder:14b -> AI Studio -> Sonnet"\]:::localNode
 SprintBacklog\[/"Sprint Backlog<br/>(Tickets Atomiques)"/\]:::artifact
 R5\[("R-5 (Albert Release Manager): Release Manager<br/>Git + Cascade qwen2.5-coder/Sonnet")\]:::localNode
 R6{"R-6 (Albert QA & DevOps): QA et DevOps<br/>Docker, Jest + Cascade qwen2.5-coder/Sonnet"}:::localNode

@@ -11,12 +11,12 @@ L'écosystème est une entité IA multi-rôles construite sur un socle open-sour
 
 | Phase | Casquette IA | Modèle utilisé |
 |-------|--------------|----------------|
-| Idéation | R-0 (Business Analyst IA) | gemma3:12b → Gemini → Opus |
-| Architecture | R-2 (System Architect IA) | gemma3:12b → Gemini → Opus |
-| Sprint Planning | R-3 (Scrum Master IA) | qwen2.5-coder:7b → Gemini → Sonnet |
-| Développement | R-4 (Dev Team IA) | qwen2.5-coder:7b → Gemini → Sonnet |
-| Versioning | R-5 (Release Manager IA) | qwen2.5-coder:7b → Gemini → Sonnet |
-| Qualité | R-6 (QA & DevOps IA) | qwen2.5-coder:7b → Gemini → Sonnet |
+| Idéation | R-0 (Business Analyst IA) | qwen2.5:14b → Gemini → Opus |
+| Architecture | R-2 (System Architect IA) | qwen2.5:14b → Gemini → Opus |
+| Sprint Planning | R-3 (Scrum Master IA) | qwen2.5-coder:14b → Gemini → Sonnet |
+| Développement | R-4 (Dev Team IA) | qwen2.5-coder:14b → Gemini → Sonnet |
+| Versioning | R-5 (Release Manager IA) | qwen2.5-coder:14b → Gemini → Sonnet |
+| Qualité | R-6 (QA & DevOps IA) | qwen2.5-coder:14b → Gemini → Sonnet |
 
 **Rôles humains :** R-1 (Product Owner) + R-7 (Stakeholder) — la vision et le Go/No-Go final.
 
@@ -38,7 +38,7 @@ L'IA ne fait rien sans validation explicite aux jalons critiques (H1 (validation
 | Composant | Technologie | Coût |
 |-----------|-------------|------|
 | Orchestration multi-agents | LangGraph + LangChain | 0 € |
-| Modèles locaux (80% des cas) | Ollama — `qwen2.5-coder:7b` + `gemma3:12b` | 0 € |
+| Modèles locaux (80% des cas) | Ollama — `qwen2.5-coder:14b` + `qwen2.5:14b` | 0 € |
 | Fallback cloud gratuit | Google AI Studio — `gemini-2.5-flash` | 0 € |
 | Expertise critique (dernier recours) | Anthropic — `claude-opus-4-6` / `claude-sonnet-4-6` | Pay-as-you-go |
 | IDE & autocomplétion | VS Code + Continue.dev + Roo Code | 0 € |

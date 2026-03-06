@@ -14,7 +14,7 @@ Calypso est équipée de **RTX 5060 Ti 16G** (swap effectué). Profil appliqué 
 
 ### Recommandations
 - **Profil**: `AGILE_GPU_PROFILE=vram_16gb`
-- **Modèle prioritaire (E4/E5)**: `qwen2.5-coder` (ex. `qwen2.5-coder:7b` ou `qwen2.5-coder:3b` selon ta stabilité/perf)
+- **Modèle prioritaire (E4/E5)**: `qwen2.5-coder:14b` (alternative : `deepseek-coder-v2:16b`)
 - **Keep-alive Ollama** (évite le déchargement automatique du modèle) :
 
 ```bash
@@ -24,7 +24,7 @@ export OLLAMA_KEEP_ALIVE=24h
 - **Warmup (précharger le modèle prioritaire)** :
 
 ```bash
-ollama run qwen2.5-coder:7b "warmup"
+ollama run qwen2.5-coder:14b "warmup"
 ```
 
 - **Indexation RAG** :
@@ -86,7 +86,7 @@ Si `nvidia-smi` échoue :
 - Vérifier qu’Ollama tourne et répond :
   - `curl http://localhost:11434/api/tags`
 - Tester un run rapide (modèle déjà présent) :
-  - `ollama run qwen2.5-coder:3b "ping"`
+  - `ollama run qwen2.5-coder:14b "ping"`
 
 ### 5) Nettoyage Ollama (optionnel)
 Objectif : repartir “propre” si tu suspectes un état incohérent (modèles, cache, corruption).
@@ -95,7 +95,7 @@ Objectif : repartir “propre” si tu suspectes un état incohérent (modèles,
 
 ```bash
 ollama list
-ollama rm gemma3:12b-it-q4_K_M   # exemple (si tu n'en as plus besoin)
+ollama rm qwen2.5:14b-instruct-q4_K_M   # exemple (si tu n'en as plus besoin)
 ```
 
 - **Option hard (reset)** : repartir d’une installation vide (impose de re-pull les modèles).

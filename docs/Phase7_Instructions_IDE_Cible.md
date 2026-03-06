@@ -38,7 +38,7 @@ Ces étapes s'exécutent **sur ton PC** (pas sur Calypso). L'agent ne peut pas l
 - Paramètres → Modèles
 - Ajoute **Ollama** :
   - URL : `http://localhost:11434`
-  - Modèles : `qwen2.5-coder:7b`, `gemma3:12b-it-q4_K_M`
+  - Modèles : `qwen2.5-coder:14b`, `qwen2.5:14b`
 
 ---
 
@@ -46,7 +46,7 @@ Ces étapes s'exécutent **sur ton PC** (pas sur Calypso). L'agent ne peut pas l
 
 1. Extensions → Recherche **Roo Code**
 2. Installe
-3. Même config Ollama : `http://localhost:11434`, modèles `qwen2.5-coder:7b` / `gemma3:12b-it-q4_K_M`
+3. Même config Ollama : `http://localhost:11434`, modèles `qwen2.5-coder:14b` / `qwen2.5:14b`
 
 ---
 
@@ -61,6 +61,6 @@ chroma-mcp est déjà installé dans le venv du projet. Pour le configurer dans 
 
 ## 7.7 Recommandation GPU (profil)
 
-Pendant E4 (exécution code)/E5 (tests CI) (quand le graphe LangGraph tourne sur Calypso), configure Continue/Roo Code sur **le même modèle prioritaire** que le graphe (souvent `qwen2.5-coder`) pour limiter le swapping de modèles et les latences.
+Pendant E4 (exécution code)/E5 (tests CI) (quand le graphe LangGraph tourne sur Calypso), configure Continue/Roo Code sur **le même modèle prioritaire** que le graphe (souvent `qwen2.5-coder:14b`) pour limiter le swapping de modèles et les latences.
 
 Voir `docs/HARDWARE_GPU.md` pour les profils VRAM (recommandé 16 Go, legacy 12 Go) et la checklist.

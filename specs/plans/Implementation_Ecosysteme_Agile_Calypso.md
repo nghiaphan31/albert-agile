@@ -533,13 +533,13 @@ Chaque `ollama pull` peut prendre plusieurs minutes. Sur VRAM limitée (profil l
 - [ PC > Cursor > Terminal ] -> (Calypso)
 
 ```
-ollama pull qwen2.5-coder:7b
+ollama pull qwen2.5-coder:14b
 ```
 
 - Puis :
 
 ```
-ollama pull gemma3:12b-it-q4_K_M
+ollama pull qwen2.5:14b
 ```
 
 - Puis :
@@ -548,7 +548,7 @@ ollama pull gemma3:12b-it-q4_K_M
 ollama pull nomic-embed-text
 ```
 
-- Vérifier : `ollama list` — les trois modèles apparaissent.
+- Vérifier : `ollama list` — les trois modèles apparaissent. *Réf. : `specs/plans/Modeles_Performants_RTX5060_16G.md`*
 
 ### 1.4 Configurer OLLAMA_KEEP_ALIVE (recommandé)
 
@@ -918,7 +918,7 @@ sudo apt install -y gh
 > 1. **Télécharger VS Code** : Ouvre [https://code.visualstudio.com/](https://code.visualstudio.com/) → Télécharge la version stable pour ton OS (ex. Windows) → Installe-le.
 > 2. **Remote-SSH** : Dans VS Code, Extensions (Ctrl+Shift+X) → Recherche « Remote - SSH » → Installe (Microsoft).
 > 3. **Connexion à Calypso** : Ctrl+Shift+P → « Remote-SSH: Connect to Host » → Ajoute ou sélectionne `nghia-phan@calypso` (ou ton hôte SSH).
-> 4. **Continue.dev** : Une fois connecté à Calypso, Extensions → « Continue » (continue.dev) → Installe. Paramètres Continue : Modèles → Ollama → URL `http://localhost:11434` → Modèles `qwen2.5-coder:7b`, `gemma3:12b-it-q4_K_M`.
+> 4. **Continue.dev** : Une fois connecté à Calypso, Extensions → « Continue » (continue.dev) → Installe. Paramètres Continue : Modèles → Ollama → URL `http://localhost:11434` → Modèles `qwen2.5-coder:14b`, `qwen2.5:14b`.
 > 5. **Roo Code** : Extensions → « Roo Code » → Installe. Même config Ollama : `http://localhost:11434`.
 > 6. Quand c'est fait, dis « Phase 7 terminée » pour que l'agent poursuive (ou considère le plan complet).
 
@@ -942,13 +942,13 @@ L'IDE cible de l'écosystème (spec III.3, II) est VS Code + Continue.dev + Roo 
 - [ PC > VS Code > Extensions ] (fenêtre connectée à Calypso) Rechercher et installer **Continue** (continue.dev).
 - [ PC > VS Code > Paramètres Continue ] Configurer :
   - **Modèles** : ajouter Ollama, URL `http://localhost:11434`
-  - Modèles à utiliser : `qwen2.5-coder:7b`, `gemma3:12b-it-q4_K_M`
+  - Modèles à utiliser : `qwen2.5-coder:14b`, `qwen2.5:14b`
   - Option RAG (recherche sémantique) partagé (spec III.7-bis) : si chroma-mcp est installé sur Calypso, configurer dans `.continue/mcpServers/` pour pointer vers le même Chroma que `index_rag`
 
 ### 7.4 Installer Roo Code
 
 - [ PC > VS Code > Extensions ] (fenêtre connectée à Calypso) Rechercher et installer **Roo Code**.
-- Configurer Ollama de la même manière : `http://localhost:11434`, modèles `qwen2.5-coder:7b` / `gemma3:12b-it-q4_K_M`.
+- Configurer Ollama de la même manière : `http://localhost:11434`, modèles `qwen2.5-coder:14b` / `qwen2.5:14b`.
 
 ### 7.5 chroma-mcp (optionnel, pour RAG (recherche sémantique) partagé IDE + agents)
 
@@ -1100,8 +1100,8 @@ python scripts/status.py
 ### 10.3 Intégration LLM (cascade) dans les nœuds (spec III.5, F8, plan lois)
 
 - [ PC > Cursor > Éditeur ] -> (Calypso) Dans `graph/nodes.py`, remplacer les stubs par des appels réels :
-  - R-0 (Albert Business Analyst), R-2 (Albert System Architect) : `ChatOllama(gemma3:12b-it-q4_K_M)` → `ChatGoogleGenerativeAI(gemini-2.5-flash)` → `ChatAnthropic(claude-opus-4-5)` via `call_with_cascade`
-  - R-3 (Albert Scrum Master), R-4 (Albert Dev Team), R-5 (Albert Release Manager), R-6 (Albert QA & DevOps) : `ChatOllama(qwen2.5-coder:7b)` → Gemini → `ChatAnthropic(claude-sonnet-4-5)`
+  - R-0 (Albert Business Analyst), R-2 (Albert System Architect) : `ChatOllama(qwen2.5:14b)` → `ChatGoogleGenerativeAI(gemini-2.5-flash)` → `ChatAnthropic(claude-opus-4-5)` via `call_with_cascade` (override : `AGILE_TIER1_N0_MODEL`)
+  - R-3 (Albert Scrum Master), R-4 (Albert Dev Team), R-5 (Albert Release Manager), R-6 (Albert QA & DevOps) : `ChatOllama(qwen2.5-coder:14b)` → Gemini → `ChatAnthropic(claude-sonnet-4-5)` (override : `AGILE_TIER2_N0_MODEL`)
   - **Note** : vérifier les identifiants de modèles Anthropic disponibles au moment de l'implémentation via `python -c "import anthropic; print(anthropic.Anthropic().models.list())"` — les noms ci-dessus (`claude-opus-4-5`, `claude-sonnet-4-5`) correspondent aux modèles Claude 4 series attendus en 2026 ; adapter si nécessaire (ex. `claude-3-7-sonnet-20250219` pour Sonnet, `claude-opus-4-5` pour Opus)
   - Créer des prompts système par rôle dans `graph/prompts/` ou `config/prompts/` (Règle C : templates en bloc texte avec frontmatter YAML)
   - **Injection des lois** : pour chaque nœud, charger `graph/laws.py` et injecter les lois applicables au rôle dans le system prompt (ex. R-0 (Albert Business Analyst) : L1 Anti-précipitation, L4 Gabarit CDC ; R-4 (Albert Dev Team) : L8, L9, L19, L21, Règles Tests)
