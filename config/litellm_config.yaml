@@ -38,6 +38,7 @@ model_list:
 # Cascade automatique : si Ollama échoue → Gemini → Claude
 litellm_settings:
   num_retries: 2
+  drop_params: true   # ignore les params non supportés (ex. parallel_tool_calls)
   fallbacks:
     - qwen3: [gemini, claude-sonnet]
     - qwen2.5-coder: [qwen3, gemini, claude-sonnet]
