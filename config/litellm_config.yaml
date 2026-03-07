@@ -1,0 +1,49 @@
+# LiteLLM Proxy — routage automatique par complexité
+# Usage: litellm --config config/litellm_config.yaml --port 4000
+# Clés API: GOOGLE_API_KEY, ANTHROPIC_API_KEY (voir .env)
+
+model_list:
+  - model_name: qwen2.5-coder
+    litellm_params:
+      model: ollama/qwen2.5-coder:14b
+      api_base: http://localhost:11434
+
+  - model_name: qwen3-thinking
+    litellm_params:
+      model: ollama/qwen3:14b
+      api_base: http://localhost:11434
+
+  - model_name: qwen2.5
+    litellm_params:
+      model: ollama/qwen2.5:14b
+      api_base: http://localhost:11434
+
+  - model_name: gemini
+    litellm_params:
+      model: gemini/gemini-2.0-flash
+      api_key: os.environ/GOOGLE_API_KEY
+
+  - model_name: claude-sonnet
+    litellm_params:
+      model: anthropic/claude-sonnet-4-6
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  # Routeur complexité + cascade en cas d'échec
+  - model_name: smart-router
+    litellm_params:
+      model: auto_router/complexity_router
+      complexity_router_config:
+        tiers:
+          SIMPLE: qwen2.5
+          MEDIUM: qwen2.5-coder
+          COMPLEX: qwen2.5-coder
+          REASONING: qwen3-thinking
+      complexity_router_default_model: qwen2.5-coder
+
+# Cascade : si Ollama échoue → Gemini → Claude
+litellm_settings:
+  num_retries: 2
+  fallbacks:
+    - qwen2.5: [qwen2.5-coder, gemini, claude-sonnet]
+    - qwen2.5-coder: [gemini, claude-sonnet]
+    - qwen3-thinking: [qwen2.5-coder, gemini, claude-sonnet]

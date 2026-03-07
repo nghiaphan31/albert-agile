@@ -324,7 +324,7 @@ Roo Code : un seul provider actif ; tu peux définir plusieurs profils pour basc
 | Config Roo Code | Paramètres in-app (Provider Settings / Profiles) |
 | Roo MCP (Chroma) | `$PROJECT_ROOT/.roo/mcp.json` (ex. `albert-agile/.roo/mcp.json`) |
 | Chroma (optionnel) | `$AGILE_ORCHESTRATION_ROOT/chroma_db` (Continue + Roo Code via MCP chroma-mcp) |
-| LiteLLM Proxy (optionnel) | `http://localhost:4000` (si mode automatique) |
+| LiteLLM Proxy (optionnel) | `http://localhost:4000` — config : `config/litellm_config.yaml`, script : `scripts/run_litellm_proxy.sh` |
 
 ---
 
@@ -338,65 +338,49 @@ Pour le **mode automatique** (routage par tâche + cascade), installer et config
 pip install 'litellm[proxy]'
 ```
 
-### 10.2 Configuration (exemple)
+### 10.2 Configuration
 
-Fichier `config.yaml` pour LiteLLM avec routage par complexité et cascade :
+Le fichier `config/litellm_config.yaml` est déjà créé avec le routage par complexité et la cascade (Ollama → Gemini → Claude).
 
-```yaml
-model_list:
-  - model_name: qwen2.5-coder
-    litellm_params:
-      model: ollama/qwen2.5-coder:14b
-      api_base: http://localhost:11434
-  - model_name: qwen3-thinking
-    litellm_params:
-      model: ollama/qwen3:14b
-      api_base: http://localhost:11434
-  - model_name: qwen2.5
-    litellm_params:
-      model: ollama/qwen2.5:14b
-      api_base: http://localhost:11434
-  - model_name: gemini
-    litellm_params:
-      model: gemini/gemini-2.0-flash
-  - model_name: claude-sonnet
-    litellm_params:
-      model: anthropic/claude-sonnet-4-6
-  # Routeur complexité + fallbacks
-  - model_name: smart-router
-    litellm_params:
-      model: auto_router/complexity_router
-      complexity_router_config:
-        tiers:
-          SIMPLE: qwen2.5
-          MEDIUM: qwen2.5-coder
-          COMPLEX: qwen2.5-coder
-          REASONING: qwen3-thinking
-      complexity_router_default_model: qwen2.5-coder
-      fallbacks:
-        - qwen2.5-coder
-        - gemini
-        - claude-sonnet
-```
+**Clés API** : `GOOGLE_API_KEY` et `ANTHROPIC_API_KEY` — à définir dans `.env` à la racine du projet ou dans l'environnement. LiteLLM les charge via `os.environ/GOOGLE_API_KEY` et `os.environ/ANTHROPIC_API_KEY`.
 
 ### 10.3 Lancer le proxy
 
+*Dans le **terminal intégré à VS Code** (connecté à Calypso, depuis la racine du projet) :*
+
 ```bash
-litellm --config config.yaml
+# Activer le venv, charger .env, lancer le proxy
+source .venv/bin/activate
+[ -f .env ] && set -a && source .env && set +a
+litellm --config config/litellm_config.yaml --port 4000
 ```
 
-Le proxy écoute par défaut sur `http://0.0.0.0:4000`.
+Ou via le script :
 
-### 10.4 Configurer Continue pour le mode automatique
+```bash
+./scripts/run_litellm_proxy.sh
+# ou sur un port différent : ./scripts/run_litellm_proxy.sh 4001
+```
 
-Ajouter un modèle pointant vers LiteLLM (provider OpenAI avec base_url) :
+Le proxy écoute sur `http://0.0.0.0:4000`. En Remote-SSH, `localhost:4000` = Calypso.
+
+### 10.4 Configurer Continue et Roo Code pour le mode automatique
+
+**Continue** — Ajouter dans `C:\Users\<user>\.continue\config.yaml` (PC Windows) :
 
 ```yaml
   - title: Smart Router (auto)
     provider: openai
     model: smart-router
     apiBase: http://localhost:4000
-    apiKey: "sk-1234"  # ou variable d'env
+    apiKey: "sk-1234"   # valeur factice acceptée si master_key non configurée
 ```
 
-Sélectionner « Smart Router (auto) » pour activer le routage automatique.
+**Roo Code** — Créer un profil API :
+
+- API Provider : **OpenAI**
+- Base URL : `http://localhost:4000`
+- Model ID : `smart-router`
+- API Key : `sk-1234` (ou vide si LiteLLM n'exige pas de clé)
+
+Sélectionner ce profil pour activer le routage automatique. Les requêtes seront routées selon la complexité (SIMPLE → qwen2.5, MEDIUM/COMPLEX → qwen2.5-coder, REASONING → qwen3-thinking), avec cascade vers Gemini puis Claude en cas d'échec.

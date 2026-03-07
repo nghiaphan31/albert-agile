@@ -1,0 +1,7 @@
+# Dépendances optionnelles
+# chroma-mcp : RAG partagé Continue / Roo Code (section 7 du plan config)
+chroma-mcp
+
+# litellm[proxy] : routage automatique par complexité (section 10 du plan config)
+# pip install 'litellm[proxy]'
+litellm[proxy]
