@@ -324,7 +324,7 @@ Roo Code : un seul provider actif ; tu peux définir plusieurs profils pour basc
 | Config Roo Code | Paramètres in-app (Provider Settings / Profiles) |
 | Roo MCP (Chroma) | `$PROJECT_ROOT/.roo/mcp.json` (ex. `albert-agile/.roo/mcp.json`) |
 | Chroma (optionnel) | `$AGILE_ORCHESTRATION_ROOT/chroma_db` (Continue + Roo Code via MCP chroma-mcp) |
-| LiteLLM Proxy (optionnel) | `http://localhost:4000` — config : `config/litellm_config.yaml`, script : `scripts/run_litellm_proxy.sh` |
+| LiteLLM Proxy (optionnel) | `http://localhost:4000` — config : `config/litellm_config.yaml`, script : `scripts/run_litellm_proxy.sh`, service boot : `config/litellm-proxy.service` |
 
 ---
 
@@ -364,23 +364,46 @@ Ou via le script :
 
 Le proxy écoute sur `http://0.0.0.0:4000`. En Remote-SSH, `localhost:4000` = Calypso.
 
+### 10.3bis Démarrage au boot (Calypso)
+
+Pour que LiteLLM soit disponible sans le lancer manuellement, créer un service systemd utilisateur :
+
+```bash
+# Sur Calypso, dans le terminal (ou Remote-SSH)
+mkdir -p ~/.config/systemd/user
+cp $AGILE_ORCHESTRATION_ROOT/config/litellm-proxy.service ~/.config/systemd/user/
+
+# Adapter le chemin si le projet n'est pas dans ~/PROJECTS_WITH_ALBERT/albert-agile
+# (éditer WorkingDirectory, EnvironmentFile, ExecStart)
+
+systemctl --user daemon-reload
+systemctl --user enable litellm-proxy
+systemctl --user start litellm-proxy
+
+# Vérifier : systemctl --user status litellm-proxy
+```
+
+Le service démarre au login de l'utilisateur. Pour un démarrage au boot machine (avant login), utiliser un service système (`/etc/systemd/system/`) avec `User=nghia-phan`.
+
 ### 10.4 Configurer Continue et Roo Code pour le mode automatique
 
-**Continue** — Ajouter dans `C:\Users\<user>\.continue\config.yaml` (PC Windows) :
+| Étape | Continue | Roo Code |
+|-------|----------|----------|
+| 1 | Ouvrir `C:\Users\<user>\.continue\config.yaml` (PC Windows) | Paramètres Roo Code (engrenage) → API Configuration Profiles |
+| 2 | Ajouter le modèle ci-dessous dans `models:` | Créer un nouveau profil (ex. « Smart Router ») |
+| 3 | Sélectionner « Smart Router (auto) » dans l'interface | Provider : **OpenAI** |
+| 4 | | Base URL : `http://localhost:4000` |
+| 5 | | Model ID : `smart-router` |
+| 6 | | API Key : `sk-1234` (ou vide) |
+
+**Extrait à ajouter dans `config.yaml` Continue** :
 
 ```yaml
   - title: Smart Router (auto)
     provider: openai
     model: smart-router
     apiBase: http://localhost:4000
-    apiKey: "sk-1234"   # valeur factice acceptée si master_key non configurée
+    apiKey: "sk-1234"   # valeur factice si LiteLLM sans master_key
 ```
 
-**Roo Code** — Créer un profil API :
-
-- API Provider : **OpenAI**
-- Base URL : `http://localhost:4000`
-- Model ID : `smart-router`
-- API Key : `sk-1234` (ou vide si LiteLLM n'exige pas de clé)
-
-Sélectionner ce profil pour activer le routage automatique. Les requêtes seront routées selon la complexité (SIMPLE → qwen2.5, MEDIUM/COMPLEX → qwen2.5-coder, REASONING → qwen3-thinking), avec cascade vers Gemini puis Claude en cas d'échec.
+**Vérification** : Une requête simple (ex. « Dis bonjour ») doit être routée vers qwen2.5 ; une requête complexe vers qwen2.5-coder ou qwen3-thinking. Cascade vers Gemini puis Claude si Ollama échoue.

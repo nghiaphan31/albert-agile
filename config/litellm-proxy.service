@@ -1,0 +1,22 @@
+# Service systemd utilisateur — LiteLLM Proxy (mode automatique)
+# Copier vers ~/.config/systemd/user/ puis :
+#   systemctl --user daemon-reload
+#   systemctl --user enable litellm-proxy
+#   systemctl --user start litellm-proxy
+#
+# Adapter AGILE_ROOT si ton projet est ailleurs.
+
+[Unit]
+Description=LiteLLM Proxy - routage automatique pour Continue/Roo Code
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/PROJECTS_WITH_ALBERT/albert-agile
+EnvironmentFile=%h/PROJECTS_WITH_ALBERT/albert-agile/.env
+ExecStart=%h/PROJECTS_WITH_ALBERT/albert-agile/.venv/bin/litellm --config %h/PROJECTS_WITH_ALBERT/albert-agile/config/litellm_config.yaml --port 4000
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
