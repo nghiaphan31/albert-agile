@@ -6,6 +6,8 @@ Ce dépôt est **GPU-agnostique**. Les réglages ci-dessous servent à éviter l
 
 Calypso est équipée de **RTX 5060 Ti 16G** (swap effectué). Profil appliqué : `AGILE_GPU_PROFILE=vram_16gb`.
 
+Modèles : qwen2.5:14b, qwen2.5-coder:14b, qwen3:14b (option thinking) — voir `specs/plans/Strategie_Modeles_LLM_Thinking_Albert_Agile.md`.
+
 ## Profil recommandé (VRAM ≥ 16 Go) — RTX 5060 Ti 16G
 
 ### Objectif

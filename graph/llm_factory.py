@@ -31,6 +31,8 @@ def get_llms_tier1():
 
     Modèle N0 par défaut : qwen2.5:14b (validé RTX 5060 Ti 16G, structured output OK).
     Override possible via AGILE_TIER1_N0_MODEL.
+    Option thinking : qwen3:14b (structured output validé, plus lent).
+    Voir specs/plans/Strategie_Modeles_LLM_Thinking_Albert_Agile.md.
     """
     from langchain_ollama import ChatOllama
     from langchain_google_genai import ChatGoogleGenerativeAI

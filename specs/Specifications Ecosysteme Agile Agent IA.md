@@ -83,16 +83,27 @@ III. Outils, Frameworks et Modèles IA — Spécifications Techniques Détaillé
 | **qwen2.5:14b** | `ollama pull qwen2.5:14b` | ~9 Go | R-0 (Business Analyst IA), R-2 (System Architect IA) : idéation, architecture, réflexion stratégique |
 | **nomic-embed-text** | `ollama pull nomic-embed-text` | ~0,5 Go | Embeddings RAG (recherche sémantique) |
 
-*Contexte : 128K tokens (Qwen). Licence : Apache 2.0. Profil VRAM 16 Go (RTX 5060 Ti). Alternatives : `deepseek-coder-v2:16b` (Tier2), `qwen2.5:14b-instruct-q4_K_M` (Tier1). Legacy 12 Go : voir `docs/HARDWARE_GPU.md` + Simulation 014.*
+*Contexte : 128K tokens (Qwen). Licence : Apache 2.0. Profil VRAM 16 Go (RTX 5060 Ti). Option thinking Tier 1 : `qwen3:14b` — voir `specs/plans/Strategie_Modeles_LLM_Thinking_Albert_Agile.md`. Alternatives : `deepseek-coder-v2:16b` (Tier2), `qwen2.5:14b-instruct-q4_K_M` (Tier1). Legacy 12 Go : voir `docs/HARDWARE_GPU.md` + Simulation 014.*
 
 #### 3.3 Interface et Orchestration
 
 | Outil | Version / Référence | Usage |
 |-------|--------------------|-------|
 | **VS Code** | Dernière stable | IDE central |
-| **Continue.dev** | Extension open-source | Autocomplétion, RAG (recherche sémantique) codebase, pilotage des modèles (Ollama, API) |
-| **Roo Code** | Extension / agent | Exécution autonome des tâches (sprints, CI) |
+| **Continue.dev** | Extension open-source | Autocomplétion, RAG (recherche sémantique) codebase, pilotage des modèles (Ollama, Gemini, Anthropic). Modes : **manuel** (choix explicite) ou **routage automatique** (via proxy, ex. LiteLLM). Voir III.3-bis. |
+| **Roo Code** | Extension / agent | Exécution autonome des tâches (sprints, CI). Modes : manuel ou routage automatique (comme Continue). |
 | **LangGraph + LangChain** | Dernière stable (LangGraph 1.x) | Orchestration du graphe d'agents, routage cascade, human-in-the-loop. Voir section III.5. |
+
+#### 3.3-bis Sélection des modèles IDE : modes manuel et routage automatique
+
+L'IDE (VS Code + Continue.dev / Roo Code) supporte deux modes de sélection des modèles, à l'instar de Cursor Pro (Smart / manuel) :
+
+| Mode | Comportement | Usage typique |
+|------|--------------|---------------|
+| **Manuel** | L'utilisateur sélectionne explicitement le modèle à chaque requête (Ollama, Gemini, Anthropic). | Contrôle total, débogage, maîtrise des coûts. |
+| **Routage automatique** | Un proxy (ex. LiteLLM) route les requêtes selon la tâche (code → coder, idéation → idéation/thinking) et applique une cascade en cas d'échec : local (Ollama) → Gemini (gratuit) → Claude. | Expérience "smart" alignée sur le graphe LangGraph. |
+
+**Référence** : Voir `specs/plans/Plan_Configuration_VSCode_Ollama_Local.md` pour la configuration détaillée (modes, LiteLLM, modèles Ollama/Gemini/Anthropic).
 
 #### 3.4 Chaîne de Qualité, RAG (recherche sémantique) et CI/CD
 
@@ -571,8 +582,8 @@ IV. Comptes de Services Cloud à Mettre en Place (Priorité Gratuit)
    - Reco warmup (E4/E5) : `ollama run qwen2.5-coder:14b "warmup"` (précharge le modèle prioritaire).
    - Legacy 12 Go (RTX 3060) : voir `docs/HARDWARE_GPU.md` + Simulation 014 (conflits VRAM/indexation).
 2. **VS Code** : Installation standard
-3. **Continue.dev** : Extension depuis le marketplace. Configurer Ollama (`http://localhost:11434`) et les modèles `qwen2.5-coder:14b` / `qwen2.5:14b`. Option RAG (recherche sémantique) partagé : configurer chroma-mcp (étape 6) dans `.continue/mcpServers/` pour utiliser le même Chroma que les agents.
-4. **Roo Code** : Extension depuis le marketplace. Même configuration Ollama
+3. **Continue.dev** : Extension depuis le marketplace. Configurer Ollama (`http://localhost:11434`) et les modèles `qwen2.5-coder:14b`, `qwen2.5:14b` (option : `qwen3:14b` thinking). Modes manuel (choix explicite) ou routage automatique (LiteLLM) — voir `specs/plans/Plan_Configuration_VSCode_Ollama_Local.md`. Option RAG (recherche sémantique) partagé : configurer chroma-mcp (étape 6) dans `.continue/mcpServers/` pour utiliser le même Chroma que les agents.
+4. **Roo Code** : Extension depuis le marketplace. Même configuration Ollama. Modes manuel ou routage automatique (voir Plan_Configuration_VSCode_Ollama_Local.md).
 5. **LangGraph + LangChain + Pydantic + Chroma** : pip install langgraph langchain langchain-ollama langchain-anthropic langchain-google-genai langchain-chroma pydantic chromadb. Créer le projet Python du graphe (III.5), configurer le checkpointer et le RAG (III.7, III.7-bis). État TypedDict : inclure dod, sprint_number, adr_counter, needs_architecture_review. Nœud load_context en entrée de thread. Voir III.8. Stratégie branches Git : feature depuis develop (III.8-D). Créer les scripts : handle_interrupt.py, index_rag.py, setup_project_hooks.sh, purge_checkpoints.py, export_chroma.py, import_chroma.py, notify_pending_interrupts.py, status.py (III.8-B, III.8-C, III.8-J, III.8-L, III.8-P). Créer graph/anonymizer.py, specs/REGLES_ANONYMISATION.md, config/anonymisation.yaml (III.5-ter L-ANON). Créer specs/REGLES_AGENTS_AGILE.md, graph/laws.py (lois Albert Core). Créer projects.json (format III.8-G). Variable AGILE_PROJECTS_JSON. API_429_MAX_RETRIES=3. GitHub Actions sur pull_request (III.8-F). Checklist de clôture (III.8-M). Voir III.8.
 6. **chroma-mcp** (optionnel, pour RAG (recherche sémantique) partagé IDE) : `uvx chroma-mcp` ou `pip install chroma-mcp`. Configurer pour pointer vers la même Chroma que index_rag (client persistent ou HTTP). Ajouter à `.continue/mcpServers/` (Continue) ou `~/.cursor/mcp.json` (Cursor) pour que l'IDE utilise le même RAG (recherche sémantique) que les agents. Voir III.7-bis.
 7. **LangSmith** : Compte sur https://smith.langchain.com. Clé API à définir dans `LANGCHAIN_TRACING_V2=true` et `LANGCHAIN_API_KEY=...` pour traçage.
@@ -649,7 +660,7 @@ L'arsenal qui tourne sur votre machine, maximisant la rentabilité de votre mat�
 
 L'interface de travail remplaçant les abonnements mensuels fixes (ex: Cursor).
 
-* **VS Code + Continue.dev + Roo Code :** Cockpit central (Hub ENV-B). Continue.dev : autocomplétion alimentée par Ollama (GPU local). Roo Code : agents d'exécution autonomes. **0€/mois**.
+* **VS Code + Continue.dev + Roo Code :** Cockpit central (Hub ENV-B). Continue.dev : autocomplétion alimentée par Ollama (GPU local). Roo Code : agents d'exécution autonomes. Deux modes : **manuel** (choix explicite du modèle) ou **routage automatique** (proxy LiteLLM, routage par tâche + cascade local→Gemini→Claude). **0€/mois** (hors API cloud si utilisées).
 
 #### ☁️ 3. Cloud & Gratuit (La Maturation et le Fallback)
 

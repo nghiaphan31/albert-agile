@@ -38,7 +38,7 @@ Ces étapes s'exécutent **sur ton PC** (pas sur Calypso). L'agent ne peut pas l
 - Paramètres → Modèles
 - Ajoute **Ollama** :
   - URL : `http://localhost:11434`
-  - Modèles : `qwen2.5-coder:14b`, `qwen2.5:14b`
+  - Modèles : `qwen2.5-coder:14b`, `qwen2.5:14b`, `qwen3:14b` (option thinking)
 
 ---
 
@@ -46,7 +46,7 @@ Ces étapes s'exécutent **sur ton PC** (pas sur Calypso). L'agent ne peut pas l
 
 1. Extensions → Recherche **Roo Code**
 2. Installe
-3. Même config Ollama : `http://localhost:11434`, modèles `qwen2.5-coder:14b` / `qwen2.5:14b`
+3. Même config Ollama : `http://localhost:11434`, modèles `qwen2.5-coder:14b`, `qwen2.5:14b` (option : `qwen3:14b`)
 
 ---
 

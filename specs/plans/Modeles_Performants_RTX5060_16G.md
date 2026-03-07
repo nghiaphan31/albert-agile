@@ -33,10 +33,11 @@ Avec 16 Go VRAM, on peut monter en gamme tout en gardant de la marge pour nomic-
 | Modèle | VRAM estimée | Intérêt | Risque |
 |--------|--------------|---------|--------|
 | **qwen2.5:14b** | ~9 Go | Raisonnement, multi-langue | Compatible structured output |
+| **qwen3:14b** | ~9.3 Go | Thinking natif, structured output validé | Plus lent (~2×) |
 | **qwen2.5:32b** (Q4) | ~18–20 Go | Forte montée en gamme | OOM probable sur 16 Go |
 | **gemma3:12b-it-q4_K_M** | ~8 Go | Spécifié dans les specs | Panic Ollama connu (llm_factory) |
 
-**Recommandé** : `qwen2.5:14b` (ou variante `qwen2.5:14b-instruct-q4_K_M`).
+**Recommandé** : `qwen2.5:14b` (défaut). Option thinking : `qwen3:14b` — voir [Strategie_Modeles_LLM_Thinking_Albert_Agile.md](Strategie_Modeles_LLM_Thinking_Albert_Agile.md).
 
 ---
 
