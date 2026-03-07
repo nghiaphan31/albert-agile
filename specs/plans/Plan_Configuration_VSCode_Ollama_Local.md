@@ -412,7 +412,7 @@ Le service démarre au login de l'utilisateur. Pour un démarrage au boot machin
 | 2 | Ajouter le modèle ci-dessous dans `models:` | Profil « Smart Router » déjà créé dans `~/.config/roo-code-settings.json` |
 | 3 | Sélectionner « Smart Router (auto) » dans l'interface | Provider : **OpenAI** |
 | 4 | | Base URL : `http://localhost:4000` |
-| 5 | | **Model ID : `qwen3`** (Ask/Code local) ou `gemini` (Architect/Debug) — voir tableau des modes ci-dessous |
+| 5 | | **Model ID : `qwen3`** — tous les modes utilisent Smart Router (voir tableau ci-dessous) |
 | 6 | | API Key : `sk-1234` (ou vide) |
 
 **Extrait à ajouter dans `config.yaml` Continue** :
@@ -425,11 +425,72 @@ Le service démarre au login de l'utilisateur. Pour un démarrage au boot machin
     apiKey: "sk-1234"   # valeur factice si LiteLLM sans master_key
 ```
 
-**Routage par mode Roo Code** (via profils dans `~/.config/roo-code-settings.json`) :
+**Routage par mode Roo Code** — tous les modes pointent vers Smart Router (local prioritaire) :
 
-| Mode Roo | Profil | Modèle effectif | Fallback |
-|----------|--------|-----------------|----------|
-| Ask, Code | Smart Router (qwen3) | Ollama qwen3:14b | Gemini → Claude |
-| Architect, Debug, Orchestrator | Gemini via Proxy | gemini-2.5-flash | Claude Sonnet → qwen3 |
+| Mode Roo | Profil | POST |
+|----------|--------|------|
+| Ask | Smart Router | `POST http://localhost:4000/v1/chat/completions` (model=qwen3) |
+| Code | Smart Router | `POST http://localhost:4000/v1/chat/completions` (model=qwen3) |
+| Architect | Smart Router | `POST http://localhost:4000/v1/chat/completions` (model=qwen3) |
+| Debug | Smart Router | `POST http://localhost:4000/v1/chat/completions` (model=qwen3) |
+| Orchestrator | Smart Router | `POST http://localhost:4000/v1/chat/completions` (model=qwen3) |
 
-**Comportement** : Avec `fake_stream: true` + post-call hook (section 4.6), qwen3 local fonctionne sans boucle infinie sur les tool calls. Cascade configurée dans `litellm_settings.fallbacks` si Ollama/Gemini échouent.
+**Résumé détaillé des chemins** :
+
+| Étape | Composant | Modes | Profil | POST / URL | Rôle |
+|-------|-----------|-------|--------|------------|------|
+| 1 | Roo Code | Ask, Code, Architect, Debug, Orchestrator | Smart Router | `POST http://localhost:4000/v1/chat/completions` (model=qwen3) | Envoie les requêtes |
+| 2 | LiteLLM proxy | — | — | `http://localhost:4000` | Reçoit, applique hook (fake_stream + post-call), **détecte échec et lance fallbacks** |
+| 3 | LiteLLM router | — | — | `model_name: qwen3` → `ollama_chat/qwen3:14b` | Résout l'alias, sélectionne le modèle |
+| 4 | Ollama | — | — | `http://localhost:11434/api/chat` | Exécute qwen3:14b |
+| 5 | Fallback 1 | — | — | `gemini/gemini-2.5-flash` | Si Ollama échoue |
+| 6 | Fallback 2 | — | — | `anthropic/claude-sonnet-4-6` | Si Gemini échoue |
+
+**Schéma Mermaid** :
+
+```mermaid
+flowchart TB
+    subgraph Roo["Roo Code"]
+        Ask[Ask]
+        Code[Code]
+        Architect[Architect]
+        Debug[Debug]
+        Orchestrator[Orchestrator]
+    end
+
+    SR[Smart Router]
+
+    subgraph LiteLLM["LiteLLM Proxy :4000"]
+        Proxy[Reçoit POST model=qwen3]
+        Hook[Hook fake_stream + post-call]
+        Router[Router qwen3 vers ollama_chat]
+        Eval{Détecte échec?}
+    end
+
+    Ollama[Ollama :11434 qwen3:14b]
+    F1[Gemini]
+    F2[Claude Sonnet]
+    Réponse[Réponse à Roo]
+
+    Ask --> SR
+    Code --> SR
+    Architect --> SR
+    Debug --> SR
+    Orchestrator --> SR
+    SR --> Proxy
+    Proxy --> Hook
+    Hook --> Router
+    Router --> Eval
+    Eval -->|Non| Ollama
+    Eval -->|Oui| F1
+    Ollama -->|Succès| Réponse
+    Ollama -->|Échec| F1
+    F1 -->|Succès| Réponse
+    F1 -->|Échec| F2
+    F2 -->|Succès| Réponse
+    F2 -->|Échec| Erreur[Erreur finale]
+```
+
+**Comportement** : Avec `fake_stream: true` + post-call hook (section 4.6), qwen3 local fonctionne sans boucle infinie sur les tool calls. LiteLLM déclenche les fallbacks si Ollama ou Gemini échouent.
+
+> **⚠️ Tests en attente** : Les tests de tous les chemins (tous les modes Roo + fallbacks) doivent encore être validés.
