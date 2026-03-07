@@ -214,11 +214,12 @@ Voir [HARDWARE_GPU.md](../../docs/HARDWARE_GPU.md).
 
 ## 7. Optionnel — RAG partagé (chroma-mcp)
 
-Pour que Continue utilise le même index RAG que les agents LangGraph :
+Pour que **Continue** et **Roo Code** utilisent le même index RAG que les agents LangGraph :
 
 1. Installer chroma-mcp : `pip install chroma-mcp` (dans le venv du projet)
-2. Configurer dans Continue (MCP) : pointer vers `$AGILE_ORCHESTRATION_ROOT/chroma_db`
-3. Référer à la doc Continue pour les serveurs MCP
+2. **Continue** : configurer chroma-mcp dans `config.yaml` (mcpServers) sur le PC Windows, pointer vers `$AGILE_ORCHESTRATION_ROOT/chroma_db` (via chemin accessible en Remote-SSH)
+3. **Roo Code** : configurer un serveur MCP chroma-mcp dans `.roo/mcp.json` (projet) ou config globale ; pointer vers la même Chroma (`chroma_db/`)
+4. Référer à la doc [Continue pour MCP](https://docs.continue.dev/customize/mcp-tools) et [Roo Code pour MCP](https://docs.roocode.com/features/mcp/overview)
 
 ---
 
@@ -243,7 +244,7 @@ Roo Code : un seul provider actif ; tu peux définir plusieurs profils pour basc
 | Config Continue | `C:\Users\<user>\.continue\config.yaml` (PC Windows) |
 | Secrets Continue | `C:\Users\<user>\.continue\.env` (PC Windows) |
 | Config Roo Code | Paramètres in-app (Provider Settings / Profiles) |
-| Chroma (optionnel) | `$AGILE_ORCHESTRATION_ROOT/chroma_db` |
+| Chroma (optionnel) | `$AGILE_ORCHESTRATION_ROOT/chroma_db` (Continue + Roo Code via MCP chroma-mcp) |
 | LiteLLM Proxy (optionnel) | `http://localhost:4000` (si mode automatique) |
 
 ---

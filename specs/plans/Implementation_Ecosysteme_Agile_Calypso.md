@@ -943,7 +943,7 @@ L'IDE cible de l'écosystème (spec III.3, II) est VS Code + Continue.dev + Roo 
 - [ PC > VS Code > Paramètres Continue ] Configurer :
   - **Modèles** : ajouter Ollama, URL `http://localhost:11434`
   - Modèles à utiliser : `qwen2.5-coder:14b`, `qwen2.5:14b`
-  - Option RAG (recherche sémantique) partagé (spec III.7-bis) : si chroma-mcp est installé sur Calypso, configurer dans `.continue/mcpServers/` pour pointer vers le même Chroma que `index_rag`
+  - Option RAG (recherche sémantique) partagé (spec III.7-bis) : si chroma-mcp est installé sur Calypso, configurer dans Continue (mcpServers) et Roo Code (`.roo/mcp.json` ou config globale) pour pointer vers le même Chroma que `index_rag`
 
 ### 7.4 Installer Roo Code
 
@@ -958,7 +958,7 @@ L'IDE cible de l'écosystème (spec III.3, II) est VS Code + Continue.dev + Roo 
 pip install chroma-mcp
 ```
 
-- [ PC > VS Code > Éditeur ] -> (Calypso) Configurer chroma-mcp dans Continue : fichier `.continue/mcpServers/` ou équivalent, pointer vers `$AGILE_ORCHESTRATION_ROOT/chroma_db`. Permet à Continue (et donc à R-1 (Nghia (Product Owner)) / R-7 (Nghia (Stakeholder))) d'utiliser le même index RAG (recherche sémantique) que les agents LangGraph.
+- [ PC > VS Code > Éditeur ] -> (Calypso) Configurer chroma-mcp pour **Continue** (config MCP, pointer vers `$AGILE_ORCHESTRATION_ROOT/chroma_db`) et **Roo Code** (`.roo/mcp.json` ou config globale MCP). Permet à Continue et Roo Code (R-1, R-7, R-4) d'utiliser le même index RAG (recherche sémantique) que les agents LangGraph.
 
 ### 7.6 Recommandation GPU (spec III.8-J, CC2)
 

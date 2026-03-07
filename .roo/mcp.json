@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "chroma-mcp": {
+      "command": ".venv/bin/chroma-mcp",
+      "args": [
+        "--client-type",
+        "persistent",
+        "--data-dir",
+        "chroma_db"
+      ],
+      "disabled": false
+    }
+  }
+}

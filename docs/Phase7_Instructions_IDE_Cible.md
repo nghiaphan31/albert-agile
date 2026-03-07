@@ -52,10 +52,11 @@ Ces étapes s'exécutent **sur ton PC** (pas sur Calypso). L'agent ne peut pas l
 
 ## 7.6 chroma-mcp (RAG (recherche sémantique) partagé) — optionnel
 
-chroma-mcp est déjà installé dans le venv du projet. Pour le configurer dans Continue :
+chroma-mcp est déjà installé dans le venv du projet. Pour le configurer dans **Continue** et **Roo Code** :
 
-- Chemin Chroma : `/home/nghia-phan/PROJECTS_WITH_ALBERT/albert-agile/chroma_db`
-- Réfère-toi à la doc Continue pour ajouter un serveur MCP (Model Context Protocol) chroma-mcp
+- Chemin Chroma : `$AGILE_ORCHESTRATION_ROOT/chroma_db` (ex. `/home/nghia-phan/PROJECTS_WITH_ALBERT/albert-agile/chroma_db`)
+- **Continue** : ajouter chroma-mcp dans mcpServers (config.yaml). Voir [doc Continue MCP](https://docs.continue.dev/customize/mcp-tools).
+- **Roo Code** : configurer chroma-mcp dans `.roo/mcp.json` ou config globale. Voir [doc Roo Code MCP](https://docs.roocode.com/features/mcp/overview).
 
 ---
 

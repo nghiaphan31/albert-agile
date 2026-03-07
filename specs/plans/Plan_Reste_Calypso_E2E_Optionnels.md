@@ -49,7 +49,7 @@ Remplacer `☐` par `☑` pour chaque cas validé dans [docs/CHECKLIST_E2E.md](.
 
 ## 2. chroma-mcp (optionnel)
 
-RAG partagé IDE + agents. Continue.dev et Cursor peuvent interroger le même Chroma que les nœuds LangGraph.
+RAG partagé IDE + agents. Continue.dev, Roo Code et Cursor peuvent interroger le même Chroma que les nœuds LangGraph.
 
 ### 2.1 Installer chroma-mcp
 
@@ -61,14 +61,15 @@ source .venv/bin/activate
 pip install chroma-mcp
 ```
 
-### 2.2 Configurer dans Continue
+### 2.2 Configurer dans Continue et Roo Code
 
 - Chemin Chroma : `$AGILE_ORCHESTRATION_ROOT/chroma_db` (ex. `/home/nghia-phan/PROJECTS_WITH_ALBERT/albert-agile/chroma_db`)
-- Ajouter le serveur MCP dans Continue : `.continue/mcpServers/` ou équivalent (voir doc Continue).
+- **Continue** : ajouter chroma-mcp dans mcpServers (config.yaml sur PC Windows). Voir doc [Continue MCP](https://docs.continue.dev/customize/mcp-tools).
+- **Roo Code** : configurer chroma-mcp dans `.roo/mcp.json` (projet) ou config globale. Voir doc [Roo Code MCP](https://docs.roocode.com/features/mcp/overview).
 
 ### 2.3 Vérification
 
-- Dans Continue, une requête doit pouvoir utiliser le contexte RAG (chroma_query_documents) pour le projet.
+- Dans Continue et Roo Code, une requête doit pouvoir utiliser le contexte RAG (chroma_query_documents) pour le projet.
 
 ### 2.4 Mettre à jour requirements.txt (optionnel)
 

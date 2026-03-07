@@ -1,0 +1,26 @@
+# Snippet à ajouter dans C:\Users\<user>\.continue\config.yaml (PC Windows)
+# pour le RAG partagé avec chroma-mcp.
+#
+# En Remote-SSH, le chemin chroma_db doit être accessible depuis le serveur.
+# Si Continue tourne côté client, un chemin Calypso n'est pas lisible.
+# Option : lancer chroma-mcp en mode HTTP sur Calypso, puis pointer Continue vers cette URL.
+#
+# Option A — chroma-mcp en STDIO (si Continue exécute sur le remote) :
+# Ajouter dans la section mcpServers de config.yaml :
+#
+# mcpServers:
+#   - name: chroma-mcp
+#     command: /chemin/vers/projet/.venv/bin/chroma-mcp
+#     args:
+#       - --client-type
+#       - persistent
+#       - --data-dir
+#       - /chemin/vers/projet/chroma_db
+#     cwd: /chemin/vers/projet
+#
+# Option B — chroma-mcp en HTTP (si Continue tourne côté client) :
+# 1. Sur Calypso : chroma-mcp --client-type persistent --data-dir /path/to/chroma_db
+#    (en mode serveur HTTP si disponible)
+# 2. Dans Continue : url du serveur MCP
+#
+# Voir : https://docs.continue.dev/customize/mcp-tools
