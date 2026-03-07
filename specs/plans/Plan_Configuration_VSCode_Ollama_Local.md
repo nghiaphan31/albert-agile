@@ -97,11 +97,13 @@ Le fichier `~/.continue/config.yaml` sur Calypso n’est **pas lu** dans ce setu
 ### 3.2 Ouvrir la configuration
 
 - **Ctrl+Shift+P** → **Continue: Open Config**
-- Ou créer / éditer : `~/.continue/config.json` (ou `config.yaml`)
+- Ou créer / éditer directement sur le **PC Windows** : `C:\Users\<user>\.continue\config.yaml` (ou `config.json`)
+
+La config de référence est celle sur le disque du PC client. En Remote-SSH, Continue ne lit pas les fichiers sur Calypso.
 
 ### 3.3 Configuration : Ollama + Gemini + Anthropic (YAML)
 
-Fichier `~/.continue/config.yaml` (sur Calypso) — tu peux choisir le modèle à tout moment dans l’interface :
+Fichier `C:\Users\<user>\.continue\config.yaml` (sur le PC Windows) — tu peux choisir le modèle à tout moment dans l’interface :
 
 ```yaml
 name: Calypso (Ollama + Gemini + Anthropic)
@@ -138,7 +140,7 @@ models:
     apiKey: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
-**Clés API** : à définir dans `~/.continue/.env` (lu automatiquement par Continue v1.x) :
+**Clés API** : à définir dans `C:\Users\<user>\.continue\.env` (sur le PC Windows, lu automatiquement par Continue v1.x) :
 ```
 GOOGLE_API_KEY=ta-clé-google
 ANTHROPIC_API_KEY=ta-clé-anthropic
@@ -238,7 +240,8 @@ Roo Code : un seul provider actif ; tu peux définir plusieurs profils pour basc
 | Composant | URL / Chemin |
 |-----------|--------------|
 | Ollama API | `http://localhost:11434` (Calypso = localhost en Remote-SSH) |
-| Config Continue | `~/.continue/config.yaml` ou `config.json` |
+| Config Continue | `C:\Users\<user>\.continue\config.yaml` (PC Windows) |
+| Secrets Continue | `C:\Users\<user>\.continue\.env` (PC Windows) |
 | Config Roo Code | Paramètres in-app (Provider Settings / Profiles) |
 | Chroma (optionnel) | `$AGILE_ORCHESTRATION_ROOT/chroma_db` |
 | LiteLLM Proxy (optionnel) | `http://localhost:4000` (si mode automatique) |
