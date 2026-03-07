@@ -73,9 +73,17 @@ Un proxy (ex. LiteLLM) route les requêtes selon la tâche et applique une casca
 1. **Ctrl+Shift+P** (ou Cmd+Shift+P) → **Remote-SSH: Connect to Host**
 2. Sélectionner ou ajouter `nghia-phan@calypso` (ou ton hôte SSH configuré)
 3. VS Code ouvre une nouvelle fenêtre connectée à Calypso
-4. Le Terminal intégré exécute les commandes **sur Calypso**
+4. Le **terminal intégré à VS Code** (panneau Terminal, Ctrl+`) exécute les commandes **sur Calypso** (contexte Remote-SSH). Ce n'est pas un terminal externe (ex. SSH dans une autre fenêtre).
 
-**Important** : Continue et Roo Code s’exécutent dans le contexte distant. `localhost` dans leur config = Calypso. Ollama tourne sur Calypso, donc `http://localhost:11434` est correct.
+### 2.4 Convention terminal pour la suite
+
+Toutes les commandes décrites dans ce plan (vérifications, `ollama list`, éventuellement LiteLLM, etc.) sont à exécuter dans le **terminal intégré à VS Code**. Pour l'exécution du graphe Agile (`run_graph.py`, `handle_interrupt.py`, `status.py`), voir [Modes_Bootstrap_et_Runtime_Cible.md](Modes_Bootstrap_et_Runtime_Cible.md) (ou [Plan_Reste_Calypso_E2E_Optionnels.md](Plan_Reste_Calypso_E2E_Optionnels.md)).
+
+**Important — où Continue lit sa config** : Continue v1.x est une extension **locale** (UI extension). Même connecté à Calypso via Remote-SSH, Continue lit sa config depuis le **PC client** (pas depuis Calypso) :
+- Windows → `C:\Users\<user>\.continue\config.yaml`
+- macOS/Linux client → `~/.continue/config.yaml` sur ce client
+
+Le fichier `~/.continue/config.yaml` sur Calypso n’est **pas lu** dans ce setup (Calypso headless). Les appels aux modèles Ollama transitent malgré tout par le composant distant, donc `http://localhost:11434` dans la config = port 11434 sur Calypso.
 
 ---
 
@@ -96,37 +104,46 @@ Un proxy (ex. LiteLLM) route les requêtes selon la tâche et applique une casca
 Fichier `~/.continue/config.yaml` (sur Calypso) — tu peux choisir le modèle à tout moment dans l’interface :
 
 ```yaml
+name: Calypso (Ollama + Gemini + Anthropic)
+version: 1.0.0
+schema: v1
+
 models:
   # --- Ollama local (0 €) ---
-  - title: qwen2.5-coder:14b (Ollama)
+  - name: qwen2.5-coder:14b (Ollama)
     provider: ollama
     model: qwen2.5-coder:14b
     apiBase: http://localhost:11434
 
-  - title: qwen2.5:14b (Ollama)
+  - name: qwen2.5:14b (Ollama)
     provider: ollama
     model: qwen2.5:14b
     apiBase: http://localhost:11434
 
-  - title: qwen3:14b (Ollama, thinking)
+  - name: qwen3:14b (Ollama, thinking)
     provider: ollama
     model: qwen3:14b
     apiBase: http://localhost:11434
 
-  # --- Gemini (free tier) — GOOGLE_API_KEY ou GEMINI_API_KEY ---
-  - title: gemini-2.0-flash (Gemini)
+  # --- Gemini (free tier) — GOOGLE_API_KEY ---
+  - name: gemini-2.0-flash (Gemini)
     provider: gemini
     model: gemini-2.0-flash
+    apiKey: ${{ secrets.GOOGLE_API_KEY }}
 
   # --- Anthropic Claude Sonnet 4.6 — ANTHROPIC_API_KEY ---
-  - title: claude-sonnet-4-6 (Anthropic)
+  - name: claude-sonnet-4-6 (Anthropic)
     provider: anthropic
     model: claude-sonnet-4-6
+    apiKey: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
-**Clés API** : définir dans l’environnement (recommandé) ou dans la config :
-- Gemini : `GOOGLE_API_KEY` ou `GEMINI_API_KEY`
-- Anthropic : `ANTHROPIC_API_KEY`
+**Clés API** : à définir dans `~/.continue/.env` (lu automatiquement par Continue v1.x) :
+```
+GOOGLE_API_KEY=ta-clé-google
+ANTHROPIC_API_KEY=ta-clé-anthropic
+```
+Continue résout `${{ secrets.NOM_CLE }}` depuis ce fichier. Les variables d’environnement système (`export`) ne sont **pas** lues par Continue pour les secrets.
 
 ### 3.4 Modèle par défaut
 
@@ -179,7 +196,7 @@ Roo Code propose des **API Configuration Profiles** : tu peux créer plusieurs p
 | 5.2 | Continuer avec Ollama sélectionné, poser une question | Réponse générée (pas d’erreur 404/500) |
 | 5.3 | Continuer avec Gemini puis Anthropic | Les deux répondent si les clés API sont configurées |
 | 5.4 | Ouvrir Roo Code, lancer une tâche | Roo Code répond selon le provider actif |
-| 5.5 | (Ollama) Vérifier les logs | `ollama ps` montre le modèle chargé lors des requêtes |
+| 5.5 | (Ollama) Vérifier les logs | Dans le **terminal intégré à VS Code** connecté à Calypso : `ollama ps` montre le modèle chargé lors des requêtes |
 
 ---
 
