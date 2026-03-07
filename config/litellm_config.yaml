@@ -52,6 +52,7 @@ model_list:
 litellm_settings:
   num_retries: 2
   drop_params: true   # ignore les params non supportés (ex. parallel_tool_calls)
+  callbacks: ["litellm_hooks.proxy_handler_instance"]  # injecte system prompt pour tool calling strict
   fallbacks:
     - gemini: [claude-sonnet, hermes3, qwen3]
     - hermes3: [gemini, claude-sonnet]

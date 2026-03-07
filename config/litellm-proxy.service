@@ -14,6 +14,7 @@ After=network.target
 Type=simple
 WorkingDirectory=%h/PROJECTS_WITH_ALBERT/albert-agile
 EnvironmentFile=%h/PROJECTS_WITH_ALBERT/albert-agile/.env
+Environment=PYTHONPATH=%h/PROJECTS_WITH_ALBERT/albert-agile
 ExecStart=%h/PROJECTS_WITH_ALBERT/albert-agile/.venv/bin/litellm --config %h/PROJECTS_WITH_ALBERT/albert-agile/config/litellm_config.yaml --port 4000 --detailed_debug
 Restart=on-failure
 RestartSec=5
