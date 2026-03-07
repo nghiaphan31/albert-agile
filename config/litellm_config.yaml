@@ -24,6 +24,18 @@ model_list:
       model: ollama_chat/qwen2.5:14b
       api_base: http://localhost:11434
 
+  # hermes3:8b — fine-tuné pour function calling (test avec Roo Code)
+  - model_name: hermes3
+    litellm_params:
+      model: ollama_chat/hermes3:8b
+      api_base: http://localhost:11434
+
+  # granite3.3:8b — IBM, orienté tool use
+  - model_name: granite3.3
+    litellm_params:
+      model: ollama_chat/granite3.3:8b
+      api_base: http://localhost:11434
+
   # Providers cloud (fallback)
   - model_name: gemini
     litellm_params:
@@ -41,7 +53,9 @@ litellm_settings:
   num_retries: 2
   drop_params: true   # ignore les params non supportés (ex. parallel_tool_calls)
   fallbacks:
-    - gemini: [claude-sonnet, qwen3]
+    - gemini: [claude-sonnet, hermes3, qwen3]
+    - hermes3: [gemini, claude-sonnet]
+    - granite3.3: [hermes3, gemini, claude-sonnet]
     - qwen3: [gemini, claude-sonnet]
     - qwen2.5-coder: [gemini, claude-sonnet]
     - qwen2.5: [gemini, claude-sonnet]
