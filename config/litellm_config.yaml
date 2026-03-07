@@ -8,33 +8,37 @@
 
 model_list:
   # Modèles Ollama (provider primaire, 0€)
-  # ollama_chat/ (pas ollama/) → utilise /api/chat qui supporte tool calling natif
+  # ollama_chat/ + fake_stream=true → LiteLLM appelle en non-streaming,
+  # le post-call hook peut corriger la réponse AVANT génération des chunks SSE
   - model_name: qwen3
     litellm_params:
       model: ollama_chat/qwen3:14b
       api_base: http://localhost:11434
+      fake_stream: true
 
   - model_name: qwen2.5-coder
     litellm_params:
       model: ollama_chat/qwen2.5-coder:14b
       api_base: http://localhost:11434
+      fake_stream: true
 
   - model_name: qwen2.5
     litellm_params:
       model: ollama_chat/qwen2.5:14b
       api_base: http://localhost:11434
+      fake_stream: true
 
-  # hermes3:8b — fine-tuné pour function calling (test avec Roo Code)
   - model_name: hermes3
     litellm_params:
       model: ollama_chat/hermes3:8b
       api_base: http://localhost:11434
+      fake_stream: true
 
-  # granite3.3:8b — IBM, orienté tool use
   - model_name: granite3.3
     litellm_params:
       model: ollama_chat/granite3.3:8b
       api_base: http://localhost:11434
+      fake_stream: true
 
   # Providers cloud (fallback)
   - model_name: gemini
