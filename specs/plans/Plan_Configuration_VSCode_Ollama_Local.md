@@ -208,7 +208,7 @@ Voir [HARDWARE_GPU.md](../../docs/HARDWARE_GPU.md).
 
 - **Pendant E4/E5** (graphe LangGraph actif) : utiliser le **même modèle prioritaire** (`qwen2.5-coder:14b`) dans Continue et Roo Code pour limiter le swapping Ollama.
 - **Alternative** : désactiver l’autocomplétion IA pendant E4/E5.
-- **Keep-alive** (optionnel) : `export OLLAMA_KEEP_ALIVE=qwen2.5-coder:14b` avant de lancer le graphe (cf. `scripts/test_e2e_manual.py`).
+- **Keep-alive** (optionnel) : `export OLLAMA_KEEP_ALIVE=24h` avant de lancer le graphe. Pour précharger le modèle prioritaire : `ollama run qwen2.5-coder:14b "warmup"` (cf. `scripts/test_e2e_manual.py`, `docs/HARDWARE_GPU.md`).
 
 ---
 
