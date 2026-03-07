@@ -35,11 +35,13 @@ model_list:
       model: anthropic/claude-sonnet-4-6
       api_key: os.environ/ANTHROPIC_API_KEY
 
-# Cascade automatique : si Ollama échoue → Gemini → Claude
+# Cascade : gemini en primaire (tool calling fiable) → claude si quota dépassé
+# qwen3/qwen2.5-coder : utilisables en direct mais incompatibles avec les tools Roo Code
 litellm_settings:
   num_retries: 2
   drop_params: true   # ignore les params non supportés (ex. parallel_tool_calls)
   fallbacks:
+    - gemini: [claude-sonnet, qwen3]
     - qwen3: [gemini, claude-sonnet]
-    - qwen2.5-coder: [qwen3, gemini, claude-sonnet]
-    - qwen2.5: [qwen3, gemini, claude-sonnet]
+    - qwen2.5-coder: [gemini, claude-sonnet]
+    - qwen2.5: [gemini, claude-sonnet]
