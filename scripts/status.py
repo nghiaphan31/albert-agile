@@ -5,6 +5,43 @@ import json
 import sys
 from pathlib import Path
 
+ORCH_ROOT = Path(__file__).resolve().parent.parent
+if str(ORCH_ROOT) not in sys.path:
+    sys.path.insert(0, str(ORCH_ROOT))
+
+
+def _extract_project_id(thread_id: str) -> str:
+    """Extrait project_id du thread_id (convention: {project_id}-phase/sprint/hotfix-...)."""
+    for suffix in ("-phase-", "-sprint-", "-hotfix-"):
+        if suffix in thread_id:
+            return thread_id.split(suffix)[0]
+    # Fallback: thread_id peut être project_id ou project_id-suffix (ex: albert-agile-e2e-v2)
+    parts = thread_id.split("-")
+    if len(parts) >= 2:
+        return parts[0] + "-" + parts[1]  # ex: albert-agile
+    return thread_id
+
+
+def _count_pending_interrupts_by_project() -> dict[str, int]:
+    """Compte les interrupts en attente par project_id (extrait du thread_id)."""
+    import importlib.util
+    try:
+        spec = importlib.util.spec_from_file_location(
+            "handle_interrupt", ORCH_ROOT / "scripts" / "handle_interrupt.py"
+        )
+        if spec is None or spec.loader is None:
+            return {}
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        pending = mod._list_pending()
+    except Exception:
+        return {}
+    counts: dict[str, int] = {}
+    for tid, _ in pending:
+        pid = _extract_project_id(tid)
+        counts[pid] = counts.get(pid, 0) + 1
+    return counts
+
 
 def main() -> int:
     parser = argparse.ArgumentParser()
@@ -23,13 +60,14 @@ def main() -> int:
     if args.project_id:
         projects = {k: v for k, v in projects.items() if k == args.project_id}
 
+    interrupt_counts = _count_pending_interrupts_by_project()
     out = []
     for pid, cfg in projects.items():
         rec = {
             "project_id": pid,
             "path": cfg.get("path", ""),
             "phase_courante": "N/A",
-            "interrupts_en_attente": 0,
+            "interrupts_en_attente": interrupt_counts.get(pid, 0),
             "derniere_indexation_rag": "N/A",
             "pending_index": 0,
             "alertes": [],
@@ -48,7 +86,7 @@ def main() -> int:
         print(json.dumps(out, indent=2, ensure_ascii=False))
     else:
         for r in out:
-            print(f"{r['project_id']}: phase={r['phase_courante']} pending_index={r['pending_index']}")
+            print(f"{r['project_id']}: phase={r['phase_courante']} interrupts={r['interrupts_en_attente']} pending_index={r['pending_index']}")
     return 0
 
 

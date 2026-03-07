@@ -4,6 +4,8 @@ Plan formel des cas de validation pour les tests end-to-end. À cocher manuellem
 
 **Référence** : [Plan Calypso Phase 9](../specs/plans/Implementation_Ecosysteme_Agile_Calypso.md#phase-9--validation-end-to-end), [Guide utilisateur](../specs/plans/Implementation_Ecosysteme_Agile_Calypso.md#guide-utilisateur-basique--initier-un-projet-de-développement).
 
+**Terminal** : Les commandes de cette checklist sont à exécuter dans le **terminal intégré à VS Code** (ou Cursor en bootstrap), panneau Terminal de l'IDE. Ne pas utiliser un terminal externe (ex. SSH dans une autre fenêtre) sauf besoin explicite.
+
 ---
 
 ## 1. Prérequis

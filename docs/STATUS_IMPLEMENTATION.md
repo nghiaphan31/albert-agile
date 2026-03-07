@@ -1,6 +1,6 @@
 # État d'implémentation — Écosystème Agile Agent IA
 
-*Dernière mise à jour : 2026-03-06*
+*Dernière mise à jour : 2026-03-07*
 
 *Nomenclature : [specs/NOMENCLATURE_R_H_E.md](../specs/NOMENCLATURE_R_H_E.md) — Rôles (R-x), Interrupts (H-x), Phases (E-x).*
 
@@ -26,6 +26,7 @@
 - **Checkpointer** : SqliteSaver (checkpoints.sqlite)
 - **Exposition** : uvicorn serve:app, path /agile
 - **CLI** : `python run_graph.py --project-id albert-agile --start-phase E1`
+- **Exécution recommandée** : **terminal intégré à VS Code** (panneau Terminal), même machine ou session Remote-SSH.
 
 ## Agents (nœuds) — Implémentation Phase 10
 
@@ -42,18 +43,20 @@
 |--------|------|
 | index_rag.py | ✅ Complet (Ollama nomic-embed-text, Chroma) |
 | setup_project_hooks.sh | ✅ Complet (post-commit, .agile-env) |
-| status.py | ✅ Fonctionnel |
+| status.py | ✅ Complet (interrupts_en_attente via handle_interrupt._list_pending) |
 | sync_artifacts.py | ✅ Complet |
-| handle_interrupt.py | Stub (LangServe non branché) |
-| purge_checkpoints.py | Stub |
+| handle_interrupt.py | ✅ Complet (accès direct graphe, graph.invoke(Command(resume=...))) |
+| purge_checkpoints.py | ✅ Complet (SqliteSaver, exclude threads avec interrupt) |
 | export_chroma.py | ✅ Fonctionnel |
 | import_chroma.py | ✅ Fonctionnel |
-| notify_pending_interrupts.py | Stub |
+| notify_pending_interrupts.py | ✅ Complet (checkpointer, AGILE_INTERRUPT_TIMEOUT_HOURS) |
+
+*Pour un usage interactif (run_graph, handle_interrupt, status) : **terminal intégré à VS Code**.* Les scripts appelés par cron (notify_pending_interrupts, sync_artifacts) s'exécutent dans l'environnement cron (pas dans l'IDE).
 
 ## Cron
 
 - **sync_artifacts** : 0 0 * * 0 (dimanche minuit)
-- **notify_pending_interrupts** : non configuré
+- **notify_pending_interrupts** : `scripts/setup_cron_notify.sh` pour ajouter (toutes les heures)
 
 ## CI/CD
 

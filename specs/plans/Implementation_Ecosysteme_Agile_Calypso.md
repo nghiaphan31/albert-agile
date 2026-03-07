@@ -13,16 +13,16 @@
 | --------- | ----------------------------------------------- |
 | SOURCE    | `PC` (machine où tu tapes, Laptop Windows)      |
 | APP       | `Cursor`, `Navigateur Web`, `PowerShell`        |
-| VUE       | `Terminal`, `Chat`, `Éditeur`, `Explorateur`    |
+| VUE       | `Terminal`, `Chat`, `Éditeur`, `Explorateur` (*Terminal* = **terminal intégré** à Cursor (bootstrap) ou à VS Code (runtime cible) ; pas un terminal externe type SSH dans une autre fenêtre) |
 | CIBLE     | `Calypso` (Linux + GPU NVIDIA), `Cloud` (sites web) |
 
 
-**Règle d'exécution** : Tu es connecté à Calypso via Remote SSH depuis Cursor. Les commandes dans le Terminal Cursor s'exécutent sur Calypso sauf indication contraire.
+**Règle d'exécution** : Tu es connecté à Calypso via Remote SSH depuis Cursor. Les commandes dans le **terminal intégré à Cursor** (panneau Terminal) s'exécutent sur Calypso. En runtime cible, on utilise le **terminal intégré à VS Code** de la même façon.
 
 **Bootstrap vs Cible** :
 
-- **Bootstrap** : Pendant toute l'implémentation (Phases 0 à 8), tu restes dans **Cursor**. C'est l'outil qui exécute les commandes, édite les fichiers et pilote l'installation.
-- **Cible** : L'IDE de l'écosystème (spec III.3, II) est **VS Code + Continue.dev + Roo Code**. Il est installé en Phase 7, une fois Ollama, LangGraph, scripts et comptes cloud opérationnels. Tu bascules vers cet IDE pour le travail quotidien (R-1 (Nghia (Product Owner)), R-7 (Nghia (Stakeholder))) : priorisation backlog, validation H1 (validation Epic)–H4 (Sprint Review), pair programming. Le flux automatisé (E4 (exécution code), E5 (tests CI)) reste piloté par LangGraph, pas par Roo Code.
+- **Bootstrap** : Pendant toute l'implémentation (Phases 0 à 8), tu restes dans **Cursor**. Les commandes (run_graph, handle_interrupt, status, etc.) s'exécutent dans le **terminal intégré à Cursor**. C'est l'outil qui édite les fichiers et pilote l'installation.
+- **Cible** : L'IDE de l'écosystème (spec III.3, II) est **VS Code + Continue.dev + Roo Code**. Il est installé en Phase 7, une fois Ollama, LangGraph, scripts et comptes cloud opérationnels. Tu bascules vers cet IDE pour le travail quotidien (R-1 (Nghia (Product Owner)), R-7 (Nghia (Stakeholder))) : priorisation backlog, validation H1 (validation Epic)–H4 (Sprint Review), pair programming. Le lancement du graphe et la validation des interrupts se font depuis le **terminal intégré à VS Code** ; l'idéation se fait dans le chat Continue ou Roo Code (pas dans le terminal). Le flux automatisé (E4 (exécution code), E5 (tests CI)) reste piloté par LangGraph, pas par Roo Code. *Bascule Bootstrap → Runtime* : le moment pour passer de Cursor à VS Code est défini par les **critères de maturité** (Phases 0–8 + plan de test pré-bascule + décision métier) ; voir [Plan_Harmonisation_Documents_Terminal.md](Plan_Harmonisation_Documents_Terminal.md) et [Modes_Bootstrap_et_Runtime_Cible.md](Modes_Bootstrap_et_Runtime_Cible.md).
 
 ---
 
@@ -450,7 +450,7 @@ Objectif : Vérifier que Calypso possède tout le nécessaire avant d'installer 
 ### 0.1 Connexion SSH et identité Calypso
 
 - [ PC > Cursor > Explorateur ] Ouvrir Cursor, menu **File > Connect to Host**, sélectionner ou ajouter `nghia-phan@calypso` (ou l'hôte configuré dans `~/.ssh/config`).
-- [ PC > Cursor > Terminal ] Une fois connecté, le terminal affiche un prompt du type `user@calypso:~$`. Vérifier que tu es bien sur Calypso :
+- [ PC > Cursor > Terminal intégré ] Une fois connecté, le terminal affiche un prompt du type `user@calypso:~$`. Vérifier que tu es bien sur Calypso :
 
 ```
 hostname && uname -a
@@ -460,7 +460,7 @@ hostname && uname -a
 
 ### 0.2 Vérifier Python 3.10+ et pip
 
-- [ PC > Cursor > Terminal ] -> (Calypso)
+- [ PC > Cursor > Terminal intégré ] -> (Calypso)
 
 ```
 python3 --version
@@ -471,7 +471,7 @@ pip3 --version
 
 ### 0.3 Vérifier Git
 
-- [ PC > Cursor > Terminal ] -> (Calypso)
+- [ PC > Cursor > Terminal intégré ] -> (Calypso)
 
 ```
 git --version
@@ -481,7 +481,7 @@ git --version
 
 ### 0.4 Vérifier Docker
 
-- [ PC > Cursor > Terminal ] -> (Calypso)
+- [ PC > Cursor > Terminal intégré ] -> (Calypso)
 
 ```
 docker --version
@@ -494,7 +494,7 @@ docker run hello-world
 
 ### 0.5 Vérifier NVIDIA + pilote + VRAM
 
-- [ PC > Cursor > Terminal ] -> (Calypso)
+- [ PC > Cursor > Terminal intégré ] -> (Calypso)
 
 ```
 nvidia-smi
@@ -511,7 +511,7 @@ Ollama est la base : LangGraph, index_rag et Cursor (via MCP (Model Context Prot
 
 ### 1.1 Installer Ollama
 
-- [ PC > Cursor > Terminal ] -> (Calypso)
+- [ PC > Cursor > Terminal intégré ] -> (Calypso)
 
 ```
 curl -fsSL https://ollama.com/install.sh | sh
@@ -521,7 +521,7 @@ curl -fsSL https://ollama.com/install.sh | sh
 
 ### 1.2 Démarrer Ollama
 
-- [ PC > Cursor > Terminal ] -> (Calypso) Vérifier d'abord si Ollama tourne déjà : `curl -s http://localhost:11434/api/tags` (si succès, passer à 1.3). Sinon :
+- [ PC > Cursor > Terminal intégré ] -> (Calypso) Vérifier d'abord si Ollama tourne déjà : `curl -s http://localhost:11434/api/tags` (si succès, passer à 1.3). Sinon :
   - Si installé via le script officiel (1.1) : `ollama serve &` (ou `nohup ollama serve &` pour persister). Attendre 2–3 s puis vérifier.
   - Si installé comme service système : `sudo systemctl start ollama` (Ubuntu/Debian avec paquet `.deb`).
 - Vérifier : `curl http://localhost:11434/api/tags` — doit retourner du JSON (même vide).
@@ -530,7 +530,7 @@ curl -fsSL https://ollama.com/install.sh | sh
 
 Chaque `ollama pull` peut prendre plusieurs minutes. Sur VRAM limitée (profil legacy 12 Go), un seul modèle “lourd” peut être réellement confortable en VRAM à un instant donné.
 
-- [ PC > Cursor > Terminal ] -> (Calypso)
+- [ PC > Cursor > Terminal intégré ] -> (Calypso)
 
 ```
 ollama pull qwen2.5-coder:14b
@@ -552,7 +552,7 @@ ollama pull nomic-embed-text
 
 ### 1.4 Configurer OLLAMA_KEEP_ALIVE (recommandé)
 
-- [ PC > Cursor > Terminal ] -> (Calypso) Ajouter à `~/.bashrc` de manière **idempotente** (évite duplication si le plan est relancé) :
+- [ PC > Cursor > Terminal intégré ] -> (Calypso) Ajouter à `~/.bashrc` de manière **idempotente** (évite duplication si le plan est relancé) :
 
 ```
 grep -q 'OLLAMA_KEEP_ALIVE' ~/.bashrc || echo 'export OLLAMA_KEEP_ALIVE=24h' >> ~/.bashrc
@@ -569,7 +569,7 @@ Le dépôt `albert-agile` sert de projet orchestration. On crée l'environnement
 
 ### 2.1 Aller dans le projet et créer un venv propre
 
-- [ PC > Cursor > Terminal ] -> (Calypso)
+- [ PC > Cursor > Terminal intégré ] -> (Calypso)
 
 ```
 cd /home/nghia-phan/PROJECTS_WITH_ALBERT/albert-agile
@@ -585,7 +585,7 @@ source .venv/bin/activate
 
 ### 2.2 Installer les packages Python (spec III.5, checklist 4.1)
 
-- [ PC > Cursor > Terminal ] -> (Calypso) Avec le venv activé (`(.venv)` visible dans le prompt) :
+- [ PC > Cursor > Terminal intégré ] -> (Calypso) Avec le venv activé (`(.venv)` visible dans le prompt) :
 
 ```
 pip install --upgrade pip
@@ -596,7 +596,7 @@ pip install langgraph langchain langchain-ollama langchain-anthropic langchain-g
 
 ### 2.3 Créer la structure des répertoires
 
-- [ PC > Cursor > Terminal ] -> (Calypso)
+- [ PC > Cursor > Terminal intégré ] -> (Calypso)
 
 ```
 mkdir -p scripts config logs chroma_db
@@ -623,7 +623,7 @@ mkdir -p scripts config logs chroma_db
 
 ### 2.5 Définir les variables AGILE_* dans ~/.bashrc (idempotent)
 
-- [ PC > Cursor > Terminal ] -> (Calypso) Ajouter **sans duplication** :
+- [ PC > Cursor > Terminal intégré ] -> (Calypso) Ajouter **sans duplication** :
 
 ```
 grep -q 'AGILE_ORCHESTRATION_ROOT' ~/.bashrc || {
@@ -706,7 +706,7 @@ git checkout -b develop main 2>/dev/null || true
 git push -u origin develop 2>/dev/null || true
 ```
 
-- [ PC > Cursor > Terminal ] -> (Calypso) Rendre exécutable :
+- [ PC > Cursor > Terminal intégré ] -> (Calypso) Rendre exécutable :
 
 ```
 chmod +x scripts/setup_project_hooks.sh
@@ -893,13 +893,13 @@ ANTHROPIC_API_KEY=
 
 ### 6.1 Installer gh (GitHub CLI)
 
-- [ PC > Cursor > Terminal ] -> (Calypso)
+- [ PC > Cursor > Terminal intégré ] -> (Calypso)
 
 ```
 sudo apt install -y gh
 ```
 
-- [ PC > Cursor > Terminal ] -> (Calypso) **Action humaine** : lancer `gh auth login` et suivre les invites. Une seule fois.
+- [ PC > Cursor > Terminal intégré ] -> (Calypso) **Action humaine** : lancer `gh auth login` et suivre les invites. Une seule fois.
 
 ### 6.2 Vérifier Docker
 
@@ -952,7 +952,7 @@ L'IDE cible de l'écosystème (spec III.3, II) est VS Code + Continue.dev + Roo 
 
 ### 7.5 chroma-mcp (optionnel, pour RAG (recherche sémantique) partagé IDE + agents)
 
-- [ PC > Cursor > Terminal ] -> (Calypso) Avec le venv activé :
+- [ PC > Cursor > Terminal intégré ] -> (Calypso) Avec le venv activé :
 
 ```
 pip install chroma-mcp
@@ -973,7 +973,7 @@ Applique les hooks et la config au projet orchestration lui-même (ou à un proj
 
 ### 8.1 Lancer setup_project_hooks sur albert-agile
 
-- [ PC > Cursor > Terminal ] -> (Calypso)
+- [ PC > Cursor > Terminal intégré ] -> (Calypso)
 
 ```
 cd /home/nghia-phan/PROJECTS_WITH_ALBERT/albert-agile
@@ -992,7 +992,7 @@ source .venv/bin/activate
 
 ### 8.3 Premier index RAG (recherche sémantique)
 
-- [ PC > Cursor > Terminal ] -> (Calypso) **Activer le venv** puis lancer :
+- [ PC > Cursor > Terminal intégré ] -> (Calypso) **Activer le venv** puis lancer :
 
 ```
 cd /home/nghia-phan/PROJECTS_WITH_ALBERT/albert-agile
@@ -1008,7 +1008,7 @@ python scripts/index_rag.py --project-root /home/nghia-phan/PROJECTS_WITH_ALBERT
 
 ### 9.1 Démarrer LangServe (si implémenté)
 
-- [ PC > Cursor > Terminal ] -> (Calypso) **Activer le venv** (chaque nouveau terminal le perd) :
+- [ PC > Cursor > Terminal intégré ] -> (Calypso) **Activer le venv** (chaque nouveau terminal le perd) :
 
 ```
 cd /home/nghia-phan/PROJECTS_WITH_ALBERT/albert-agile
@@ -1020,7 +1020,7 @@ uvicorn serve:app --host 0.0.0.0 --port 8000
 
 ### 9.2 Lancer un run Phase 0 (E1 idéation)
 
-- [ PC > Cursor > Terminal ] -> (Calypso) Avec venv activé :
+- [ PC > Cursor > Terminal intégré ] -> (Calypso) Avec venv activé :
 
 ```
 source .venv/bin/activate
@@ -1031,7 +1031,7 @@ python run_graph.py --project-id albert-agile --start-phase E1 --thread-id alber
 
 ### 9.3 Vérifier status.py
 
-- [ PC > Cursor > Terminal ] -> (Calypso) Avec venv activé :
+- [ PC > Cursor > Terminal intégré ] -> (Calypso) Avec venv activé :
 
 ```
 source .venv/bin/activate
@@ -1281,7 +1281,7 @@ Ce guide explique comment démarrer un nouveau projet de développement avec l'�
 
 | Format                                         | Signification                                                                                        |
 | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `[ PC > Cursor > Terminal ] -> (Calypso)`      | Vous tapez dans le terminal Cursor sur votre PC ; la commande s'exécute sur Calypso (serveur Linux). |
+| `[ PC > Cursor > Terminal intégré ] -> (Calypso)`      | Vous tapez dans le terminal intégré Cursor (panneau Terminal) sur votre PC ; la commande s'exécute sur Calypso (serveur Linux). |
 | `[ PC > Cursor > Éditeur ] -> (Calypso)`       | Vous modifiez un fichier via Cursor ; le fichier réside sur le disque de Calypso.                    |
 | `[ PC > Cursor > Chat ] -> (Cloud claude-opus-4-5)` | Vous interagissez avec l'assistant IA dans le volet Chat ; le modèle tourne dans le cloud.      |
 | `[ PC > Navigateur Web > Console ] -> (Cloud)` | Vous êtes sur un site web (ex. LangSmith) ; l'interface s'exécute dans le cloud.                     |
@@ -1318,7 +1318,7 @@ Ce guide explique comment démarrer un nouveau projet de développement avec l'�
 ```
 
 1. [ PC > Cursor > Éditeur ] -> (Calypso) Vérifier que le chemin `path` pointe vers un dossier existant. Si le projet n'existe pas encore :
-  - [ PC > Cursor > Terminal ] -> (Calypso) Créer le dossier et optionnellement cloner un dépôt :  
+  - [ PC > Cursor > Terminal intégré ] -> (Calypso) Créer le dossier et optionnellement cloner un dépôt :  
    `mkdir -p /home/nghia-phan/PROJECTS_WITH_ALBERT/mon-projet`  
    (ou `git clone https://github.com/owner/repo.git mon-projet` selon le cas)
 2. [ PC > Cursor > Éditeur ] -> (Calypso) Sauvegarder `config/projects.json`.
@@ -1333,21 +1333,21 @@ Ce guide explique comment démarrer un nouveau projet de développement avec l'�
 
 **Pourquoi** : Les agents (Albert System Architect, Albert Scrum Master, Albert Dev Team) interrogent le RAG pour récupérer le contexte (backlog, Architecture.md, code). Sans index, ils n'ont pas accès au contenu du projet.
 
-1. [ PC > Cursor > Terminal ] -> (Calypso) Se placer à la racine du projet d'orchestration et activer le venv :
+1. [ PC > Cursor > Terminal intégré ] -> (Calypso) Se placer à la racine du projet d'orchestration et activer le venv :
 
 ```
 cd /home/nghia-phan/PROJECTS_WITH_ALBERT/albert-agile
 source .venv/bin/activate
 ```
 
-1. [ PC > Cursor > Terminal ] -> (Calypso) Lancer l'indexation :
+1. [ PC > Cursor > Terminal intégré ] -> (Calypso) Lancer l'indexation :
 
 ```
 python scripts/index_rag.py --project-id mon-projet
 ```
 
 1. **Effet** : Le script parcourt les fichiers du projet (specs, code source, Architecture.md, Product Backlog, etc.), les chunkifie, génère les embeddings via Ollama (`nomic-embed-text`) et les stocke dans Chroma. Les agents pourront ensuite faire des requêtes sémantiques.
-2. [ PC > Cursor > Terminal ] -> (Calypso) Vérifier qu'aucune erreur n'apparaît. En cas d'échec, contrôler que le `path` dans `config/projects.json` est correct et accessible.
+2. [ PC > Cursor > Terminal intégré ] -> (Calypso) Vérifier qu'aucune erreur n'apparaît. En cas d'échec, contrôler que le `path` dans `config/projects.json` est correct et accessible.
 
 ---
 
@@ -1357,7 +1357,7 @@ python scripts/index_rag.py --project-id mon-projet
 **Quoi** : Démarrage du flux Agile en phase E1 (idéation, Epic).  
 **Où** : `run_graph.py` s'exécute sur Calypso ; le graphe LangGraph tourne sur Calypso ; les appels LLM passent par Ollama (local) puis éventuellement Gemini/Claude (cloud).
 
-1. [ PC > Cursor > Terminal ] -> (Calypso) Avec le venv activé :
+1. [ PC > Cursor > Terminal intégré ] -> (Calypso) Avec le venv activé :
 
 ```
 python run_graph.py --project-id mon-projet --start-phase E1 --thread-id mon-projet-phase-0
@@ -1369,7 +1369,7 @@ python run_graph.py --project-id mon-projet --start-phase E1 --thread-id mon-pro
   - Albert Business Analyst produit un **Epic** (idéation, cahier des charges) en s'appuyant sur le RAG et les lois (L1, L4, gabarit CDC).  
   - À la fin du nœud, le graphe appelle `interrupt()` et se suspend sur **H1 (validation Epic)**.  
   - Le checkpointer sauvegarde l'état ; le thread reste en attente.
-2. [ PC > Cursor > Terminal ] -> (Calypso) Le script affiche que le graphe est suspendu (ou qu'il a terminé si LangServe gère l'asynchrone). Vous devez valider l'interrupt via `handle_interrupt.py`.
+2. [ PC > Cursor > Terminal intégré ] -> (Calypso) Le script affiche que le graphe est suspendu (ou qu'il a terminé si LangServe gère l'asynchrone). Vous devez valider l'interrupt via `handle_interrupt.py`.
 
 ---
 
@@ -1381,7 +1381,7 @@ python run_graph.py --project-id mon-projet --start-phase E1 --thread-id mon-pro
 
 #### 4.1 Lister les interrupts en attente
 
-1. [ PC > Cursor > Terminal ] -> (Calypso)
+1. [ PC > Cursor > Terminal intégré ] -> (Calypso)
 
 ```
 python scripts/handle_interrupt.py
@@ -1391,7 +1391,7 @@ python scripts/handle_interrupt.py
 
 #### 4.2 Valider ou rejeter un interrupt spécifique
 
-1. [ PC > Cursor > Terminal ] -> (Calypso)
+1. [ PC > Cursor > Terminal intégré ] -> (Calypso)
 
 ```
 python scripts/handle_interrupt.py --thread-id mon-projet-phase-0
@@ -1417,7 +1417,7 @@ python scripts/handle_interrupt.py --thread-id mon-projet-phase-0
 **Quoi** : Démarrer le flux en phase E3 pour construire ou exécuter un Sprint Backlog.  
 **Où** : Même principe qu'étape 3 ; le graphe route vers Albert Scrum Master puis Albert Dev Team.
 
-1. [ PC > Cursor > Terminal ] -> (Calypso)
+1. [ PC > Cursor > Terminal intégré ] -> (Calypso)
 
 ```
 python run_graph.py --project-id mon-projet --start-phase E3 --thread-id mon-projet-sprint-01
@@ -1437,7 +1437,7 @@ python run_graph.py --project-id mon-projet --start-phase E3 --thread-id mon-pro
 **Quoi** : Créer un correctif urgent depuis `main` sans passer par le flux E1→E2→E3.  
 **Où** : Calypso ; le graphe crée un Sprint Backlog synthétique (HF-001) et route vers Albert Dev Team.
 
-1. [ PC > Cursor > Terminal ] -> (Calypso)
+1. [ PC > Cursor > Terminal intégré ] -> (Calypso)
 
 ```
 python run_graph.py --project-id mon-projet --start-phase HOTFIX --thread-id mon-projet-hotfix-001 --hotfix-description "Correction bug critique sur la connexion API"
@@ -1455,10 +1455,10 @@ python run_graph.py --project-id mon-projet --start-phase HOTFIX --thread-id mon
 
 | Point                                  | Action 4D                                                            | Détail                                                                                                                                                              |
 | -------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Vérifier les interrupts en attente** | [ PC > Cursor > Terminal ] -> (Calypso)                              | `python scripts/handle_interrupt.py` sans arguments pour lister les runs suspendus.                                                                                 |
-| **Ollama — modèles en mémoire**        | [ PC > Cursor > Terminal ] -> (Calypso)                              | Pour E4/E5, utiliser `OLLAMA_KEEP_ALIVE=24h` + précharger le modèle prioritaire (`ollama run ... "warmup"`). Voir `docs/HARDWARE_GPU.md`.                           |
-| **Indexation différée (F7)**           | [ PC > Cursor > Terminal ] ou [ PC > Cursor > Éditeur ] -> (Calypso) | Éviter de lancer `index_rag` pendant E4/E5 si tu observes une contention GPU (LLM vs embeddings). Garder `AGILE_DEFER_INDEX=true` (défaut).                          |
-| **LangServe en arrière-plan**          | [ PC > Cursor > Terminal ] -> (Calypso)                              | Si vous utilisez l'API LangServe : `uvicorn serve:app --host 0.0.0.0 --port 8000` ; le graphe est alors invoqué via HTTP.                                           |
+| **Vérifier les interrupts en attente** | [ PC > Cursor > Terminal intégré ] -> (Calypso)                              | `python scripts/handle_interrupt.py` sans arguments pour lister les runs suspendus.                                                                                 |
+| **Ollama — modèles en mémoire**        | [ PC > Cursor > Terminal intégré ] -> (Calypso)                              | Pour E4/E5, utiliser `OLLAMA_KEEP_ALIVE=24h` + précharger le modèle prioritaire (`ollama run ... "warmup"`). Voir `docs/HARDWARE_GPU.md`.                           |
+| **Indexation différée (F7)**           | [ PC > Cursor > Terminal intégré ] ou [ PC > Cursor > Éditeur ] -> (Calypso) | Éviter de lancer `index_rag` pendant E4/E5 si tu observes une contention GPU (LLM vs embeddings). Garder `AGILE_DEFER_INDEX=true` (défaut).                          |
+| **LangServe en arrière-plan**          | [ PC > Cursor > Terminal intégré ] -> (Calypso)                              | Si vous utilisez l'API LangServe : `uvicorn serve:app --host 0.0.0.0 --port 8000` ; le graphe est alors invoqué via HTTP.                                           |
 | **Playground**                         | [ PC > Navigateur Web ] -> (Cloud ou tunnel)                         | Ouvrir `http://calypso:8000/playground` (ou localhost si tunnel SSH) pour tester le graphe interactivement.                                                         |
 
 

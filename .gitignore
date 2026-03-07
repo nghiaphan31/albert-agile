@@ -39,6 +39,7 @@ Thumbs.db
 # IDE
 .vscode/settings.json
 .idea/
+.cursor/
 
 # LangSmith (traces locales si export)
 langsmith_traces/

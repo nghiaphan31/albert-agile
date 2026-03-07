@@ -10,6 +10,8 @@
 
 **Nomenclature 4D** (actions humaines en environnement distribué) : Toute action humaine est préfixée par le format : SOURCE > APP > VUE → CIBLE. Ex. : PC > Cursor > Terminal → Calypso signifie que vous tapez sur votre PC, la commande s'exécute sur Calypso. SOURCE = machine où vous tapez (ex. PC). APP = logiciel (Cursor, Navigateur Web). VUE = zone d'écran (Terminal, Éditeur, Chat). CIBLE = machine où la commande s'exécute (Calypso, Cloud). Règle : aucune ambiguïté tolérée.
 
+**VUE Terminal** : *Terminal* dans la VUE désigne par défaut le **terminal intégré à l'IDE** (VS Code ou Cursor : panneau Terminal). Pour un terminal **externe** (hors IDE), préciser explicitement : *Terminal externe* ou *SSH hors IDE*.
+
 | Section | Contenu |
 |---------|---------|
 | I | Matrice Modèles IA (local/cloud) par rôle — cohérence technique |
@@ -103,7 +105,7 @@ L'IDE (VS Code + Continue.dev / Roo Code) supporte deux modes de sélection des 
 | **Manuel** | L'utilisateur sélectionne explicitement le modèle à chaque requête (Ollama, Gemini, Anthropic). | Contrôle total, débogage, maîtrise des coûts. |
 | **Routage automatique** | Un proxy (ex. LiteLLM) route les requêtes selon la tâche (code → coder, idéation → idéation/thinking) et applique une cascade en cas d'échec : local (Ollama) → Gemini (gratuit) → Claude. | Expérience "smart" alignée sur le graphe LangGraph. |
 
-**Référence** : Voir `specs/plans/Plan_Configuration_VSCode_Ollama_Local.md` pour la configuration détaillée (modes, LiteLLM, modèles Ollama/Gemini/Anthropic).
+**Référence** : Voir `specs/plans/Plan_Configuration_VSCode_Ollama_Local.md` pour la configuration détaillée (modes, LiteLLM, modèles Ollama/Gemini/Anthropic). Pour le parcours runtime, les critères de maturité et la bascule Bootstrap → Runtime : voir [Modes_Bootstrap_et_Runtime_Cible.md](plans/Modes_Bootstrap_et_Runtime_Cible.md).
 
 #### 3.4 Chaîne de Qualité, RAG (recherche sémantique) et CI/CD
 
@@ -268,7 +270,7 @@ Exécuté en tout premier à chaque démarrage de thread (avant E1 (idéation, E
 
 **Vérification d'intégrité au démarrage (F10 (AGILE_BASESTORE_STRICT))** : Avant d'accepter les valeurs par défaut en mode `false`, load_context vérifie que le BaseStore (mémoire long terme) est réellement inaccessible (connexion refusée, fichier absent) plutôt que simplement vide (cas normal au premier lancement). Si le BaseStore (mémoire long terme) est accessible mais renvoie des valeurs manquantes, les valeurs par défaut sont utilisées normalement (premier sprint). Si le BaseStore (mémoire long terme) est inaccessible et que `sprint_number > 1` est détectable via un autre moyen (ex. présence de branches `feature/{id}-sprint-0{N}` en Git) : log ERROR au lieu de WARNING, et suggestion d'activer `AGILE_BASESTORE_STRICT=true`.
 
-**Routing start_phase** : load_context route le graphe selon le paramètre `start_phase` (`"E1 (idéation, Epic)"` | `"E3 (Sprint Backlog)"` | `"HOTFIX (correctif urgent)"`). Valeur par défaut : `"E1 (idéation, Epic)"`. Commandes types :
+**Routing start_phase** : load_context route le graphe selon le paramètre `start_phase` (`"E1 (idéation, Epic)"` | `"E3 (Sprint Backlog)"` | `"HOTFIX (correctif urgent)"`). Valeur par défaut : `"E1 (idéation, Epic)"`. Commandes types — *à exécuter dans le **terminal intégré à VS Code** (panneau Terminal de l'IDE), sauf usage volontaire d'un terminal externe* :
 - Nouveau projet : `python run_graph.py --project-id <id> --start-phase E1 (idéation, Epic) --thread-id <id>-phase-0`
 - Nouveau sprint : `python run_graph.py --project-id <id> --start-phase E3 (Sprint Backlog) --thread-id <id>-sprint-02`
 - Hotfix : `python run_graph.py --project-id <id> --start-phase HOTFIX (correctif urgent) --thread-id <id>-hotfix-<date> --hotfix-description "..."`
@@ -279,12 +281,12 @@ Pour `start_phase HOTFIX (correctif urgent)` : load_context crée un Sprint Back
 
 ##### B. Procédure Human-in-the-Loop (interrupts H1 (validation Epic)–H6 (résolution conflit Git))
 
-**Exécution** : Endpoint LangServe `/playground` ou script `scripts/handle_interrupt.py [--thread-id <id>]`.
+**Exécution** : Endpoint LangServe `/playground` (s'ouvre dans le **navigateur**) ou script `scripts/handle_interrupt.py [--thread-id <id>]` (à lancer depuis le **terminal intégré à VS Code**).
 - Si `--thread-id` omis : liste les threads en attente, triés par `project_id` puis par type H (H1 (validation Epic)→H6 (résolution conflit Git)). Demande de choisir.
 - Si `--thread-id` fourni mais thread sans interrupt : message d'erreur explicite, exit code 1.
 - Exit codes : 0=succès, 1=erreur (thread invalide), 2=usage (arguments invalides).
 - Séquence : (1) lit l'état via l'API LangServe, (2) affiche le payload `__interrupt__`, (3) attend l'entrée (`approved` | `rejected` | `feedback`), (4) envoie `graph.invoke(Command(resume=...), config)`.
-- En absence de l'humain : option `resume={"status":"rejected","resume_after":"<date>"}`. **Notification obligatoire si interrupt non traité > 48h** (F5 (notification interrupt > 48h)) : un script cron `scripts/notify_pending_interrupts.py` (lancé toutes les heures par `setup_project_hooks.sh`) vérifie les threads en attente et émet une alerte — par défaut via log `logs/pending_interrupts_alert.log` + affichage terminal. Pour notification email ou webhook : configurer `AGILE_NOTIFY_CMD="<commande>"` dans `.agile-env` (ex. `"mail -s 'Interrupt en attente' nghia@example.com"` ou `"curl -X POST <webhook_url> -d '...'"`) ; si absent, la notification reste locale (log). Variable `AGILE_INTERRUPT_TIMEOUT_HOURS=48` (défaut).
+- En absence de l'humain : option `resume={"status":"rejected","resume_after":"<date>"}`. **Notification obligatoire si interrupt non traité > 48h** (F5 (notification interrupt > 48h)) : un script cron `scripts/notify_pending_interrupts.py` (lancé toutes les heures par `setup_project_hooks.sh`) vérifie les threads en attente et émet une alerte — par défaut via log `logs/pending_interrupts_alert.log` + affichage dans le terminal qui exécute le script cron (souvent terminal système / cron, pas IDE). Pour notification email ou webhook : configurer `AGILE_NOTIFY_CMD="<commande>"` dans `.agile-env` (ex. `"mail -s 'Interrupt en attente' nghia@example.com"` ou `"curl -X POST <webhook_url> -d '...'"`) ; si absent, la notification reste locale (log). Variable `AGILE_INTERRUPT_TIMEOUT_HOURS=48` (défaut). La consultation des interrupts par l'humain se fait via `handle_interrupt.py` dans le **terminal intégré à VS Code**.
 
 **Branches rejected** :
 - **H1 (validation Epic) rejected** → injecte feedback dans `state.h1_feedback`, reboucle vers R-0 (Business Analyst IA) (nouveau Epic). Limite : 3 cycles → H5 (approbation escalade API payante) `reason="max_rejections_H1 (validation Epic)"`.
@@ -523,7 +525,7 @@ Checklist (manuelle par R-1 (Product Owner)/R-7 (Stakeholder) ou via nœud optio
 
 **Justification (F6 (status multi-projets))** : Avec plusieurs projets actifs en parallèle, un superviseur ne peut pas surveiller efficacement LangSmith + logs + handle_interrupt.py séparément pour chaque projet. Un script de statut unifié agrège toutes les informations critiques en une seule commande.
 
-**Script `scripts/status.py`** :
+**Script `scripts/status.py`** — *à exécuter dans le **terminal intégré à VS Code*** :
 - Signature : `python scripts/status.py [--project-id <id>] [--json]`
 - Sans `--project-id` : affiche l'état de tous les projets listés dans `projects.json` (hors `archived: true`)
 - Avec `--project-id` : vue détaillée d'un seul projet
