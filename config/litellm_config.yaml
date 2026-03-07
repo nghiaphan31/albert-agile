@@ -8,19 +8,20 @@
 
 model_list:
   # Modèles Ollama (provider primaire, 0€)
-  - model_name: qwen2.5-coder
+  # ollama_chat/ (pas ollama/) → utilise /api/chat qui supporte tool calling natif
+  - model_name: qwen3
     litellm_params:
-      model: ollama/qwen2.5-coder:14b
+      model: ollama_chat/qwen3:14b
       api_base: http://localhost:11434
 
-  - model_name: qwen3-thinking
+  - model_name: qwen2.5-coder
     litellm_params:
-      model: ollama/qwen3:14b
+      model: ollama_chat/qwen2.5-coder:14b
       api_base: http://localhost:11434
 
   - model_name: qwen2.5
     litellm_params:
-      model: ollama/qwen2.5:14b
+      model: ollama_chat/qwen2.5:14b
       api_base: http://localhost:11434
 
   # Providers cloud (fallback)
@@ -38,9 +39,9 @@ model_list:
 litellm_settings:
   num_retries: 2
   fallbacks:
-    - qwen2.5: [gemini, claude-sonnet]
-    - qwen2.5-coder: [gemini, claude-sonnet]
-    - qwen3-thinking: [qwen2.5-coder, gemini, claude-sonnet]
+    - qwen3: [gemini, claude-sonnet]
+    - qwen2.5-coder: [qwen3, gemini, claude-sonnet]
+    - qwen2.5: [qwen3, gemini, claude-sonnet]
 litellm_settings:
   num_retries: 2
   fallbacks:
