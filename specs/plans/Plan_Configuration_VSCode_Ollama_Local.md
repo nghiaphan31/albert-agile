@@ -222,6 +222,49 @@ Exemple de configuration :
 
 Voir aussi [section 7](#7-optionnel--rag-partagé-chroma-mcp) pour le contexte commun Continue + Roo Code.
 
+### 4.5 Persistance de la configuration (Remote-SSH) — ce qui a dû être fait
+
+**Problème rencontré** : En Remote-SSH, Roo Code stocke sa configuration dans le `globalState` de VS Code côté serveur (Calypso). À chaque rechargement de fenêtre, le wizard « Choose your provider » réapparaissait, effaçant la config saisie.
+
+**Cause** : Roo Code s'appuie sur `context.globalState` (base de données SQLite interne à VS Code Server). La configuration ne survit pas toujours aux rechargements de fenêtre dans ce contexte, et le wizard s'affiche à nouveau si aucune configuration valide n'est détectée au démarrage.
+
+**Solution appliquée** : utiliser le mécanisme `roo-cline.autoImportSettingsPath` — Roo Code recharge automatiquement un fichier JSON de config à chaque démarrage.
+
+**Étape 1** — Créer le fichier `settings.json` VS Code côté Calypso (si absent) :
+
+```bash
+mkdir -p ~/.vscode-server/data/User
+cat > ~/.vscode-server/data/User/settings.json << 'EOF'
+{
+  "roo-cline.autoImportSettingsPath": "/home/nghia-phan/.config/roo-code-settings.json"
+}
+EOF
+```
+
+**Étape 2** — Générer le fichier de config en passant une fois par le wizard, puis exporter :
+
+1. Laisser le wizard s'afficher → sélectionner **"3rd party Provider"** → choisir **Ollama**
+2. Renseigner Base URL : `http://localhost:11434` et Model ID : `qwen2.5-coder:14b`
+3. Cliquer **Finish**
+4. Dans le panneau Roo Code, cliquer l'icône **⚙ (engrenage)** → descendre jusqu'à **Export**
+5. Sauvegarder sous `/tmp/roo-export.json` (ou via le terminal) puis :
+
+```bash
+cp /tmp/roo-export.json ~/.config/roo-code-settings.json
+```
+
+> **Pourquoi exporter plutôt que créer manuellement ?** Un fichier JSON créé à la main avec `"provider": "ollama"` et `"baseUrl": "..."` ne correspond pas exactement au schéma interne de Roo Code (ex. le champ pour Ollama est `ollamaBaseUrl`, pas `baseUrl`). Un fichier invalide ou partiel ne passe pas la validation et déclenche quand même le wizard. L'export garantit le format exact attendu.
+
+**Fichiers créés sur Calypso** :
+
+| Fichier | Rôle |
+|---------|------|
+| `~/.vscode-server/data/User/settings.json` | Paramètre VS Code activant l'auto-import Roo Code |
+| `~/.config/roo-code-settings.json` | Profils Roo Code rechargés à chaque démarrage |
+| `.roo/mcp.json` (projet) | Serveur MCP chroma-mcp pour le RAG partagé (section 4.4 et 7) |
+
+**Vérification** : Au redémarrage de VS Code, Roo Code doit afficher la notification `"RooCode settings automatically imported from roo-code-settings.json"` et ne plus afficher le wizard.
+
 ---
 
 ## 5. Vérification
