@@ -40,7 +40,7 @@ def get_llms_tier1():
 
     n0_model = os.environ.get("AGILE_TIER1_N0_MODEL", "qwen2.5:14b")
     n0 = ChatOllama(model=n0_model, temperature=0.3)
-    n1 = ChatGoogleGenerativeAI(model="gemini-2.0-flash") if os.environ.get("GOOGLE_API_KEY") else None
+    n1 = ChatGoogleGenerativeAI(model="gemini-2.5-flash") if os.environ.get("GOOGLE_API_KEY") else None
     n2 = ChatAnthropic(model=CLAUDE_OPUS, temperature=0.3) if os.environ.get("ANTHROPIC_API_KEY") else None
     return n0, n1, n2
 
@@ -55,6 +55,6 @@ def get_llms_tier2():
     # Override possible via AGILE_TIER2_N0_MODEL (ex. deepseek-coder-v2:16b).
     n0_model = os.environ.get("AGILE_TIER2_N0_MODEL", "qwen2.5-coder:14b")
     n0 = ChatOllama(model=n0_model, temperature=0.3)
-    n1 = ChatGoogleGenerativeAI(model="gemini-2.0-flash") if os.environ.get("GOOGLE_API_KEY") else None
+    n1 = ChatGoogleGenerativeAI(model="gemini-2.5-flash") if os.environ.get("GOOGLE_API_KEY") else None
     n2 = ChatAnthropic(model=CLAUDE_SONNET, temperature=0.3) if os.environ.get("ANTHROPIC_API_KEY") else None
     return n0, n1, n2

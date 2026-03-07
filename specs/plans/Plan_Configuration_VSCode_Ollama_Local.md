@@ -128,9 +128,9 @@ models:
     apiBase: http://localhost:11434
 
   # --- Gemini (free tier) — GOOGLE_API_KEY ---
-  - name: gemini-2.0-flash (Gemini)
+  - name: gemini-2.5-flash (Gemini)
     provider: gemini
-    model: gemini-2.0-flash
+    model: gemini-2.5-flash
     apiKey: ${{ secrets.GOOGLE_API_KEY }}
 
   # --- Anthropic Claude Sonnet 4.6 — ANTHROPIC_API_KEY ---
@@ -177,7 +177,7 @@ Roo Code permet de choisir entre **Ollama**, **Gemini** et **Anthropic** dans le
 **Gemini (free tier)** :
 - API Provider : **Google Gemini**
 - API Key : depuis [Google AI Studio](https://aistudio.google.com/)
-- Model : `gemini-2.0-flash` (ou équivalent free tier)
+- Model : `gemini-2.5-flash` (ou équivalent free tier)
 
 **Anthropic Claude Sonnet 4.6** :
 - API Provider : **Anthropic**
@@ -265,6 +265,19 @@ cp /tmp/roo-export.json ~/.config/roo-code-settings.json
 
 **Vérification** : Au redémarrage de VS Code, Roo Code doit afficher la notification `"RooCode settings automatically imported from roo-code-settings.json"` et ne plus afficher le wizard.
 
+### 4.6 Roo Code + modèles locaux — fix boucle infinie (tool calling)
+
+**Problème** : Les modèles locaux (qwen3:14b, hermes3:8b, etc.) appellent parfois `ask_followup_question` sans le paramètre obligatoire `follow_up`. Roo Code valide le schéma, détecte l'erreur, retry → boucle infinie.
+
+**Cause racine** : En streaming, le post-call hook LiteLLM s'exécute *après* envoi des chunks SSE au client — impossible de corriger la réponse à ce stade.
+
+**Solution déployée** (LiteLLM proxy + hooks) :
+1. **`fake_stream: true`** sur les modèles Ollama — LiteLLM appelle en non-streaming, reçoit le JSON complet, puis génère des faux chunks SSE.
+2. **Post-call hook** (`config/litellm_hooks.py`) — corrige `follow_up` absent ou invalide dans la réponse *avant* génération des chunks SSE.
+3. Le client Roo Code reçoit des tool calls valides → pas de retry → pas de boucle.
+
+**Fichiers** : `config/litellm_hooks.py`, `config/litellm_config.yaml` (callbacks + fake_stream). Le proxy LiteLLM doit être lancé (section 10) pour que Roo Code utilise cette config via le profil « Smart Router » (Base URL `http://localhost:4000`).
+
 ---
 
 ## 5. Vérification
@@ -306,7 +319,7 @@ Pour que **Continue** et **Roo Code** utilisent le même index RAG que les agent
 | Provider | Coût | Clé API | Modèles recommandés |
 |----------|------|---------|---------------------|
 | **Ollama** | 0 € | — | `qwen2.5-coder:14b`, `qwen2.5:14b`, `qwen3:14b` (thinking) |
-| **Gemini** | Free tier | `GOOGLE_API_KEY` | `gemini-2.0-flash` |
+| **Gemini** | Free tier | `GOOGLE_API_KEY` | `gemini-2.5-flash` |
 | **Anthropic** | Pay-as-you-go | `ANTHROPIC_API_KEY` | `claude-sonnet-4-6` |
 
 Continue : tous les modèles sont listés dans la config ; tu choisis celui à utiliser à la volée.  
@@ -399,7 +412,7 @@ Le service démarre au login de l'utilisateur. Pour un démarrage au boot machin
 | 2 | Ajouter le modèle ci-dessous dans `models:` | Profil « Smart Router » déjà créé dans `~/.config/roo-code-settings.json` |
 | 3 | Sélectionner « Smart Router (auto) » dans l'interface | Provider : **OpenAI** |
 | 4 | | Base URL : `http://localhost:4000` |
-| 5 | | **Model ID : `qwen2.5-coder`** (⚠️ pas `smart-router` — voir limitation ci-dessus) |
+| 5 | | **Model ID : `qwen3`** (Ask/Code local) ou `gemini` (Architect/Debug) — voir tableau des modes ci-dessous |
 | 6 | | API Key : `sk-1234` (ou vide) |
 
 **Extrait à ajouter dans `config.yaml` Continue** :
@@ -407,9 +420,16 @@ Le service démarre au login de l'utilisateur. Pour un démarrage au boot machin
 ```yaml
   - title: Smart Router (auto)
     provider: openai
-    model: qwen2.5-coder   # complexity_router non supporté en HTTP, cascade via fallbacks
+    model: qwen3   # ou qwen2.5-coder, gemini selon usage
     apiBase: http://localhost:4000
     apiKey: "sk-1234"   # valeur factice si LiteLLM sans master_key
 ```
 
-**Comportement** : Les requêtes arrivent sur `qwen2.5-coder` via Ollama. Si Ollama est indisponible, LiteLLM bascule automatiquement sur Gemini puis Claude (cascade configurée dans `litellm_settings.fallbacks`).
+**Routage par mode Roo Code** (via profils dans `~/.config/roo-code-settings.json`) :
+
+| Mode Roo | Profil | Modèle effectif | Fallback |
+|----------|--------|-----------------|----------|
+| Ask, Code | Smart Router (qwen3) | Ollama qwen3:14b | Gemini → Claude |
+| Architect, Debug, Orchestrator | Gemini via Proxy | gemini-2.5-flash | Claude Sonnet → qwen3 |
+
+**Comportement** : Avec `fake_stream: true` + post-call hook (section 4.6), qwen3 local fonctionne sans boucle infinie sur les tool calls. Cascade configurée dans `litellm_settings.fallbacks` si Ollama/Gemini échouent.
