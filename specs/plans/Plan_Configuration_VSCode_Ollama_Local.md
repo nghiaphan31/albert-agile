@@ -188,6 +188,40 @@ Roo Code permet de choisir entre **Ollama**, **Gemini** et **Anthropic** dans le
 
 Roo Code propose des **API Configuration Profiles** : tu peux créer plusieurs profils (ex. « Ollama local », « Gemini », « Claude ») et basculer selon le contexte.
 
+### 4.4 Roo Code + Chroma (RAG partagé)
+
+Pour que Roo Code utilise le même index RAG (Chroma) que les agents LangGraph et `index_rag.py` :
+
+1. **Prérequis** : chroma-mcp installé dans le venv du projet (`pip install chroma-mcp`).
+2. **Créer ou éditer** le fichier `.roo/mcp.json` à la racine du projet (ex. `albert-agile/.roo/mcp.json`).
+
+Exemple de configuration :
+
+```json
+{
+  "mcpServers": {
+    "chroma-mcp": {
+      "command": ".venv/bin/chroma-mcp",
+      "args": [
+        "--client-type",
+        "persistent",
+        "--data-dir",
+        "chroma_db"
+      ],
+      "disabled": false
+    }
+  }
+}
+```
+
+- `command` : chemin vers l'exécutable chroma-mcp (relatif au projet ou absolu, ex. `$AGILE_ORCHESTRATION_ROOT/.venv/bin/chroma-mcp`).
+- `--data-dir` : répertoire Chroma (ex. `chroma_db` relatif au projet, ou chemin absolu vers `$AGILE_ORCHESTRATION_ROOT/chroma_db`).
+- Avec Remote-SSH, Roo Code s'exécute sur Calypso : `chroma_db` doit être le chemin sur Calypso (ex. `/home/nghia-phan/PROJECTS_WITH_ALBERT/albert-agile/chroma_db` si besoin d'un chemin absolu).
+
+3. **Vérifier** : dans Roo Code, les outils MCP (ex. `chroma_query_documents`) doivent apparaître et être utilisables pour interroger la base Chroma.
+
+Voir aussi [section 7](#7-optionnel--rag-partagé-chroma-mcp) pour le contexte commun Continue + Roo Code.
+
 ---
 
 ## 5. Vérification
@@ -199,6 +233,7 @@ Roo Code propose des **API Configuration Profiles** : tu peux créer plusieurs p
 | 5.3 | Continuer avec Gemini puis Anthropic | Les deux répondent si les clés API sont configurées |
 | 5.4 | Ouvrir Roo Code, lancer une tâche | Roo Code répond selon le provider actif |
 | 5.5 | (Ollama) Vérifier les logs | Dans le **terminal intégré à VS Code** connecté à Calypso : `ollama ps` montre le modèle chargé lors des requêtes |
+| 5.6 | (Chroma) Si chroma-mcp configuré | Dans Roo Code, les outils MCP (ex. chroma_query_documents) apparaissent ; une requête utilisant le contexte RAG renvoie des extraits de chroma_db |
 
 ---
 
@@ -218,8 +253,8 @@ Pour que **Continue** et **Roo Code** utilisent le même index RAG que les agent
 
 1. Installer chroma-mcp : `pip install chroma-mcp` (dans le venv du projet)
 2. **Continue** : configurer chroma-mcp dans `config.yaml` (mcpServers) sur le PC Windows, pointer vers `$AGILE_ORCHESTRATION_ROOT/chroma_db` (via chemin accessible en Remote-SSH)
-3. **Roo Code** : configurer un serveur MCP chroma-mcp dans `.roo/mcp.json` (projet) ou config globale ; pointer vers la même Chroma (`chroma_db/`)
-4. Référer à la doc [Continue pour MCP](https://docs.continue.dev/customize/mcp-tools) et [Roo Code pour MCP](https://docs.roocode.com/features/mcp/overview)
+3. **Roo Code** : configurer chroma-mcp dans `.roo/mcp.json` — voir la [section 4.4](#44-roo-code--chroma-rag-partagé) pour les étapes détaillées.
+4. Référer à la doc [Continue MCP](https://docs.continue.dev/customize/mcp-tools) et [Roo Code MCP](https://docs.roocode.com/features/mcp/overview).
 
 ---
 
@@ -244,6 +279,7 @@ Roo Code : un seul provider actif ; tu peux définir plusieurs profils pour basc
 | Config Continue | `C:\Users\<user>\.continue\config.yaml` (PC Windows) |
 | Secrets Continue | `C:\Users\<user>\.continue\.env` (PC Windows) |
 | Config Roo Code | Paramètres in-app (Provider Settings / Profiles) |
+| Roo MCP (Chroma) | `$PROJECT_ROOT/.roo/mcp.json` (ex. `albert-agile/.roo/mcp.json`) |
 | Chroma (optionnel) | `$AGILE_ORCHESTRATION_ROOT/chroma_db` (Continue + Roo Code via MCP chroma-mcp) |
 | LiteLLM Proxy (optionnel) | `http://localhost:4000` (si mode automatique) |
 
