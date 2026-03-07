@@ -43,9 +43,3 @@ litellm_settings:
     - qwen3: [gemini, claude-sonnet]
     - qwen2.5-coder: [qwen3, gemini, claude-sonnet]
     - qwen2.5: [qwen3, gemini, claude-sonnet]
-litellm_settings:
-  num_retries: 2
-  fallbacks:
-    - qwen2.5: [qwen2.5-coder, gemini, claude-sonnet]
-    - qwen2.5-coder: [gemini, claude-sonnet]
-    - qwen3-thinking: [qwen2.5-coder, gemini, claude-sonnet]
