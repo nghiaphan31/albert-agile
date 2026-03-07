@@ -334,7 +334,8 @@ Roo Code : un seul provider actif ; tu peux définir plusieurs profils pour basc
 | Ollama API | `http://localhost:11434` (Calypso = localhost en Remote-SSH) |
 | Config Continue | `C:\Users\<user>\.continue\config.yaml` (PC Windows) |
 | Secrets Continue | `C:\Users\<user>\.continue\.env` (PC Windows) |
-| Config Roo Code | Paramètres in-app (Provider Settings / Profiles) |
+| Config Roo Code | `~/.config/roo-code-settings.json` (Calypso) — référence : `config/reference/roo-code-settings.json` |
+| Configs référence (sync) | `config/reference/` — Roo + Continue, voir `config/reference/README.md` et `scripts/sync_ide_configs.sh` |
 | Roo MCP (Chroma) | `$PROJECT_ROOT/.roo/mcp.json` (ex. `albert-agile/.roo/mcp.json`) |
 | Chroma (optionnel) | `$AGILE_ORCHESTRATION_ROOT/chroma_db` (Continue + Roo Code via MCP chroma-mcp) |
 | LiteLLM Proxy (optionnel) | `http://localhost:4000` — config : `config/litellm_config.yaml`, script : `scripts/run_litellm_proxy.sh`, service boot : `config/litellm-proxy.service` |

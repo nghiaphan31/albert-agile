@@ -1,0 +1,43 @@
+# Référence Continue — à synchroniser avec C:\Users\<user>\.continue\config.yaml (PC Windows)
+# Continue lit sa config sur le PC client, pas sur Calypso (Remote-SSH).
+# Secrets : C:\Users\<user>\.continue\.env (GOOGLE_API_KEY, ANTHROPIC_API_KEY)
+
+name: Calypso (Ollama + Gemini + Anthropic)
+version: 1.0.0
+schema: v1
+
+models:
+  # --- Ollama local (0 €) ---
+  - name: qwen2.5-coder:14b (Ollama)
+    provider: ollama
+    model: qwen2.5-coder:14b
+    apiBase: http://localhost:11434
+
+  - name: qwen2.5:14b (Ollama)
+    provider: ollama
+    model: qwen2.5:14b
+    apiBase: http://localhost:11434
+
+  - name: qwen3:14b (Ollama, thinking)
+    provider: ollama
+    model: qwen3:14b
+    apiBase: http://localhost:11434
+
+  # --- Smart Router via LiteLLM (local prioritaire, cascade) ---
+  - name: Smart Router (auto)
+    provider: openai
+    model: qwen3
+    apiBase: http://localhost:4000
+    apiKey: sk-1234
+
+  # --- Gemini (free tier) ---
+  - name: gemini-2.5-flash (Gemini)
+    provider: gemini
+    model: gemini-2.5-flash
+    apiKey: ${{ secrets.GOOGLE_API_KEY }}
+
+  # --- Anthropic Claude Sonnet 4.6 ---
+  - name: claude-sonnet-4-6 (Anthropic)
+    provider: anthropic
+    model: claude-sonnet-4-6
+    apiKey: ${{ secrets.ANTHROPIC_API_KEY }}
