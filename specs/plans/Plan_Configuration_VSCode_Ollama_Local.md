@@ -340,7 +340,13 @@ pip install 'litellm[proxy]'
 
 ### 10.2 Configuration
 
-Le fichier `config/litellm_config.yaml` est déjà créé avec le routage par complexité et la cascade (Ollama → Gemini → Claude).
+Le fichier `config/litellm_config.yaml` est créé avec une cascade Ollama → Gemini → Claude.
+
+> **⚠️ Limitation LiteLLM (v1.82+) — complexity_router non supporté via le serveur HTTP**
+>
+> Le `complexity_router` (`auto_router/complexity_router`) fonctionne uniquement via le SDK Python LiteLLM (usage en code).  
+> Via le serveur proxy HTTP, LiteLLM lève `LiteLLMUnknownProvider: Unmapped LLM provider, custom_llm_provider=auto_router`.  
+> **Workaround** : les IDEs (Continue, Roo Code) envoient un modèle direct (`qwen2.5-coder`) et bénéficient de la cascade de fallbacks automatique configurée dans `litellm_settings.fallbacks`.
 
 **Clés API** : `GOOGLE_API_KEY` et `ANTHROPIC_API_KEY` — à définir dans `.env` à la racine du projet ou dans l'environnement. LiteLLM les charge via `os.environ/GOOGLE_API_KEY` et `os.environ/ANTHROPIC_API_KEY`.
 
@@ -390,10 +396,10 @@ Le service démarre au login de l'utilisateur. Pour un démarrage au boot machin
 | Étape | Continue | Roo Code |
 |-------|----------|----------|
 | 1 | Ouvrir `C:\Users\<user>\.continue\config.yaml` (PC Windows) | Paramètres Roo Code (engrenage) → API Configuration Profiles |
-| 2 | Ajouter le modèle ci-dessous dans `models:` | Créer un nouveau profil (ex. « Smart Router ») |
+| 2 | Ajouter le modèle ci-dessous dans `models:` | Profil « Smart Router » déjà créé dans `~/.config/roo-code-settings.json` |
 | 3 | Sélectionner « Smart Router (auto) » dans l'interface | Provider : **OpenAI** |
 | 4 | | Base URL : `http://localhost:4000` |
-| 5 | | Model ID : `smart-router` |
+| 5 | | **Model ID : `qwen2.5-coder`** (⚠️ pas `smart-router` — voir limitation ci-dessus) |
 | 6 | | API Key : `sk-1234` (ou vide) |
 
 **Extrait à ajouter dans `config.yaml` Continue** :
@@ -401,9 +407,9 @@ Le service démarre au login de l'utilisateur. Pour un démarrage au boot machin
 ```yaml
   - title: Smart Router (auto)
     provider: openai
-    model: smart-router
+    model: qwen2.5-coder   # complexity_router non supporté en HTTP, cascade via fallbacks
     apiBase: http://localhost:4000
     apiKey: "sk-1234"   # valeur factice si LiteLLM sans master_key
 ```
 
-**Vérification** : Une requête simple (ex. « Dis bonjour ») doit être routée vers qwen2.5 ; une requête complexe vers qwen2.5-coder ou qwen3-thinking. Cascade vers Gemini puis Claude si Ollama échoue.
+**Comportement** : Les requêtes arrivent sur `qwen2.5-coder` via Ollama. Si Ollama est indisponible, LiteLLM bascule automatiquement sur Gemini puis Claude (cascade configurée dans `litellm_settings.fallbacks`).
