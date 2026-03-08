@@ -1,0 +1,46 @@
+# Alignement Spec vs Code — Strategie Routage Intelligent
+
+*Dernière mise à jour : 2026-03-08*
+
+**Spec source :** [specs/plans/Strategie_Routage_Intelligent_Proposition_Gemini.md](../specs/plans/Strategie_Routage_Intelligent_Proposition_Gemini.md)
+
+---
+
+## Implémenté
+
+| Élément Spec | Référence | Implémentation |
+|--------------|-----------|----------------|
+| Worker = qwen2.5-coder:14b | §1, §5.1 | `config/litellm_config.yaml` : worker → ollama/qwen2.5-coder:14b |
+| HITL anti-boucle | §2 | `config/custom_roo_hook.py` : 3+ "error"/"failed" dans messages tool/user → STOP, alerte sonore |
+| Routage sémantique | §5.2 | `config/custom_roo_hook.py` : nomic-embed-text, similarité cosinus, messages[-1] |
+| Fallback si score < seuil | Plan remédiation | `SIMILARITY_THRESHOLD = 0.4`, env `ROO_SIMILARITY_THRESHOLD` |
+| Catégories architect/ingest/worker | §5.2 | Mêmes descriptions que dans la spec |
+| HITL limité à tool/user | Plan remédiation | Filtrage `role in ("tool", "user")` |
+| Ordre callbacks | §5.1 | 1. custom_roo_hook 2. litellm_hooks |
+| Injection conditionnelle TOOL_SCHEMA_PROMPT | §3.5, plan | Uniquement si `model == "worker"` |
+| Post-call (fake_stream + réparation) | §3.5 | `config/litellm_hooks.py` : réparation follow_up, Option A (suppression si irréparable) |
+| fake_stream sur Ollama | §3.5 | `config/litellm_config.yaml` : fake_stream: true sur modèles Ollama |
+| model_list architect/ingest/worker | §5.1 | Présents avec fallbacks |
+| Risque Chroma | §C.9 | Documenté (Specs + Strategie) |
+| LangGraph via LiteLLM | Phase 3 | `graph/llm_factory`, `graph/cascade`, `docs/LANGGRAPH_VIA_LITELLM.md` |
+
+---
+
+## Partiellement implémenté / Adapté
+
+| Élément Spec | Statut | Détail |
+|--------------|--------|--------|
+| Cascade Coût Zéro (Vertex, DeepSeek) | Adapté | Spec : Vertex → DeepSeek. Config actuelle : Ollama → Gemini → Claude |
+| Fallbacks Worker (crash → Gemini Lite, 429 → DeepSeek) | Adapté | Fallbacks vers Gemini et claude-sonnet, pas Gemini 3.1 Lite ni DeepSeek |
+| model_cooldown_time, allowed_fails, cooldown_time | Non | `router_settings` (LiteLLM) non configurés |
+
+---
+
+## Non implémenté (hors périmètre actuel)
+
+| Élément Spec | Section |
+|--------------|---------|
+| Presidio (anonymisation LiteLLM) | §10.1 |
+| SearXNG (recherche web) | §9 |
+| Vertex AI, DeepSeek, GEMINI_PAYANT_KEY | §5.1b, §5.3 |
+| Sandboxing conteneurs, HITL WhatsApp | §7 |

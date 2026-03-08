@@ -70,6 +70,12 @@
 | chroma-mcp | ✅ | RAG partagé Continue + Roo Code (voir `.roo/mcp.json`, `docs/phase7_chroma_mcp_continue_snippet.yaml`) |
 | LiteLLM Proxy | ✅ | Routage automatique par complexité — `config/litellm_config.yaml`, `scripts/run_litellm_proxy.sh`, port 4000. Voir `specs/plans/Plan_Configuration_VSCode_Ollama_Local.md` section 10. |
 
+## Status Spec vs Code
+
+| Spec | Document |
+|------|----------|
+| Strategie Routage Intelligent (Gemini) | [STATUS_SPEC_STRATEGIE_ROUTAGE.md](STATUS_SPEC_STRATEGIE_ROUTAGE.md) |
+
 ## Fichiers clés
 
 - `graph/state.py`, `graph/nodes.py`, `graph/graph.py`, `graph/cascade.py`
