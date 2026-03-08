@@ -1,6 +1,6 @@
 # Stratégie de routage intelligent — Proposition Gemini 3.1 Pro
 
-**Source** : Synthèses proposées par Gemini 3.1 Pro (chat navigateur, gratuit) pour optimiser l'utilisation des ressources (RTX 5060, modèles locaux, APIs cloud). Inclut : cascade « Coût Zéro » (Free → Vertex → Local), Cerveau Sémantique (routage par embeddings), HITL anti-boucle, caractéristiques des modèles locaux (structured, thinking, tools), fiabilisation Roo + LLMs locaux (fake_stream + post-call).
+**Source** : Synthèses proposées par Gemini 3.1 Pro (chat navigateur, gratuit) pour optimiser l'utilisation des ressources (RTX 5060, modèles locaux, APIs cloud). Inclut : cascade « Coût Zéro » (Free → Vertex → Local), Cerveau Sémantique (routage par embeddings), HITL anti-boucle, caractéristiques des modèles locaux (structured, thinking, tools), fiabilisation Roo + LLMs locaux (fake_stream + post-call). Annexe (section 8) : synthèse complète construction des prompts Roo / LangGraph et fonctionnement du RAG.
 
 **Contexte actuel albert-agile** : RTX 5060 Ti 16G, qwen3:14b local via Ollama, fallback Gemini 2.5 Flash puis Claude Sonnet. Voir [Plan_Configuration_VSCode_Ollama_Local.md](Plan_Configuration_VSCode_Ollama_Local.md).
 
@@ -550,6 +550,7 @@ Wait for the user's explicit instructions before proceeding with any other tool.
 | Fallbacks Worker (crash → Gemini Lite, quota → DeepSeek) | Non implémenté | Voir section 5.1b |
 | Fallback Ingest payant (Gemini 2.5 Flash $) | Non implémenté | Voir section 5.1b |
 | Fichier .env (clés Free, Payant, Vertex, DeepSeek) | .env existant sans VERTEX_PROJECT, GEMINI_PAYANT_KEY | Voir section 5.3 |
+| Synthèse construction des prompts (Roo + LangGraph + RAG) | Documenté | Voir section 8 (Annexe) |
 
 Voir [Plan_Configuration_VSCode_Ollama_Local.md](Plan_Configuration_VSCode_Ollama_Local.md) pour la configuration déployée et [Strategie_Modeles_LLM_Thinking_Albert_Agile.md](Strategie_Modeles_LLM_Thinking_Albert_Agile.md) pour la stratégie thinking/CoT.
 
@@ -576,3 +577,202 @@ Voir [Plan_Configuration_VSCode_Ollama_Local.md](Plan_Configuration_VSCode_Ollam
 **Idée** : Faire collaborer des équipes d'agents spécialisés où chacun reste dans sa « bulle » conteneurisée.
 
 **Application à albert-agile** : Faire tourner le Tier 1 (Architecte) et le Tier 2 (Codeur) dans des conteneurs séparés, communiquant uniquement via le serveur chroma-mcp, garantissant une étanchéité totale des contextes de travail.
+
+---
+
+## 8. Annexe — Synthèse : contenu, sources et construction des prompts
+
+*Reprise intégrale de la synthèse établie à partir des spécifications et du code. Voir [Plan_Configuration_VSCode_Ollama_Local.md](Plan_Configuration_VSCode_Ollama_Local.md), [Specifications Ecosysteme Agile Agent IA.md](../Specifications%20Ecosysteme%20Agile%20Agent%20IA.md), `graph/nodes.py`, `graph/rag.py`, `config/litellm_hooks.py`.*
+
+### Vue d'ensemble des deux flux
+
+```
+┌─────────────────────────────────┬───────────────────────────────────┐
+│  ROO CODE (IDE)                  │  LANGGRAPH (Graphe Agile)         │
+│  Client: Roo Code extension      │  Client: run_graph.py / LangServe │
+│  API: Ollama / LiteLLM           │  API: ChatOllama / Gemini / Claude│
+│  Mode: interactif (chat, tasks)  │  Mode: pipeline (E1→E2→...→E6)   │
+└─────────────────────────────────┴───────────────────────────────────┘
+```
+
+---
+
+### PARTIE A — ROO CODE
+
+#### A.1 Structure du prompt final (messages envoyés au LLM)
+
+Roo Code envoie une liste de messages au format standard (compatible OpenAI) :
+
+```
+messages = [ SystemMessage, UserMessage_1, AssistantMessage_1, ToolMessage_1, UserMessage_2, ... ]
+```
+
+Le « prompt brut final » = cette chaîne complète de messages + la liste des outils (tools) disponibles.
+
+#### A.2 Construction du System prompt (sources et ordre d'assemblage)
+
+| Ordre | Source | Contenu |
+|-------|--------|---------|
+| 1 | **Custom Instructions (global)** | Instructions générales configurées par l'utilisateur dans Roo Code. |
+| 2 | **Custom Instructions (mode)** | Instructions spécifiques au mode actif (Code, Ask, Architect, etc.). |
+| 3 | **albert-agile** (configuré manuellement) | Bloc HITL (section 5.5) : arrêt après 3 erreurs, usage obligatoire de `ask_user`. |
+| 4 | **Infos système** (généré par Roo) | OS, shell, répertoire courant. |
+| 5 | **Règles opérationnelles** | Gestion des fichiers, structure du projet, interaction avec l'utilisateur. |
+| 6 | **Modes disponibles** | Liste des modes (Code, Ask, Architect, etc.) et leur description. |
+| 7 | **Capacités** | Ce que Roo peut faire dans l'environnement actuel. |
+| 8 | **Tool use guidelines** | Exécution séquentielle, attente des résultats. |
+| 9 | **Descriptions des tools** | read_file, list_files, apply_diff, use_mcp_tool, ask_followup_question, etc. |
+| 10 | **Persona du mode** | Comportement attendu selon le mode actif. |
+
+Si la requête passe par le **proxy LiteLLM** :
+
+| +1 | **Pre-call hook** (config/litellm_hooks.py) | `TOOL_SCHEMA_PROMPT` injecté en tête du system. |
+
+**Formule finale :** `System final = [TOOL_SCHEMA_PROMPT] + [System Roo complet]` (si LiteLLM + tools).
+
+#### A.3 Construction du User message (sources)
+
+| Source | Contenu |
+|--------|---------|
+| **Message utilisateur** | Texte saisi par Nghia. |
+| **Contexte IDE** (ajouté automatiquement par Roo) | File listing (à la connexion), mode actuel, token info, heure, fichiers modifiés récemment, terminaux actifs, curseur, fichiers ouverts (jusqu'à `maxOpenTabsContext`). |
+
+#### A.4 Contexte RAG (via MCP)
+
+| Source | Mécanisme |
+|--------|-----------|
+| **Chroma** | index_rag.py alimente la base Chroma (répertoire `chroma_db`). |
+| **Accès** | chroma-mcp expose le tool MCP `chroma_query_documents`. |
+| **Injection** | Non automatique. Le LLM décide d'appeler le tool ; chroma-mcp retourne les chunks ; le résultat est renvoyé dans un message **tool**. |
+
+---
+
+### PARTIE B — LANGGRAPH (Graphe Agile)
+
+#### B.1 Structure du prompt (chaque nœud)
+
+Chaque nœud (R-0, R-2, R-3, etc.) envoie au LLM :
+
+```
+messages = [ SystemMessage, HumanMessage ]
+```
+
+Un seul appel par nœud : pas d’historique de conversation.
+
+#### B.2 Construction du System prompt
+
+| Ordre | Source | Détail |
+|-------|--------|--------|
+| 1 | **Template rôle** | `graph/prompts/{role}_system.txt` (ex. r0_system.txt, r2_system.txt). |
+| 2 | **Lois Albert Core** | `graph/laws.py` → `format_laws_for_prompt(role)` → injecté via placeholder `{laws}`. |
+
+Lois : transverses (L0, L3, L7, L8, L9, L11, L18, L-ANON) + lois par rôle (ex. R-0 → L1, L4 ; R-2 → L2, L5, L18 ; R-4 → L8, L9, L19, L21).
+
+#### B.3 Construction du Human message (par nœud)
+
+- **R-0** : `project_id` + consignes pour produire l'Epic.
+- **R-2** : `project_id`, `backlog` + RAG (concaténé) + consignes architecture/DoD.
+- **R-3** : `project_id`, `sprint_number`, `backlog`, `architecture` + RAG (concaténé) + consignes Sprint Backlog.
+- **R-4** : `sprint_backlog`, `dod` + RAG (concaténé) + consignes implémentation.
+- **R-5, R-6** : consignes fixes (Git/PR, pipeline E5) ; pas de RAG.
+
+#### B.4 RAG (LangGraph)
+
+| Source | Mécanisme |
+|--------|-----------|
+| **Chroma** | `graph/rag.py` → `query_rag(project_id, query, top_k=5)` |
+| **Injection** | Chunks concaténés dans le HumanMessage. |
+
+#### B.5 Anonymisation (L-ANON)
+
+Avant N1 (Gemini) ou N2 (Claude), `graph/cascade.py` appelle `_anonymize_prompt(prompt)` ; `graph/anonymizer.py` applique les règles. Les appels Ollama (N0) ne sont pas anonymisés.
+
+---
+
+### PARTIE C — Fonctionnement détaillé du RAG
+
+Le RAG est utilisé par Roo Code (via MCP) et par LangGraph (via `query_rag`). Base commune : Chroma alimentée par `index_rag.py`.
+
+#### C.1 Contenu indexé (sources)
+
+`index_rag.py` indexe selon `--sources` :
+
+| Source | Fichiers indexés | Usage |
+|--------|------------------|-------|
+| **backlog** | `*Backlog*`, `*DoD*`, `Product Backlog.md`, etc. | Critères d'acceptation, priorisation |
+| **architecture** | `Architecture.md`, `*ADR*`, docs dans `specs/` et `docs/` | Décisions, structure technique |
+| **code** | `.py`, `.js`, `.ts`, `.yaml`… dans `src/`, `scripts/`, `config/`, etc. | Implémentation, patterns |
+| **all** | Union des trois | Contexte global |
+
+**Exclusions** : `.git`, `__pycache__`, `node_modules`, `.venv`, `chroma_db`.
+
+#### C.2 Chunking (découpage)
+
+- **Taille** : 1000 caractères par chunk
+- **Overlap** : 200 caractères entre chunks
+- **Coupure** : préférence aux retours à la ligne
+
+Chaque chunk est vectorisé par `nomic-embed-text` (Ollama, 768 dimensions).
+
+#### C.3 Métadonnées des chunks
+
+| Champ | Exemple | Usage |
+|-------|---------|-------|
+| `source` | `graph/cascade.py` | Fichier d'origine |
+| `type` | `code` ou `doc` | Type de contenu |
+| `project` | `albert-agile` | Projet / collection |
+| `chunk_index` | `2` | Position dans le fichier |
+| `file_hash` | `a3f2b1...` | Détection de changements (incrémental) |
+
+#### C.4 Collections Chroma
+
+Une collection par projet : `albert_{project_id}` (ex. `albert_albert-agile`).
+
+#### C.5 Accès RAG — Roo Code (chroma-mcp)
+
+Paramètres typiques de `chroma_query_documents` : `collection_name`, `query_texts`, `n_results`, `where` (filtres).
+
+Flux : (1) Question utilisateur → (2) LLM appelle use_mcp_tool → chroma_query_documents → (3) Chroma retourne les K chunks les plus proches → (4) Résultat dans un message **tool** → (5) LLM génère la réponse.
+
+#### C.6 Accès RAG — LangGraph
+
+`query_rag(project_id, query, top_k=5)` retourne `page_content` des chunks. Concaténés dans le HumanMessage : `"\nRAG:\n{rag_str}\n\n"`.
+
+#### C.7 Exemples concrets
+
+**Roo Code** : « Où sont définies les règles de la cascade N0 → N1 → N2 ? » → LLM appelle chroma_query_documents → chunks de `graph/cascade.py`, specs → LLM synthétise.
+
+**R-2 (LangGraph)** : `query_rag(project_id, "Architecture Definition of Done backlog", top_k=5)` → chunks concaténés dans le user → LLM produit architecture + DoD.
+
+**Filtrage** : `where: {"type": "doc"}` pour limiter aux documents (pas le code).
+
+#### C.8 Flux complet du RAG
+
+```
+1. Indexation (index_rag.py) : fichiers → chunking → embeddings → Chroma
+2. Requête : Roo (use_mcp_tool) ou LangGraph (query_rag)
+3. Chroma retourne K chunks
+4. Injection : Roo → ToolMessage ; LangGraph → concat dans HumanMessage
+5. LLM génère la réponse
+```
+
+#### C.9 Limitations
+
+- Indexation manuelle ou via hook ; pas de temps réel.
+- Pertinence dépend du chunking et de la requête.
+- Roo : le LLM décide quand appeler le tool.
+
+---
+
+### Tableau récapitulatif des sources
+
+| Source | Roo Code | LangGraph |
+|--------|----------|-----------|
+| Instructions système | Custom Instructions Roo | graph/prompts/rX_system.txt |
+| Lois / règles métier | Custom Instructions (manuel) | graph/laws.py (automatique) |
+| Règles tool calling | LiteLLM TOOL_SCHEMA_PROMPT | — |
+| Contexte projet | Contexte IDE Roo | État (backlog, architecture, etc.) |
+| **RAG** | MCP chroma_query_documents (via tool) | query_rag() concaténé dans le Human |
+| Anonymisation | — | L-ANON avant N1/N2 |
+| Historique | Oui (conversation) | Non |
+| Structured output | Non | Oui (EpicOutput, ArchitectureOutput, etc.) |
