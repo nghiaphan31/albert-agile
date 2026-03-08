@@ -1,6 +1,6 @@
 # Stratégie de routage intelligent — Proposition Gemini 3.1 Pro
 
-**Source** : Synthèse proposée par Gemini 3.1 Pro (chat navigateur, gratuit) en réponse à une demande d'amélioration de la stratégie d'utilisation des ressources (RTX 5060, modèles locaux, APIs cloud).
+**Source** : Synthèses proposées par Gemini 3.1 Pro (chat navigateur, gratuit) pour optimiser l'utilisation des ressources (RTX 5060, modèles locaux, APIs cloud). Inclut : cascade « Coût Zéro » (Free → Vertex → Local), Cerveau Sémantique (routage par embeddings), HITL anti-boucle.
 
 **Contexte actuel albert-agile** : RTX 5060 Ti 16G, qwen3:14b local via Ollama, fallback Gemini 2.5 Flash puis Claude Sonnet. Voir [Plan_Configuration_VSCode_Ollama_Local.md](Plan_Configuration_VSCode_Ollama_Local.md).
 
@@ -17,6 +17,108 @@ La répartition des rôles s'articule autour de trois axes :
 1. **L'ingestion massive (`ingest`)** : Le traitement de gigantesques documentations ou *repositories* est confié à Gemini 3 Flash, offrant une fenêtre de contexte massive à un coût dérisoire.
 2. **La conception de haut niveau (`architect`)** : L'architecture système et les plans de tests complexes sont envoyés à DeepSeek-V3.1, qui offre le meilleur ratio prix/raisonnement du marché. En cas de défaillance de l'API, le système bascule automatiquement sur Claude 4.6 Sonnet pour garantir la continuité du service.
 3. **Le travail de terrain (`worker`)** : Le codage, le refactoring, les validations Git et le débogage itératif sont interceptés et envoyés gratuitement vers le modèle local (Qwen3:14b tournant sur la machine).
+
+---
+
+### 1.1 La logique de cascade « Coût Zéro » (Mars 2026)
+
+Le système suit une hiérarchie stricte pour chaque requête envoyée par Roo Code :
+
+1. **Priorité Alpha (Gratuit total)** : Google AI Studio Free Tier — limites (ex. 100 requêtes/jour Pro, 250 Flash). Modèles : `gemini-2.5-pro`, `gemini-2.5-flash`.
+2. **Priorité Beta (Crédit payant)** : Si quota gratuit atteint (Error 429), bascule sur Vertex AI (ex. compte avec crédit 300 $). Modèles : `vertex_ai/gemini-3.1-pro-001`, `vertex_ai/gemini-3-flash`.
+3. **Priorité Gamma (Sécurité locale)** : Tâches de routine → Qwen3 local via Ollama, à volonté et sans frais.
+4. **Réévaluation flash** : Paramètre `model_cooldown_time: 61` — le système retente les modèles gratuits toutes les 61 secondes pour repasser sur le gratuit dès qu'un nouveau quota minute est disponible.
+5. **Fallbacks Worker (Low-Cost)** : Si Qwen3 local crash ou timeout → Gemini 3.1 Lite (Free). Si quota 429 → DeepSeek V3.1 (payant).
+6. **Fallback Ingest payant** : Si Vertex épuisé → Gemini 2.5 Flash avec clé payante (~0,15 $/1M tokens).
+
+#### Glossaire des limites
+
+| Acronyme | Signification | Description |
+|----------|---------------|-------------|
+| **RPD** | Requests Per Day | Nombre maximal de requêtes par jour (quota quotidien). Dépassé → erreur 429. |
+| **RPM** | Requests Per Minute | Nombre maximal de requêtes par minute. Dépassé → erreur 429, réessai après cooldown. |
+| **TPM** | Tokens Per Minute | Nombre maximal de tokens (input + output) traités par minute. Dépassé → erreur 429. |
+| **300 $** | Crédit Vertex AI | Montant du crédit offert par Google sur le compte Vertex (ex. fille). Consommé au fur et à mesure des appels payants. |
+| **model_cooldown_time** | Réévaluation (s) | Délai en secondes avant de retenter un modèle en erreur 429. Ex. 61 s → réessai après 1 min pour reprendre le quota. |
+| **allowed_fails** | Échecs tolérés | Nombre d'échecs consécutifs avant de passer au modèle suivant dans la cascade. |
+| **cooldown_time** | Pause (s) | Délai en secondes avant de réactiver un modèle après trop d'échecs. Ex. 3600 → 1 h. |
+| **dyn.** | Dynamique | DeepSeek : pas de quota RPD/RPM/TPM fixe publié, ajusté selon charge et usage. |
+
+#### Tableau des limites par palier (Mars 2026 — à vérifier selon offres Google)
+
+| Rôle | Paliers | Modèle | RPD | RPM | TPM | Crédit / Coût |
+|------|---------|--------|-----|-----|-----|---------------|
+| **architect** | 1. Free | `gemini-2.5-pro` (AI Studio) | 100 | 5 | 250 000 | 0 € |
+| | 2. Vertex | `vertex_ai/gemini-3.1-pro-001` | — | 50 | — | Crédit 300 $ |
+| | 3. Payant | `deepseek-chat-v3.1` | dyn. | dyn. | dyn. | Input 0,28 $/1M, Output 0,42 $/1M |
+| **ingest** | 1. Free | `gemini-2.5-flash` (AI Studio) | 250 | 15 | 1 000 000 | 0 € |
+| | 2. Vertex | `vertex_ai/gemini-3-flash` | — | — | — | Crédit 300 $ |
+| | 3. Payant | `gemini-2.5-flash` (clé payante) | — | — | — | ~0,15 $/1M tokens |
+| **worker** | 1. Local | `ollama/qwen3:14b` | ∞ | ∞ | ∞ | 0 € |
+| | 2. Free | `gemini-3.1-flash-lite` (AI Studio) | ~250 | 15 | — | 0 € |
+| | 3. Payant | `deepseek-chat-v3.1` | dyn. | dyn. | dyn. | Input 0,28 $/1M, Output 0,42 $/1M |
+
+> ⚠️ **Source** : Google AI Studio / Vertex AI : [aistudio.google.com](https://aistudio.google.com/), [Vertex AI Pricing](https://cloud.google.com/vertex-ai/pricing). DeepSeek : [api-docs.deepseek.com](https://api-docs.deepseek.com/quick_start/pricing/) — RPM/TPM dynamiques (pas de quota fixe publié), Input cache miss 0,28 $/1M, Output 0,42 $/1M.
+
+---
+
+### 1.2 Schéma Mermaid — logique complète
+
+> **Note** : Le diagramme est scindé en deux pour éviter le découpage dans la preview Markdown (le sous-graphe « Cascade de Coûts » est trop haut pour les conteneurs par défaut).
+
+**Flux principal (Sécurité + Routage sémantique)**
+
+```mermaid
+flowchart TD
+    Start((Requête Roo Code)) --> Hook[Pre-Call Hook Python]
+    Hook --> CheckLoop{3 Erreurs de suite?}
+    CheckLoop -- OUI --> Alarm[Alerte Sonore]
+    Alarm --> ForceStop[Forcer ask_user]
+    ForceStop --> PauseHumaine["Pause Humaine HITL"]
+    PauseHumaine --> CopyPaste["Copier-coller erreur et contexte vers Gemini 3.1 Pro chat navigateur"]
+    CopyPaste --> Gratuit["0€ - Gratuit"]
+    Gratuit --> End1((Reprise après solution))
+    CheckLoop -- NON --> Embed[Isoler message -1]
+    Embed --> Ollama[Ollama: nomic-embed-text]
+    Ollama --> Logic[Similarité Cosinus]
+    Logic --> Classify{Rôle?}
+    Classify --> Arc[ARCHITECT]
+    Classify --> Ing[INGEST]
+    Classify --> Wor[WORKER]
+    Classify -.->|paramètres| Router[cooldown 61s / fails 3 / pause 3600s]
+    style Alarm fill:#dc3545,stroke:#000,color:#fff
+    style Gratuit fill:#d4edda,stroke:#28a745
+```
+
+**Cascade de Coûts Mars 2026 (détails par rôle + limites RPD/RPM/TPM/300$)**
+
+```mermaid
+flowchart LR
+    subgraph ARCHITECT[ARCHITECT]
+        direction TB
+        Arc1["Gemini 2.5 Pro Free - 100 RPD / 5 RPM / 250k TPM - 0€"] -->|429| Arc2["Vertex 3.1 Pro - 50 RPM - Crédit 300$"]
+        Arc2 -->|épuisé| Arc3["DeepSeek V3.1 - In 0,28$/1M - Out 0,42$/1M"]
+    end
+    subgraph INGEST[INGEST]
+        direction TB
+        Ing1["Gemini 2.5 Flash Free - 250 RPD / 15 RPM / 1M TPM - 0€"] -->|429| Ing2["Vertex 3 Flash - Crédit 300$"]
+        Ing2 -->|épuisé| Ing3["Gemini Flash Payant - 0,15$/1M tokens"]
+    end
+    subgraph WORKER[WORKER]
+        direction TB
+        Wor1["Qwen3:14b Local - ∞ RPD/RPM/TPM - 0€"] -->|crash| Wor2["Gemini 3.1 Lite Free - ~250 RPD / 15 RPM - 0€"]
+        Wor2 -->|429| Wor3["DeepSeek V3.1 - In 0,28$/1M - Out 0,42$/1M"]
+    end
+    style Arc1 fill:#d4edda
+    style Ing1 fill:#d4edda
+    style Wor1 fill:#d1ecf1
+    style Wor2 fill:#d4edda
+    style Arc2 fill:#fff3cd
+    style Ing2 fill:#fff3cd
+    style Arc3 fill:#f8d7da
+    style Ing3 fill:#f8d7da
+    style Wor3 fill:#f8d7da
+```
 
 ---
 
@@ -83,111 +185,163 @@ litellm_settings:
 
 > **Note** : Dans LiteLLM récent, le champ est `callbacks` (et non `custom_callbacks`), et le chemin doit correspondre à un module importable (ex. `config.custom_roo_hook.proxy_handler_instance` si le fichier est dans `config/`).
 
+#### 5.1b Variante cascade « Coût Zéro » avec Vertex AI et fallbacks Low-Cost (Mars 2026)
+
+Configuration complète avec paliers Free → Vertex → Payant, incluant les fallbacks Worker (crash/timeout → Gemini Lite, quota → DeepSeek) et Ingest (Vertex épuisé → Gemini Flash payant).
+
+```yaml
+model_list:
+  # --- ARCHITECT (Gemini Free → Vertex → DeepSeek) ---
+  - model_name: architect
+    litellm_params:
+      model: gemini/gemini-2.5-pro
+      api_key: "os.environ/GEMINI_FREE_KEY"
+      rpm: 5
+      tpm: 250000
+
+  - model_name: architect
+    litellm_params:
+      model: vertex_ai/gemini-3.1-pro-001
+      vertex_project: "os.environ/VERTEX_PROJECT"
+
+  - model_name: architect
+    litellm_params:
+      model: deepseek/deepseek-chat-v3.1
+
+  # --- INGEST (Gemini Free → Vertex → Gemini Payant) ---
+  - model_name: ingest
+    litellm_params:
+      model: gemini/gemini-2.5-flash
+      api_key: "os.environ/GEMINI_FREE_KEY"
+      rpm: 15
+
+  - model_name: ingest
+    litellm_params:
+      model: vertex_ai/gemini-3-flash
+      vertex_project: "os.environ/VERTEX_PROJECT"
+
+  - model_name: ingest
+    litellm_params:
+      model: gemini/gemini-2.5-flash
+      api_key: "os.environ/GEMINI_PAYANT_KEY"
+
+  # --- WORKER (Local → Gemini Lite Free → DeepSeek) ---
+  - model_name: worker
+    litellm_params:
+      model: ollama/qwen3:14b
+      api_base: "http://localhost:11434"
+
+  - model_name: worker
+    litellm_params:
+      model: gemini/gemini-3.1-flash-lite
+      api_key: "os.environ/GEMINI_FREE_KEY"
+
+  - model_name: worker
+    litellm_params:
+      model: deepseek/deepseek-chat-v3.1
+      api_key: "os.environ/DEEPSEEK_API_KEY"
+
+router_settings:
+  routing_strategy: priority-based
+  enable_fallbacks: true
+  model_cooldown_time: 61
+  allowed_fails: 3
+  cooldown_time: 3600
+
+litellm_settings:
+  cache_responses: true
+  usage_tracking: true
+  callbacks:
+    - config.custom_roo_hook.proxy_handler_instance
+```
+
+> **Note** : `router_settings` et `model_cooldown_time` peuvent dépendre de la version LiteLLM. Vérifier la doc officielle.
+
 ---
 
-### 5.2 Script d'interception et de routage (`config/custom_roo_hook.py`)
+### 5.2 Le Cerveau Sémantique — routage par embeddings (`config/custom_roo_hook.py`)
 
-Ce *Pre-Call Hook* intercepte la requête de Roo Code avant qu'elle ne soit traitée. Il gère d'abord le disjoncteur de sécurité (analyse des 5 derniers messages), puis, si aucune boucle n'est détectée, il route la requête vers l'alias correspondant aux mots-clés détectés. *Voir [section 5.3](#53-limite-des-mots-clés-et-routage-sémantique-par-embeddings) pour l'évolution par embeddings sémantiques.*
+Implémentation complète du routage sémantique : embeddings locaux (nomic-embed-text via Ollama), similarité cosinus, vecteurs de référence pré-calculés. Zéro lissage car seul `messages[-1]` est vectorisé.
+
+**Prérequis** : `ollama pull nomic-embed-text`, `pip install numpy ollama python-dotenv`
 
 ```python
+import numpy as np
+import ollama
+import os
 from litellm.integrations.custom_logger import CustomLogger
+from dotenv import load_dotenv
+
+load_dotenv()
+
+def cosine_similarity(a, b):
+    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
 
 class RooCodeHandler(CustomLogger):
+    def __init__(self):
+        self.categories = {
+            "architect": "System design, software architecture, test strategy, high-level planning, database schema",
+            "ingest": "Scan whole repository, read all documentation files, analyze huge context, deep code search",
+            "worker": "Fix bugs, refactor code, write functions, terminal commands, git operations, unit tests"
+        }
+        self.category_vectors = {
+            name: np.array(ollama.embed(model='nomic-embed-text', input=text)['embeddings'][0])
+            for name, text in self.categories.items()
+        }
+
     async def async_pre_call_hook(self, user_api_key_dict, cache, data, call_type):
         messages = data.get("messages", [])
-        if not messages:
+        if not messages or call_type != "completion":
             return data
 
-        # --- 1. DISJONCTEUR DE SÉCURITÉ (HITL TRIGGER) ---
-        # Analyser les 5 derniers messages pour repérer une boucle d'erreurs
-        error_count = 0
-        recent_messages = messages[-5:]
-        for msg in recent_messages:
-            content = str(msg.get("content", "")).lower()
-            if "error" in content or "command failed" in content or "exception" in content:
-                error_count += 1
+        # --- SÉCURITÉ ANTI-BOUCLE ---
+        last_5_content = [str(m.get("content", "")).lower() for m in messages[-5:]]
+        error_count = sum(1 for msg in last_5_content if any(err in msg for err in ["error", "failed"]))
 
         if error_count >= 3:
-            # Alerte visuelle et sonore (bip) dans le terminal où tourne LiteLLM
-            print("\a")
-            print("\n" + "🔴"*20)
-            print("🚨 ALERTE HITL : Boucle d'erreurs détectée !")
-            print("Intervention humaine requise. Arrêt forcé de l'agent.")
-            print("🔴"*20 + "\n")
-
-            # On écrase la requête pour forcer l'agent à utiliser son outil 'ask_user'
-            data["messages"] = [{
-                "role": "user",
-                "content": "SYSTEM OVERRIDE: You are stuck in an error loop. You MUST stop immediately. Use the 'ask_user' tool to explain the error to the human and wait for instructions. Do not execute any other tool."
-            }]
+            print("\a🚨 [HITL] BOUCLE D'ERREUR DÉTECTÉE")
+            data["messages"] = [{"role": "user", "content": "STOP: Error loop. Use 'ask_user'."}]
             data["model"] = "worker"
             return data
 
-        # --- 2. ROUTAGE INTELLIGENT (Si tout va bien) ---
-        last_message = str(messages[-1].get("content", "")).lower()
+        # --- ROUTAGE SÉMANTIQUE (message -1 uniquement) ---
+        user_intent = str(messages[-1].get("content", ""))
+        intent_vector = np.array(ollama.embed(model='nomic-embed-text', input=user_intent)['embeddings'][0])
 
-        ingest_triggers = [
-            "ingérer", "documentation complète", "lire le repository",
-            "analyser le framework", "contexte global"
-        ]
+        scores = {name: cosine_similarity(intent_vector, vec) for name, vec in self.category_vectors.items()}
+        best_category = max(scores, key=scores.get)
 
-        architect_triggers = [
-            "architecture", "plan de test", "conception globale",
-            "analyse systémique", "structurer le projet"
-        ]
-
-        if any(trigger in last_message for trigger in ingest_triggers):
-            data["model"] = "ingest"
-        elif any(trigger in last_message for trigger in architect_triggers):
-            data["model"] = "architect"
-        else:
-            data["model"] = "worker"
-
+        print(f"--- [ROUTAGE] : {best_category.upper()} (Score: {scores[best_category]:.2f}) ---")
+        data["model"] = best_category
         return data
 
-    async def async_post_call_success_hook(self, data, user_api_key_dict, response):
-        # --- Garde ton code existant ici pour le fake stream si nécessaire ---
-        pass
-
-# Instanciation pour LiteLLM
 proxy_handler_instance = RooCodeHandler()
 ```
 
 ---
 
-### 5.3 Limite des mots-clés et routage sémantique par embeddings
+### 5.3 Fichier d'environnement (`.env`)
 
-**Source** : Suggestion d'adaptation par Gemini 3.1 Pro.
-
-#### La limite des mots-clés simples
-
-Avec le script actuel (section 5.2), si Roo Code écrit « Je vais structurer le projet », la condition `"structurer le projet" in text` fonctionne.
-
-Mais si Roo Code écrit « Je vais concevoir le squelette de l'application », le routeur rate le mot-clé et envoie cette tâche d'architecture complexe au petit modèle local, qui risque de mal faire le travail.
-
-#### La combinaison Python + Embeddings
-
-L'idée est d'utiliser le script Python comme « filtre extracteur » avant de faire appel au moteur sémantique :
-
-1. **L'isolation** : Le script intercepte la requête et isole rigoureusement `messages[-1]` (l'intention de Roo), en laissant de côté les milliers de tokens du System Prompt.
-2. **La vectorisation** : Le script Python prend cette courte phrase isolée et demande en arrière-plan au modèle local `nomic-embed-text` (via Ollama) d'en produire un vecteur mathématique.
-3. **La comparaison (similarité cosinus)** : Le script compare ce vecteur avec des vecteurs de référence pré-calculés (ex. un vecteur moyen pour « Tâches d'architecture », un vecteur moyen pour « Tâches d'ingestion »).
-4. **Le routage** : Il choisit la route mathématiquement la plus proche et envoie la vraie requête au bon modèle (DeepSeek, Gemini ou Qwen).
-
-#### Les avantages
-
-- **Zéro lissage** : Puisqu'on ne vectorise que la dernière phrase, l'embedding est extrêmement net et discriminant.
-- **Flexibilité totale** : Plus besoin de maintenir une liste interminable de synonymes dans le code Python. L'embedding comprendra par lui-même que « squelette », « blueprint » ou « fondations » relèvent de l'alias `architect`.
-
-#### Implémentation suggérée
-
-- Modèle embedding local : `nomic-embed-text` (déjà disponible via Ollama, aligné avec le RAG albert-agile).
-- Stockage des vecteurs de référence : pré-calculer une fois les embeddings de phrases exemples par catégorie (ingest, architect, worker) et les persister (JSON ou fichier binaire) pour éviter de recalculer à chaque requête.
-- Seuil de similarité : définir un seuil minimal ; si aucune catégorie ne dépasse le seuil, fallback sur `worker` (par défaut, plus sûr).
+```env
+GEMINI_FREE_KEY="ton_api_key_gratuite"
+GEMINI_PAYANT_KEY="ton_api_key_payante"
+VERTEX_PROJECT="project-id-fille"
+DEEPSEEK_API_KEY="ta_cle_deepseek"
+```
 
 ---
 
-### 5.4 Instructions personnalisées pour l'agent (Roo Code Custom Instructions)
+### 5.4 Pourquoi le routage sémantique (limite des mots-clés)
+
+**Source** : Suggestion d'adaptation par Gemini 3.1 Pro.
+
+Avec des mots-clés simples (`"structurer le projet" in text`), la phrase « Je vais structurer le projet » est routée correctement. Mais « Je vais concevoir le squelette de l'application » rate le mot-clé et envoie une tâche d'architecture au petit modèle local.
+
+Le **Cerveau Sémantique** (section 5.2) résout ce problème : l'embedding comprend par lui-même que « squelette », « blueprint » ou « fondations » relèvent de l'alias `architect`, sans liste de synonymes à maintenir. *Zéro lissage* car seule la dernière phrase est vectorisée.
+
+---
+
+### 5.5 Instructions personnalisées pour l'agent (Roo Code Custom Instructions)
 
 Ce bloc de texte, placé dans les paramètres de l'extension Roo Code, constitue la première ligne de défense. Il empêche le modèle local de multiplier les tentatives ratées et formalise sa demande d'aide.
 
@@ -209,11 +363,11 @@ Wait for the user's explicit instructions before proceeding with any other tool.
 
 | Proposition Gemini | Config actuelle albert-agile | Statut |
 |--------------------|------------------------------|--------|
-| Routage ingest / architect / worker | Cascade qwen3 → gemini → claude, pas de routage par mots-clés | À intégrer |
-| Routage sémantique (embeddings) | Mots-clés simples seulement ; nomic-embed-text disponible pour RAG | Évolution proposée : Python + nomic-embed-text + similarité cosinus |
-| Disjoncteur HITL back-end | Non implémenté | À ajouter |
-| Instructions HITL front-end | `litellm_hooks.py` (fix tool calls), pas de règle HITL explicite | À ajouter aux Custom Instructions Roo |
-| Transfert de contexte IDE ↔ navigateur | Non documenté | À documenter / scripts à créer |
-| Modèles DeepSeek, Gemini 3 Flash | qwen3 local, Gemini 2.5 Flash, Claude Sonnet | Adapter selon dispo API |
+| Cascade « Coût Zéro » + fallbacks Low-Cost | Cascade qwen3 → gemini → claude, pas de paliers Free/Vertex/Worker fallbacks | Voir section 5.1b |
+| Schéma Mermaid (flux complet) | Non documenté | Section 1.2 |
+| Routage sémantique (Cerveau Sémantique) | Mots-clés simples ; nomic-embed-text dispo pour RAG | Code complet section 5.2 |
+| Fallbacks Worker (crash → Gemini Lite, quota → DeepSeek) | Non implémenté | Voir section 5.1b |
+| Fallback Ingest payant (Gemini 2.5 Flash $) | Non implémenté | Voir section 5.1b |
+| Fichier .env (clés Free, Payant, Vertex, DeepSeek) | .env existant sans VERTEX_PROJECT, GEMINI_PAYANT_KEY | Voir section 5.3 |
 
 Voir [Plan_Configuration_VSCode_Ollama_Local.md](Plan_Configuration_VSCode_Ollama_Local.md) pour la configuration déployée et [Strategie_Modeles_LLM_Thinking_Albert_Agile.md](Strategie_Modeles_LLM_Thinking_Albert_Agile.md) pour la stratégie thinking/CoT.
