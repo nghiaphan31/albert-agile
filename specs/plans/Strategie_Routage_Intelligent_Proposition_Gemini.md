@@ -120,6 +120,75 @@ flowchart LR
     style Wor3 fill:#f8d7da
 ```
 
+**Vue d'ensemble consolidée (flux + cascade + paramètres routeur)**
+
+```mermaid
+flowchart TD
+    %% PARTIE 1 : FLUX PRINCIPAL & SÉCURITÉ
+    Start((Requête Roo Code)) --> Hook[Pre-Call Hook Python : Intercepte la requête pour injecter la logique de routage et sécurité]
+    Hook --> CheckLoop{3 Erreurs de suite?}
+
+    subgraph Securite_HITL [1. Disjoncteur & Sécurité]
+        CheckLoop -- OUI --> Alarm[Alerte Sonore]
+        Alarm --> ForceStop[Forcer ask_user]
+        ForceStop --> PauseHumaine["Pause Humaine HITL"]
+        PauseHumaine --> CopyPaste["Copier-coller erreur et contexte vers Gemini 3.1 Pro chat navigateur"]
+        CopyPaste --> Gratuit["0€ - Gratuit"]
+        Gratuit --> End1((Reprise après solution))
+    end
+
+    CheckLoop -- NON --> Embed[Isoler message -1 : Analyse uniquement l'intention brute de l'utilisateur sans le bruit du prompt système]
+    Embed --> Ollama[Ollama: nomic-embed-text : Transforme le texte en vecteurs mathématiques localement et gratuitement]
+    Ollama --> Logic[Similarité Cosinus : Compare la proximité mathématique entre ta demande et les rôles cibles]
+    Logic --> Classify{Rôle?}
+
+    %% LIAISON VERS LES SUBGRAPHS AVEC DÉTAILS PARAMÈTRES
+    Classify --> ARCHITECT
+    Classify --> INGEST
+    Classify --> WORKER
+
+    subgraph Router_Params [Paramètres de Résilience du Routeur]
+        direction LR
+        R1[cooldown 61s : Attend la fin de la minute pour retester le gratuit]
+        R2[fails 3 : Nombre d'échecs avant de considérer le quota journalier comme vide]
+        R3[pause 3600s : Temps de mise en quarantaine si épuisement total détecté]
+    end
+    Classify -.-> Router_Params
+
+    %% PARTIE 2 : CASCADE DE COÛTS PAR RÔLE
+    subgraph ARCHITECT [ARCHITECT]
+        direction TB
+        Arc1["Gemini 2.5 Pro Free - 100 RPD / 5 RPM / 250k TPM - 0€"] -->|429| Arc2["Vertex 3.1 Pro - 50 RPM - Crédit 300$"]
+        Arc2 -->|épuisé| Arc3["DeepSeek V3.1 - In 0,28$/1M - Out 0,42$/1M"]
+    end
+
+    subgraph INGEST [INGEST]
+        direction TB
+        Ing1["Gemini 2.5 Flash Free - 250 RPD / 15 RPM / 1M TPM - 0€"] -->|429| Ing2["Vertex 3 Flash - Crédit 300$"]
+        Ing2 -->|épuisé| Ing3["Gemini Flash Payant - 0,15$/1M tokens"]
+    end
+
+    subgraph WORKER [WORKER]
+        direction TB
+        Wor1["Qwen3:14b Local - ∞ RPD/RPM/TPM - 0€"] -->|crash| Wor2["Gemini 3.1 Lite Free - ~250 RPD / 15 RPM - 0€"]
+        Wor2 -->|429| Wor3["DeepSeek V3.1 - In 0,28$/1M - Out 0,42$/1M"]
+    end
+
+    %% STYLES ORIGINAUX
+    style Alarm fill:#dc3545,stroke:#000,color:#fff
+    style Gratuit fill:#d4edda,stroke:#28a745
+    style Arc1 fill:#d4edda
+    style Ing1 fill:#d4edda
+    style Wor1 fill:#d1ecf1
+    style Wor2 fill:#d4edda
+    style Arc2 fill:#fff3cd
+    style Ing2 fill:#fff3cd
+    style Arc3 fill:#f8d7da
+    style Ing3 fill:#f8d7da
+    style Wor3 fill:#f8d7da
+    style Router_Params fill:#eee,stroke:#999,stroke-dasharray: 5 5
+```
+
 ---
 
 ## 2. La défense en profondeur : sécurité anti-boucle (HITL)
