@@ -252,6 +252,8 @@ Cette règle renforce la "Règle d'or de sécurité" (section V) et la stratégi
 
 **Flux partagé** : index_rag.py alimente Chroma. Les nœuds LangGraph interrogent Chroma directement. chroma-mcp (ou MCP (Model Context Protocol) custom) expose la même Chroma aux clients MCP (Model Context Protocol). Continue.dev, Roo Code et Cursor configurés avec chroma-mcp → même index pour agents et humains.
 
+**Risque concurrence Chroma** : En mode SQLite (`persist_directory`), Chroma peut subir des locks si accès concurrent (index_rag + query_rag + chroma-mcp). **Décision actuelle** : ne jamais exécuter index_rag pendant E4/E5 (AGILE_DEFER_INDEX=true, indexation différée en fin de sprint). À réviser si migration vers Chroma serveur HTTP ou accès concurrent avéré en prod. Voir specs/plans/Strategie_Routage_Intelligent_Proposition_Gemini.md section 8 (C.9).
+
 **Flux d'écriture BaseStore (mémoire long terme)** (obligatoire pour mémoire long terme) : À la fin de E2 (architecture, DoD (Definition of Done)), le nœud R-2 (System Architect IA) écrit dans le BaseStore (mémoire long terme) (namespace `project/{id}/architecture`) un résumé "architecture_approved" avec date et version. À la fin de E6 (clôture sprint, merge), un nœud post-review écrit (namespace `project/{id}/sprints`) un "sprint_summary" (résumé incrément, tickets livrés, décisions). Format JSON. Les agents R-3 (Scrum Master IA) et R-4 (Dev Team IA) interrogent le BaseStore (mémoire long terme) avant découpage ou implémentation pour récupérer les résumés pertinents.
 
 #### 3.7-ter SearXNG — Recherche web temps réel pour les agents (complément RAG)
