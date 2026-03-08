@@ -1,6 +1,6 @@
 # Stratégie de routage intelligent — Proposition Gemini 3.1 Pro
 
-**Source** : Synthèses proposées par Gemini 3.1 Pro (chat navigateur, gratuit) pour optimiser l'utilisation des ressources (RTX 5060, modèles locaux, APIs cloud). Inclut : cascade « Coût Zéro » (Free → Vertex → Local), Cerveau Sémantique (routage par embeddings), HITL anti-boucle, caractéristiques des modèles locaux (structured, thinking, tools), fiabilisation Roo + LLMs locaux (fake_stream + post-call). Annexe (section 8) : synthèse complète construction des prompts Roo / LangGraph et fonctionnement du RAG. Section 9 : SearXNG — accès web temps réel pour les agents (recherche autonome, alignement Coût Zéro, protection PI).
+**Source** : Synthèses proposées par Gemini 3.1 Pro (chat navigateur, gratuit) pour optimiser l'utilisation des ressources (RTX 5060, modèles locaux, APIs cloud). Inclut : cascade « Coût Zéro » (Free → Vertex → Local), Cerveau Sémantique (routage par embeddings), HITL anti-boucle, caractéristiques des modèles locaux (structured, thinking, tools), fiabilisation Roo + LLMs locaux (fake_stream + post-call). Annexe (section 8) : synthèse complète construction des prompts Roo / LangGraph et fonctionnement du RAG. Section 9 : SearXNG — accès web temps réel pour les agents. Section 10 : Sécurité & Extensions (Microsoft Presidio, nomenclature technique).
 
 **Contexte actuel albert-agile** : RTX 5060 Ti 16G, qwen3:14b local via Ollama, fallback Gemini 2.5 Flash puis Claude Sonnet. Voir [Plan_Configuration_VSCode_Ollama_Local.md](Plan_Configuration_VSCode_Ollama_Local.md).
 
@@ -552,6 +552,8 @@ Wait for the user's explicit instructions before proceeding with any other tool.
 | Fichier .env (clés Free, Payant, Vertex, DeepSeek) | .env existant sans VERTEX_PROJECT, GEMINI_PAYANT_KEY | Voir section 5.3 |
 | Synthèse construction des prompts (Roo + LangGraph + RAG) | Documenté | Voir section 8 (Annexe) |
 | SearXNG (recherche web temps réel pour agents) | Proposé | Voir section 9 |
+| Presidio (anonymisation prompts au niveau LiteLLM) | Proposé | Voir section 10 |
+| Nomenclature Sécurité & Extensions (Presidio, SearXNG, SearxSearchWrapper) | Documenté | Voir section 10.3 |
 
 Voir [Plan_Configuration_VSCode_Ollama_Local.md](Plan_Configuration_VSCode_Ollama_Local.md) pour la configuration déployée et [Strategie_Modeles_LLM_Thinking_Albert_Agile.md](Strategie_Modeles_LLM_Thinking_Albert_Agile.md) pour la stratégie thinking/CoT.
 
@@ -818,4 +820,36 @@ SearXNG permet de cibler des moteurs spécifiques :
 |-------|--------|
 | **Infrastructure** | Ajouter un conteneur `searxng/searxng` dans `docker-compose.yml` (à côté de FastAPI, ChromaDB), configuré pour le format JSON. |
 | **Code (LangChain)** | Utiliser `SearxSearchWrapper` (LangChain). Déclarer l'outil et le passer au graphe d'état (nœuds R-2, R-4, R-6 selon besoin). |
+
+---
+
+## 10. Sécurité & Extensions — Presidio, SearXNG, nomenclature
+
+*Proposition Gemini 3.1 Pro (Mars 2026) : spécifications complémentaires pour la protection de la propriété intellectuelle et l'extension des capacités.*
+
+### 10.1 Protection de la propriété intellectuelle — Microsoft Presidio
+
+**Objectif** : Garantir qu'aucune donnée sensible (PII, secrets d'API, adresses IP, noms de variables internes ou de serveurs) présente dans le code ou les documents de conception ne fuit vers les modèles Cloud (Gemini, DeepSeek, Anthropic).
+
+| Aspect | Détail |
+|--------|--------|
+| **Technologie retenue** | **Microsoft Presidio** (intégré via LiteLLM). Solution open-source de référence en NLP pour la détection et la pseudonymisation des entités nommées. |
+| **Positionnement** | Moteur d'anonymisation déployé au niveau du routeur **LiteLLM**, agissant comme proxy bidirectionnel transparent pour LangGraph. |
+| **Flux sortant (Masking)** | Avant l'envoi d'un prompt au modèle Cloud, LiteLLM utilise Presidio en local pour détecter et remplacer les données sensibles par des tokens (ex. `[IP_ADDRESS_1]`, `[SECRET_KEY]`). |
+| **Flux entrant (Unmasking)** | À la réception de la réponse du LLM, LiteLLM effectue l'opération inverse, restituant les valeurs réelles au graphe LangGraph. |
+| **Avantage** | L'orchestrateur (LangGraph) et les agents (Qwen, Roo Code) manipulent les données en clair ; la logique de sécurité reste centralisée au niveau de l'infrastructure réseau. |
+
+**Alternatives actuelles** : L'implémentation existante utilise `graph/anonymizer.py` + `config/anonymisation.yaml` (L-ANON) dans `graph/cascade.py` avant les appels N1/N2. Presidio peut être adopté comme évolution ou complément (notamment pour les flux passant par le proxy LiteLLM).
+
+### 10.2 Capacité de recherche web autonome — SearXNG
+
+Voir section 9. Résumé : SearXNG contourne le *knowledge cutoff* et évite les API commerciales (Tavily, Bing). Conteneur Docker, API JSON, anonymisation des requêtes, `SearxSearchWrapper` (LangChain) comme Tool pour Architect et Worker.
+
+### 10.3 Nomenclature technique — Sécurité & Extensions
+
+| Technologie | Rôle |
+|-------------|------|
+| **Microsoft Presidio** | Moteur NLP local d'anonymisation et désanonymisation des prompts (PII, secrets, IP, variables internes). |
+| **SearXNG** | Métamoteur de recherche auto-hébergé (web-browsing privé pour agents). |
+| **LangChain SearxSearchWrapper** | Interface connectant le graphe LangGraph à l'API locale SearXNG. |
 
