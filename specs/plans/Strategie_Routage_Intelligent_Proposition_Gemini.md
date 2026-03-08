@@ -66,49 +66,85 @@ Le système suit une hiérarchie stricte pour chaque requête envoyée par Roo C
 
 > **Note** : Le diagramme est scindé en deux pour éviter le découpage dans la preview Markdown (le sous-graphe « Cascade de Coûts » est trop haut pour les conteneurs par défaut).
 
-**Flux principal (Sécurité + Routage sémantique)**
+**Flux principal — Partie 1 : Disjoncteur & Sécurité (HITL)**
 
 ```mermaid
 flowchart TD
-    Start((Requête Roo Code)) --> Hook[Pre-Call Hook Python]
+    Start((Requête Roo Code)) --> Hook[Pre-Call Hook Python : Intercepte la requête pour injecter la logique de routage et sécurité]
     Hook --> CheckLoop{3 Erreurs de suite?}
-    CheckLoop -- OUI --> Alarm[Alerte Sonore]
-    Alarm --> ForceStop[Forcer ask_user]
-    ForceStop --> PauseHumaine["Pause Humaine HITL"]
-    PauseHumaine --> CopyPaste["Copier-coller erreur et contexte vers Gemini 3.1 Pro chat navigateur"]
-    CopyPaste --> Gratuit["0€ - Gratuit"]
-    Gratuit --> End1((Reprise après solution))
-    CheckLoop -- NON --> Embed[Isoler message -1]
-    Embed --> Ollama[Ollama: nomic-embed-text]
-    Ollama --> Logic[Similarité Cosinus]
+
+    subgraph Securite_HITL [1. Disjoncteur & Sécurité]
+        CheckLoop -- OUI --> Alarm[Alerte Sonore]
+        Alarm --> ForceStop[Forcer ask_user]
+        ForceStop --> PauseHumaine["Pause Humaine HITL"]
+        PauseHumaine --> CopyPaste["Copier-coller erreur et contexte vers Gemini 3.1 Pro chat navigateur"]
+        CopyPaste --> Gratuit["0€ - Gratuit"]
+        Gratuit --> End1((Reprise après solution))
+    end
+
+    CheckLoop -- NON --> Suite((Suite : Partie 2))
+
+    style Alarm fill:#dc3545,stroke:#000,color:#fff
+    style Gratuit fill:#d4edda,stroke:#28a745
+```
+
+**Flux principal — Partie 2 : Routage sémantique**
+
+```mermaid
+flowchart TD
+    Entree((Pas d'erreur - suite Partie 1)) --> Embed[Isoler message -1 : Analyse uniquement l'intention brute de l'utilisateur sans le bruit du prompt système]
+    Embed --> Ollama[Ollama: nomic-embed-text : Transforme le texte en vecteurs mathématiques localement et gratuitement]
+    Ollama --> Logic[Similarité Cosinus : Compare la proximité mathématique entre ta demande et les rôles cibles]
     Logic --> Classify{Rôle?}
     Classify --> Arc[ARCHITECT]
     Classify --> Ing[INGEST]
     Classify --> Wor[WORKER]
-    Classify -.->|paramètres| Router[cooldown 61s / fails 3 / pause 3600s]
-    style Alarm fill:#dc3545,stroke:#000,color:#fff
-    style Gratuit fill:#d4edda,stroke:#28a745
+
+    subgraph Router_Params [Paramètres de Résilience du Routeur]
+        direction LR
+        R1[cooldown 61s : Attend la fin de la minute pour retester le gratuit]
+        R2[fails 3 : Nombre d'échecs avant de considérer le quota journalier comme vide]
+        R3[pause 3600s : Temps de mise en quarantaine si épuisement total détecté]
+    end
+    Classify -.-> Router_Params
+
+    style Router_Params fill:#eee,stroke:#999,stroke-dasharray: 5 5
 ```
 
 **Cascade de Coûts Mars 2026 (détails par rôle + limites RPD/RPM/TPM/300$)**
 
 ```mermaid
 flowchart LR
-    subgraph ARCHITECT[ARCHITECT]
+    Role((Rôle déterminé)) --> ARCHITECT
+    Role --> INGEST
+    Role --> WORKER
+
+    subgraph ARCHITECT [ARCHITECT]
         direction TB
         Arc1["Gemini 2.5 Pro Free - 100 RPD / 5 RPM / 250k TPM - 0€"] -->|429| Arc2["Vertex 3.1 Pro - 50 RPM - Crédit 300$"]
         Arc2 -->|épuisé| Arc3["DeepSeek V3.1 - In 0,28$/1M - Out 0,42$/1M"]
     end
-    subgraph INGEST[INGEST]
+
+    subgraph INGEST [INGEST]
         direction TB
         Ing1["Gemini 2.5 Flash Free - 250 RPD / 15 RPM / 1M TPM - 0€"] -->|429| Ing2["Vertex 3 Flash - Crédit 300$"]
         Ing2 -->|épuisé| Ing3["Gemini Flash Payant - 0,15$/1M tokens"]
     end
-    subgraph WORKER[WORKER]
+
+    subgraph WORKER [WORKER]
         direction TB
         Wor1["Qwen3:14b Local - ∞ RPD/RPM/TPM - 0€"] -->|crash| Wor2["Gemini 3.1 Lite Free - ~250 RPD / 15 RPM - 0€"]
         Wor2 -->|429| Wor3["DeepSeek V3.1 - In 0,28$/1M - Out 0,42$/1M"]
     end
+
+    subgraph Router_Params [Paramètres de Résilience du Routeur]
+        direction LR
+        R1[cooldown 61s : Attend la fin de la minute pour retester le gratuit]
+        R2[fails 3 : Nombre d'échecs avant de considérer le quota journalier comme vide]
+        R3[pause 3600s : Temps de mise en quarantaine si épuisement total détecté]
+    end
+    Role -.-> Router_Params
+
     style Arc1 fill:#d4edda
     style Ing1 fill:#d4edda
     style Wor1 fill:#d1ecf1
@@ -118,6 +154,7 @@ flowchart LR
     style Arc3 fill:#f8d7da
     style Ing3 fill:#f8d7da
     style Wor3 fill:#f8d7da
+    style Router_Params fill:#eee,stroke:#999,stroke-dasharray: 5 5
 ```
 
 **Vue d'ensemble consolidée (flux + cascade + paramètres routeur)**
