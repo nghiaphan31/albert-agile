@@ -15,30 +15,45 @@ model_list:
       model: ollama_chat/qwen3:14b
       api_base: http://localhost:11434
       fake_stream: true
+      timeout: 120
+      stream_timeout: 60
+      num_ctx: 32768
 
   - model_name: qwen2.5-coder
     litellm_params:
       model: ollama_chat/qwen2.5-coder:14b
       api_base: http://localhost:11434
       fake_stream: true
+      timeout: 120
+      stream_timeout: 60
+      num_ctx: 32768
 
   - model_name: qwen2.5
     litellm_params:
       model: ollama_chat/qwen2.5:14b
       api_base: http://localhost:11434
       fake_stream: true
+      timeout: 120
+      stream_timeout: 60
+      num_ctx: 32768
 
   - model_name: hermes3
     litellm_params:
       model: ollama_chat/hermes3:8b
       api_base: http://localhost:11434
       fake_stream: true
+      timeout: 120
+      stream_timeout: 60
+      num_ctx: 32768
 
   - model_name: granite3.3
     litellm_params:
       model: ollama_chat/granite3.3:8b
       api_base: http://localhost:11434
       fake_stream: true
+      timeout: 120
+      stream_timeout: 60
+      num_ctx: 32768
 
   # Providers cloud (fallback)
   - model_name: gemini

@@ -494,4 +494,116 @@ flowchart TB
 
 **Comportement** : Avec `fake_stream: true` + post-call hook (section 4.6), qwen3 local fonctionne sans boucle infinie sur les tool calls. LiteLLM déclenche les fallbacks si Ollama ou Gemini échouent.
 
-> **⚠️ Tests en attente** : Les tests de tous les chemins (tous les modes Roo + fallbacks) doivent encore être validés.
+---
+
+### 10.5 Plan de test — validation des chemins
+
+L'opérateur de tests suit les étapes ci-dessous dans l'ordre. Cocher chaque case après validation.
+
+#### Prérequis (à vérifier avant toute phase)
+
+| Étape | Action | Commande ou vérification | ☐ |
+|-------|--------|---------------------------|---|
+| P0.1 | Ouvrir VS Code | Fenêtre VS Code ouverte | |
+| P0.2 | Se connecter à Calypso | Menu : Remote-SSH → Connect to Host → calypso. Barre de statut indique « SSH: calypso » | |
+| P0.3 | Ouvrir le projet | Ouvrir le dossier `albert-agile` (File → Open Folder) | |
+| P0.4 | Vérifier LiteLLM | Terminal intégré (Ctrl+`) : `systemctl --user status litellm-proxy` → doit afficher « active (running) » | |
+| P0.5 | Vérifier Ollama (Phase 1 uniquement) | `ollama ps` → doit afficher au moins une ligne (ex. qwen3:14b). Si vide, lancer : `ollama run qwen3:14b "warmup"` et attendre le chargement | |
+| P0.6 | Vérifier Roo Code | Panneau gauche : icône Roo Code visible. En bas du panneau : « Smart Router » sélectionné | |
+
+---
+
+#### Phase 1 — Chemin nominal (qwen3 local)
+
+**Objectif** : Confirmer que chaque mode Roo envoie bien vers Smart Router et reçoit une réponse de qwen3 via Ollama.
+
+| # | Mode | Actions précises | Résultat attendu | ☐ |
+|---|------|------------------|------------------|---|
+| 1.1 | Ask | 1. Cliquer sur « Ask » dans la barre de modes Roo (sous le champ de saisie). 2. Taper exactement : `Réponds juste : c'est compris` 3. Appuyer sur Entrée | Une seule réponse courte (ex. « c'est compris » ou équivalent). Pas d'erreur. Pas de boucle « Roo has a question » / « Error » en répétition | |
+| 1.2 | Code | 1. Cliquer sur « Code ». 2. Taper : `Crée un fichier test_plan.txt avec le contenu Hello` 3. Entrée | Roo propose une modification. L'accepter. Le fichier `test_plan.txt` apparaît à la racine avec « Hello » | |
+| 1.3 | Architect | 1. Cliquer sur « Architect ». 2. Taper : `Quel est ton rôle en mode Architect ?` 3. Entrée | Une réponse structurée (plan, étapes). Pas de boucle | |
+| 1.4 | Debug | 1. Ouvrir un fichier Python (ex. `graph/llm_factory.py`). 2. Cliquer sur « Debug ». 3. Taper : `Explique en 2 phrases ce que fait ce fichier` 4. Entrée | Explication courte. Pas de boucle | |
+| 1.5 | Orchestrator | 1. Cliquer sur « Orchestrator ». 2. Taper : `Liste 3 étapes pour débugger une erreur Python` 3. Entrée | Liste numérotée. Pas de boucle | |
+
+**Vérification post-Phase 1** : Dans le terminal, exécuter :
+```bash
+journalctl --user -u litellm-proxy -n 50 --no-pager | grep "qwen3:14b"
+```
+→ Au moins une ligne doit contenir `qwen3:14b`. Si aucune, le chemin nominal est en échec.
+
+---
+
+#### Phase 2 — Tool calling (absence de boucle)
+
+**Objectif** : Confirmer que les tool calls (list_files, read_file, etc.) ne provoquent pas de boucle infinie.
+
+| # | Mode | Actions précises | Résultat attendu | ☐ |
+|---|------|------------------|------------------|---|
+| 2.1 | Code | 1. Mode « Code » actif. 2. Taper : `Liste les fichiers Python dans le dossier graph/, lis le fichier graph/llm_factory.py, et dis-moi en 2 phrases ce que fait la fonction principale.` 3. Entrée | Roo affiche une liste de fichiers, lit le fichier, puis donne un résumé. Pas d'erreur « ask_followup_question without value for follow_up ». Pas de boucle | |
+| 2.2 | Ask | 1. Mode « Ask » actif. 2. Taper : `J'ai besoin de précision. Pose-moi une question de clarification.` 3. Entrée | Roo pose une question avec des suggestions (boutons ou liste). Pas de boucle | |
+
+---
+
+#### Phase 3 — Fallback Gemini (Ollama indisponible)
+
+**Objectif** : Quand Ollama ne répond pas, LiteLLM doit basculer sur Gemini.
+
+| # | Étape | Action précise | ☐ |
+|---|-------|----------------|---|
+| 3.1 | Arrêter Ollama | Terminal : `ollama stop qwen3` (ou `ollama stop --all` si plusieurs modèles). Vérifier : `ollama ps` → ne doit afficher que les en-têtes, sans lignes de données | |
+| 3.2 | Requête Roo | Mode Ask. Taper : `Dis OK en 2 mots` puis Entrée | |
+| 3.3 | Vérifier réponse | Une réponse courte (ex. « OK ») doit apparaître. Pas d'erreur 500 ou « API Request Failed » | |
+| 3.4 | Vérifier logs | Terminal : `journalctl --user -u litellm-proxy -n 50 --no-pager | grep -E "gemini|200 OK"` → au moins une ligne avec `gemini` ou `gemini-2.5-flash` | |
+| 3.5 | Restaurer Ollama | Terminal : `ollama run qwen3:14b "warmup"` et attendre que le modèle se charge (sortie « warmup ») | |
+
+---
+
+#### Phase 4 — Fallback Claude (Gemini indisponible)
+
+**Objectif** : Quand Gemini échoue (ex. quota), LiteLLM doit basculer sur Claude. **Attention** : ce test consomme des crédits Anthropic.
+
+| # | Étape | Action précise | ☐ |
+|---|-------|----------------|---|
+| 4.1 | Sauvegarder .env | `cp .env .env.backup` (à la racine du projet) | |
+| 4.2 | Désactiver Gemini | Éditer `.env` : commenter ou supprimer la ligne `GOOGLE_API_KEY=...` (ou la remplacer par `GOOGLE_API_KEY=invalid`). Sauvegarder | |
+| 4.3 | Redémarrer le proxy | `systemctl --user restart litellm-proxy` puis attendre 10 secondes | |
+| 4.4 | S'assurer qu'Ollama est arrêté | `ollama stop --all` | |
+| 4.5 | Requête Roo | Mode Ask. Taper : `Dis OK en 2 mots` puis Entrée | |
+| 4.6 | Vérifier réponse | Une réponse doit apparaître (provenant de Claude). Pas d'erreur finale | |
+| 4.7 | Vérifier logs | `journalctl --user -u litellm-proxy -n 50 --no-pager | grep -E "claude|anthropic"` → au moins une occurrence | |
+| 4.8 | Restaurer .env | `mv .env.backup .env` | |
+| 4.9 | Redémarrer le proxy | `systemctl --user restart litellm-proxy` | |
+| 4.10 | Restaurer Ollama | `ollama run qwen3:14b "warmup"` | |
+
+---
+
+#### Phase 5 — Test direct curl (sans Roo)
+
+**Objectif** : Valider que le proxy répond correctement en dehors de Roo Code.
+
+| # | Action précise | Commande | Résultat attendu | ☐ |
+|---|----------------|----------|------------------|---|
+| 5.1 | Test qwen3 | Copier-coller et exécuter dans le terminal : `curl -s -X POST http://localhost:4000/v1/chat/completions -H "Content-Type: application/json" -d '{"model":"qwen3","stream":false,"messages":[{"role":"user","content":"OK"}]}' | head -c 300` | Sortie JSON contenant `"content"` et une réponse courte. Pas d'erreur | |
+| 5.2 | Test gemini | Même commande en remplaçant `"model":"qwen3"` par `"model":"gemini"` | Sortie JSON avec `"content"`. Pas d'erreur 401/429/500 | |
+
+---
+
+#### Matrice récapitulative
+
+| Phase | Modes utilisés | Modèle attendu | Critère de succès |
+|-------|----------------|----------------|-------------------|
+| 1 | Ask, Code, Architect, Debug, Orchestrator | qwen3 (Ollama) | Réponse correcte, pas de boucle |
+| 2 | Code, Ask | qwen3 (Ollama) | Tool calls valides, pas de boucle |
+| 3 | Ask | Gemini | Réponse OK alors qu'Ollama est arrêté |
+| 4 | Ask | Claude Sonnet | Réponse OK quand Gemini est désactivé |
+| 5 | — | qwen3, gemini | `curl` retourne un JSON valide |
+
+---
+
+#### Checklist finale
+
+- [ ] Phase 1 : les 5 modes répondent correctement avec qwen3
+- [ ] Phase 2 : tool calling sans boucle
+- [ ] Phase 3 : fallback Gemini validé
+- [ ] Phase 4 : fallback Claude validé (optionnel si coût non souhaité)
+- [ ] Phase 5 : curl qwen3 et gemini OK
