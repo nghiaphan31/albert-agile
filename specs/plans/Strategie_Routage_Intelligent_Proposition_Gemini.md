@@ -1,6 +1,6 @@
 # Stratégie de routage intelligent — Proposition Gemini 3.1 Pro
 
-**Source** : Synthèses proposées par Gemini 3.1 Pro (chat navigateur, gratuit) pour optimiser l'utilisation des ressources (RTX 5060, modèles locaux, APIs cloud). Inclut : cascade « Coût Zéro » (Free → Vertex → Local), Cerveau Sémantique (routage par embeddings), HITL anti-boucle.
+**Source** : Synthèses proposées par Gemini 3.1 Pro (chat navigateur, gratuit) pour optimiser l'utilisation des ressources (RTX 5060, modèles locaux, APIs cloud). Inclut : cascade « Coût Zéro » (Free → Vertex → Local), Cerveau Sémantique (routage par embeddings), HITL anti-boucle, fiabilisation Roo + LLMs locaux (fake_stream + post-call).
 
 **Contexte actuel albert-agile** : RTX 5060 Ti 16G, qwen3:14b local via Ollama, fallback Gemini 2.5 Flash puis Claude Sonnet. Voir [Plan_Configuration_VSCode_Ollama_Local.md](Plan_Configuration_VSCode_Ollama_Local.md).
 
@@ -247,6 +247,31 @@ Le "Human-in-the-loop" via le chat du navigateur avec Gemini 3.1 Pro permet de f
 
 ---
 
+## 3.5 Fiabilisation Roo Code + LLMs locaux (fake_stream + post-call)
+
+**Objectif** : Faire fonctionner Roo Code avec des LLMs locaux (qwen3, etc.) malgré des **tool calls incomplets**. Éviter les erreurs type `ask_followup_question without value for follow_up` qui bloquent l'agent.
+
+### Problème de base
+
+En **streaming réel**, LiteLLM envoie les chunks SSE au fur et à mesure au client (Roo). Le **post-call hook** s'exécute seulement *après* l'envoi des chunks — impossible de corriger la réponse à ce stade.
+
+### Approche : fake_stream + post-call
+
+| Élément | Rôle |
+|---------|------|
+| **`fake_stream: true`** | LiteLLM appelle Ollama en non-streaming (réponse complète en une fois). Il reçoit tout le JSON, puis simule le streaming en produisant des faux chunks SSE. Le post-call hook peut ainsi modifier la réponse *avant* génération des chunks. |
+| **Post-call hook** (`config/litellm_hooks.py`) | S'exécute *avant* la génération des chunks SSE. Corrige les tool calls invalides (surtout `follow_up`) dans la réponse complète. |
+| **Pre-call hook** | Injecte des règles strictes (TOOL_SCHEMA_PROMPT) dans le system prompt pour aider les modèles à produire des tool calls valides. |
+
+### Corrections appliquées par le post-call
+
+- **`follow_up` manquant** ou invalide dans `ask_followup_question` → ajout de suggestions par défaut.
+- **`follow_up` non-array** (ex. string) → conversion en array.
+
+Le hook prévient les erreurs côté Roo et évite les boucles sur des tool calls mal formés. Voir [Plan_Configuration_VSCode_Ollama_Local.md](Plan_Configuration_VSCode_Ollama_Local.md) section 4.6 et `config/litellm_hooks.py`.
+
+---
+
 ## 4. Les mécanismes de transfert de contexte
 
 Pour faciliter les allers-retours (copier-coller) entre l'IDE et le navigateur sans friction, trois méthodes sont possibles :
@@ -261,7 +286,7 @@ Pour faciliter les allers-retours (copier-coller) entre l'IDE et le navigateur s
 
 ### 5.1 Fichier de configuration principal LiteLLM (`config/litellm_config.yaml`)
 
-Ce fichier déclare les trois rôles, configure les modèles associés, gère le *fallback* automatique pour l'architecte, et active le script d'interception Python.
+Ce fichier déclare les trois rôles, configure les modèles associés, gère le *fallback* automatique pour l'architecte, et active le script d'interception Python. Pour les modèles Worker (Ollama), activer `fake_stream: true` et le post-call hook (section 3.5) afin de fiabiliser le tool calling avec Roo Code.
 
 ```yaml
 model_list:
@@ -469,6 +494,7 @@ Wait for the user's explicit instructions before proceeding with any other tool.
 
 | Proposition Gemini | Config actuelle albert-agile | Statut |
 |--------------------|------------------------------|--------|
+| fake_stream + post-call (Roo + LLMs locaux) | Déployé : `config/litellm_hooks.py`, fake_stream sur modèles Ollama | Voir section 3.5 |
 | Cascade « Coût Zéro » + fallbacks Low-Cost | Cascade qwen3 → gemini → claude, pas de paliers Free/Vertex/Worker fallbacks | Voir section 5.1b |
 | Schéma Mermaid (flux complet) | Non documenté | Section 1.2 |
 | Routage sémantique (Cerveau Sémantique) | Mots-clés simples ; nomic-embed-text dispo pour RAG | Code complet section 5.2 |
