@@ -16,7 +16,7 @@ La répartition des rôles s'articule autour de trois axes :
 
 1. **L'ingestion massive (`ingest`)** : Le traitement de gigantesques documentations ou *repositories* est confié à Gemini 3 Flash, offrant une fenêtre de contexte massive à un coût dérisoire.
 2. **La conception de haut niveau (`architect`)** : L'architecture système et les plans de tests complexes sont envoyés à DeepSeek-V3.1, qui offre le meilleur ratio prix/raisonnement du marché. En cas de défaillance de l'API, le système bascule automatiquement sur Claude 4.6 Sonnet pour garantir la continuité du service.
-3. **Le travail de terrain (`worker`)** : Le codage, le refactoring, les validations Git et le débogage itératif sont interceptés et envoyés gratuitement vers le modèle local (Qwen3:14b tournant sur la machine).
+3. **Le travail de terrain (`worker`)** : Le codage, le refactoring, les validations Git et le débogage itératif sont interceptés et envoyés gratuitement vers le modèle local (qwen2.5-coder:14b tournant sur la machine).
 
 ---
 
@@ -26,9 +26,9 @@ Le système suit une hiérarchie stricte pour chaque requête envoyée par Roo C
 
 1. **Priorité Alpha (Gratuit total)** : Google AI Studio Free Tier — limites (ex. 100 requêtes/jour Pro, 250 Flash). Modèles : `gemini-2.5-pro`, `gemini-2.5-flash`.
 2. **Priorité Beta (Crédit payant)** : Si quota gratuit atteint (Error 429), bascule sur Vertex AI (ex. compte avec crédit 300 $). Modèles : `vertex_ai/gemini-3.1-pro-001`, `vertex_ai/gemini-3-flash`.
-3. **Priorité Gamma (Sécurité locale)** : Tâches de routine → Qwen3 local via Ollama, à volonté et sans frais.
+3. **Priorité Gamma (Sécurité locale)** : Tâches de routine → qwen2.5-coder local via Ollama, à volonté et sans frais.
 4. **Réévaluation flash** : Paramètre `model_cooldown_time: 61` — le système retente les modèles gratuits toutes les 61 secondes pour repasser sur le gratuit dès qu'un nouveau quota minute est disponible.
-5. **Fallbacks Worker (Low-Cost)** : Si Qwen3 local crash ou timeout → Gemini 3.1 Lite (Free). Si quota 429 → DeepSeek V3.1 (payant).
+5. **Fallbacks Worker (Low-Cost)** : Si qwen2.5-coder local crash ou timeout → Gemini 3.1 Lite (Free). Si quota 429 → DeepSeek V3.1 (payant).
 6. **Fallback Ingest payant** : Si Vertex épuisé → Gemini 2.5 Flash avec clé payante (~0,15 $/1M tokens).
 
 #### Glossaire des limites
@@ -54,7 +54,7 @@ Le système suit une hiérarchie stricte pour chaque requête envoyée par Roo C
 | **ingest** | 1. Free | `gemini-2.5-flash` (AI Studio) | 250 | 15 | 1 000 000 | 0 € |
 | | 2. Vertex | `vertex_ai/gemini-3-flash` | — | — | — | Crédit 300 $ |
 | | 3. Payant | `gemini-2.5-flash` (clé payante) | — | — | — | ~0,15 $/1M tokens |
-| **worker** | 1. Local | `ollama/qwen3:14b` | ∞ | ∞ | ∞ | 0 € |
+| **worker** | 1. Local | `ollama/qwen2.5-coder:14b` | ∞ | ∞ | ∞ | 0 € |
 | | 2. Free | `gemini-3.1-flash-lite` (AI Studio) | ~250 | 15 | — | 0 € |
 | | 3. Payant | `deepseek-chat-v3.1` | dyn. | dyn. | dyn. | Input 0,28 $/1M, Output 0,42 $/1M |
 
@@ -133,7 +133,7 @@ flowchart LR
 
     subgraph WORKER [WORKER]
         direction TB
-        Wor1["Qwen3:14b Local - ∞ RPD/RPM/TPM - 0€"] -->|crash| Wor2["Gemini 3.1 Lite Free - ~250 RPD / 15 RPM - 0€"]
+        Wor1["qwen2.5-coder:14b Local - ∞ RPD/RPM/TPM - 0€"] -->|crash| Wor2["Gemini 3.1 Lite Free - ~250 RPD / 15 RPM - 0€"]
         Wor2 -->|429| Wor3["DeepSeek V3.1 - In 0,28$/1M - Out 0,42$/1M"]
     end
 
@@ -207,7 +207,7 @@ flowchart TD
 
     subgraph WORKER [WORKER]
         direction TB
-        Wor1["Qwen3:14b Local - ∞ RPD/RPM/TPM - 0€"] -->|crash| Wor2["Gemini 3.1 Lite Free - ~250 RPD / 15 RPM - 0€"]
+        Wor1["qwen2.5-coder:14b Local - ∞ RPD/RPM/TPM - 0€"] -->|crash| Wor2["Gemini 3.1 Lite Free - ~250 RPD / 15 RPM - 0€"]
         Wor2 -->|429| Wor3["DeepSeek V3.1 - In 0,28$/1M - Out 0,42$/1M"]
     end
 
@@ -353,7 +353,7 @@ model_list:
   # 3. Le travailleur local gratuit (Code, Debug, Git)
   - model_name: worker
     litellm_params:
-      model: ollama/qwen3:14b
+      model: ollama/qwen2.5-coder:14b
       api_base: http://localhost:11434
 
 litellm_settings:
@@ -407,7 +407,7 @@ model_list:
   # --- WORKER (Local → Gemini Lite Free → DeepSeek) ---
   - model_name: worker
     litellm_params:
-      model: ollama/qwen3:14b
+      model: ollama/qwen2.5-coder:14b
       api_base: "http://localhost:11434"
 
   - model_name: worker
@@ -764,6 +764,7 @@ Flux : (1) Question utilisateur → (2) LLM appelle use_mcp_tool → chroma_quer
 - Indexation manuelle ou via hook ; pas de temps réel.
 - Pertinence dépend du chunking et de la requête.
 - Roo : le LLM décide quand appeler le tool.
+- **Risque concurrence Chroma** : En mode SQLite (`persist_directory`), Chroma gère mal les accès concurrents (index_rag + query_rag + chroma-mcp). Des `database is locked` peuvent survenir. **Décision actuelle** : ne jamais exécuter index_rag pendant E4/E5 (AGILE_DEFER_INDEX=true, indexation différée en fin de sprint). À réviser si migration vers Chroma serveur HTTP ou accès concurrent avéré en prod.
 
 #### C.10 Tableau récapitulatif des sources
 
