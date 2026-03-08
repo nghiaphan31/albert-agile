@@ -609,3 +609,138 @@ journalctl --user -u litellm-proxy -n 50 --no-pager | grep "qwen3:14b"
 - [ ] Phase 3 : fallback Gemini validé
 - [ ] Phase 4 : fallback Claude validé (optionnel si coût non souhaité)
 - [ ] Phase 5 : curl qwen3 et gemini OK
+
+---
+
+## 11. Annexe — Outils, frameworks et technologies du projet
+
+Liste structurée des technologies mises en œuvre dans albert-agile (d’après specs, docs et code).
+
+### 11.1 Orchestration et IA
+
+| Technologie | Rôle |
+|-------------|------|
+| **LangGraph** | Graphe d’états, orchestration multi-agents, human-in-the-loop |
+| **LangChain** | Intégrations LLM, prompts, outils |
+| **langchain-ollama** | Intégration Ollama |
+| **langchain-anthropic** | Anthropic Claude |
+| **langchain-google-genai** | Google Gemini |
+| **langchain-chroma** | RAG avec ChromaDB |
+| **langchain-huggingface** | Embeddings Hugging Face (fallback) |
+| **langchain-core** | Abstractions de base |
+| **Pydantic** | Schémas et validation de sortie |
+
+### 11.2 LLM et embeddings locaux
+
+| Technologie | Rôle |
+|-------------|------|
+| **Ollama** | Runtime LLM local |
+| **qwen2.5:14b** | Tier 1 (idéation, architecture) |
+| **qwen2.5-coder:14b** | Tier 2 (code, sprint backlog) |
+| **qwen3:14b** | Optionnel, mode thinking |
+| **nomic-embed-text** | Embeddings pour RAG |
+| **hermes3:8b**, **granite3.3:8b** | Optionnels (cascade LiteLLM) |
+
+### 11.3 APIs cloud
+
+| Service | Modèles | Rôle |
+|---------|---------|------|
+| **Google AI Studio** | gemini-2.5-flash | Fallback gratuit |
+| **Vertex AI** | gemini-3.1-pro, gemini-3-flash | Cascade proposée (crédit 300 $) |
+| **Anthropic** | claude-sonnet-4-6, claude-opus-4-6 | Fallback payant |
+| **DeepSeek** | deepseek-chat-v3.1 | Cascade proposée low-cost |
+
+### 11.4 RAG (retrieval-augmented generation)
+
+| Technologie | Rôle |
+|-------------|------|
+| **ChromaDB** | Base vectorielle (code, docs) |
+| **nomic-embed-text** | Embeddings via Ollama |
+| **sentence-transformers** | Embeddings fallback (ex. all-MiniLM-L6-v2) |
+| **chroma-mcp** | Serveur MCP pour RAG partagé (IDE) |
+
+### 11.5 API et serveur web
+
+| Technologie | Rôle |
+|-------------|------|
+| **FastAPI** | API HTTP |
+| **uvicorn** | Serveur ASGI |
+| **LangServe** | API REST LangGraph (invoke, stream, playground) |
+| **sse-starlette** | Server-sent events |
+
+### 11.6 Routage et proxy
+
+| Technologie | Rôle |
+|-------------|------|
+| **LiteLLM** | Routage, cascade, fallbacks |
+| **litellm[proxy]** | Proxy HTTP (ex. port 4000) |
+
+### 11.7 Persistance et checkpoints
+
+| Technologie | Rôle |
+|-------------|------|
+| **langgraph-checkpoint-sqlite** | Checkpointing du graphe |
+| **SQLite** | Base de checkpoints |
+
+### 11.8 IDE et extensions
+
+| Technologie | Rôle |
+|-------------|------|
+| **VS Code** | IDE principal |
+| **Remote-SSH** | Dev distant (Calypso) |
+| **Roo Code** | Agent IA (Code, Ask, Architect, Debug, Orchestrator) |
+| **Continue.dev** | Assistant IA |
+| **Cursor** | IDE alternative |
+| **Cline** | Mentionné pour RAG |
+
+### 11.9 Protocoles
+
+| Technologie | Rôle |
+|-------------|------|
+| **MCP (Model Context Protocol)** | Contexte pour agents IDE |
+| **chroma-mcp** | MCP pour accès RAG depuis l’IDE |
+
+### 11.10 Qualité et CI/CD
+
+| Technologie | Rôle |
+|-------------|------|
+| **pytest** | Tests |
+| **ruff** | Linting Python |
+| **GitHub Actions** | CI (PR vers develop/main) |
+
+### 11.11 Monitoring et tracing
+
+| Technologie | Rôle |
+|-------------|------|
+| **LangSmith** | Traces et debug (LangChain) |
+
+### 11.12 Matériel
+
+| Composant | Rôle |
+|-----------|------|
+| **NVIDIA RTX 5060 Ti 16G** | Profil principal |
+| **NVIDIA RTX 3060 12G** | Profil legacy |
+
+### 11.13 Fichiers de configuration
+
+| Chemin | Rôle |
+|--------|------|
+| `config/litellm_config.yaml` | Modèles LiteLLM, cascade, hooks |
+| `config/anonymisation.yaml` | Règles d’anonymisation |
+| `config/projects.json` | Registre des projets |
+| `config/reference/continue-config.yaml` | Référence Continue.dev |
+| `config/reference/roo-code-settings.json` | Référence Roo Code |
+| `.roo/mcp.json` | Config MCP Roo (chroma-mcp) |
+
+### 11.14 Scripts principaux
+
+| Script | Rôle |
+|--------|------|
+| `handle_interrupt.py` | Validation humaine H1–H6 |
+| `run_graph.py` | Exécution du graphe LangGraph |
+| `index_rag.py` | Pipeline RAG ChromaDB |
+| `status.py` | État du projet |
+| `sync_artifacts.py` | Sync des artefacts |
+| `purge_checkpoints.py` | Nettoyage des checkpoints |
+| `run_litellm_proxy.sh` | Lancement du proxy LiteLLM |
+| `setup_project_hooks.sh` | Bootstrap du projet |

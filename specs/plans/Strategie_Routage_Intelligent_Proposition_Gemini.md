@@ -108,7 +108,7 @@ flowchart TD
     end
     Classify -.-> Router_Params
 
-    style Router_Params fill:#eee,stroke:#999,stroke-dasharray: 5 5
+    style Router_Params fill:#eee,stroke:#999
 ```
 
 **Cascade de Coûts Mars 2026 (détails par rôle + limites RPD/RPM/TPM/300$)**
@@ -154,7 +154,7 @@ flowchart LR
     style Arc3 fill:#f8d7da
     style Ing3 fill:#f8d7da
     style Wor3 fill:#f8d7da
-    style Router_Params fill:#eee,stroke:#999,stroke-dasharray: 5 5
+    style Router_Params fill:#eee,stroke:#999
 ```
 
 **Vue d'ensemble consolidée (flux + cascade + paramètres routeur)**
@@ -223,7 +223,7 @@ flowchart TD
     style Arc3 fill:#f8d7da
     style Ing3 fill:#f8d7da
     style Wor3 fill:#f8d7da
-    style Router_Params fill:#eee,stroke:#999,stroke-dasharray: 5 5
+    style Router_Params fill:#eee,stroke:#999
 ```
 
 ---
