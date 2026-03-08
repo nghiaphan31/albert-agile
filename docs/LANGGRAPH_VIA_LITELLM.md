@@ -46,14 +46,24 @@ Lorsque `AGILE_USE_LITELLM_PROXY=true`, le graphe LangGraph (R0–R6) utilise le
 
 ## Tests
 
-Exécuter le test structuré avec le proxy :
+### Tests unitaires (pytest)
+
+```bash
+.venv/bin/pytest tests/test_llm_factory.py tests/test_cascade.py -v
+```
+
+### Test d'intégration (proxy requis)
+
+Lancer le proxy puis :
 
 ```bash
 export AGILE_USE_LITELLM_PROXY=true
-python scripts/test_structured_cli.py
+export OPENAI_API_KEY=dummy
+PYTHONPATH=. .venv/bin/python scripts/test_structured_cli.py epic --tier tier1 \
+  --prompt "Propose une Epic courte."
 ```
 
-Vérifier que le proxy est bien sollicité (logs LiteLLM).
+Vérifier que le proxy expose `tier1-n0` et `tier2-n0` : `curl -s http://localhost:4000/v1/models`.
 
 ## Limitations
 
