@@ -94,8 +94,10 @@ def call_with_cascade(llm_n0, llm_n1, llm_n2, prompt, schema=None, h5_before_n2:
     })
     # #endregion
     # N0 warmup: si aucun modèle chargé, précharger via API Ollama (évite 500 cold-load)
+    # Ignoré si AGILE_USE_LITELLM_PROXY (on passe par le proxy, pas Ollama direct)
+    use_proxy = os.environ.get("AGILE_USE_LITELLM_PROXY", "").lower() in ("1", "true", "yes")
     n0_model = getattr(llm_n0, "model", None)
-    if _ollama_loaded == [] and n0_model and n0_model != "?":
+    if not use_proxy and _ollama_loaded == [] and n0_model and n0_model != "?":
         try:
             import urllib.request
             import json as _json
