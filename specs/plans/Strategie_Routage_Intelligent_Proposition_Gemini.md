@@ -1,6 +1,6 @@
 # Stratégie de routage intelligent — Proposition Gemini 3.1 Pro
 
-**Source** : Synthèses proposées par Gemini 3.1 Pro (chat navigateur, gratuit) pour optimiser l'utilisation des ressources (RTX 5060, modèles locaux, APIs cloud). Inclut : cascade « Coût Zéro » (Free → Vertex → Local), Cerveau Sémantique (routage par embeddings), HITL anti-boucle, fiabilisation Roo + LLMs locaux (fake_stream + post-call).
+**Source** : Synthèses proposées par Gemini 3.1 Pro (chat navigateur, gratuit) pour optimiser l'utilisation des ressources (RTX 5060, modèles locaux, APIs cloud). Inclut : cascade « Coût Zéro » (Free → Vertex → Local), Cerveau Sémantique (routage par embeddings), HITL anti-boucle, caractéristiques des modèles locaux (structured, thinking, tools), fiabilisation Roo + LLMs locaux (fake_stream + post-call).
 
 **Contexte actuel albert-agile** : RTX 5060 Ti 16G, qwen3:14b local via Ollama, fallback Gemini 2.5 Flash puis Claude Sonnet. Voir [Plan_Configuration_VSCode_Ollama_Local.md](Plan_Configuration_VSCode_Ollama_Local.md).
 
@@ -244,6 +244,54 @@ Le "Human-in-the-loop" via le chat du navigateur avec Gemini 3.1 Pro permet de f
 1. **L'élaboration de l'Architecture (Zero-to-One)** : Au lieu de consommer des centaines de milliers de tokens API pour les tâtonnements conceptuels, l'itération se fait dans le chat. Le document de spécifications généré est ensuite copié dans un fichier `architecture_blueprint.md` et transmis à Roo Code pour que le modèle local crée le squelette gratuitement.
 2. **L'assistance au débogage complexe** : Si le modèle local Qwen se retrouve bloqué sur une erreur tenace, Roo Code est mis en pause. Le fichier problématique et le log d'erreur sont copiés dans le chat Gemini pour une analyse experte, puis la solution précise est transmise à l'agent local.
 3. **La génération des Plans de Tests et de la Documentation** : Pour éviter les coûts d'output élevés des API, le code brut est fourni à Gemini dans le navigateur qui se charge de rédiger les documents longs (`plan_de_test.md`). L'exécution répétitive (écrire et passer les tests) est ensuite déléguée au travailleur local.
+
+---
+
+## 3.4 Caractéristiques des modèles locaux (exigences pour un bon fonctionnement)
+
+Synthèse issue des sessions de tests et de validation. Voir [Strategie_Modeles_LLM_Thinking_Albert_Agile.md](Strategie_Modeles_LLM_Thinking_Albert_Agile.md), [Modeles_Performants_RTX5060_16G.md](Modeles_Performants_RTX5060_16G.md).
+
+### 3.4.1 Structured output (sorties structurées)
+
+| Aspect | Détail |
+|--------|--------|
+| **Mécanisme** | `with_structured_output(Schema)` (LangChain) + schémas Pydantic (EpicOutput, ArchitectureOutput, SprintBacklogOutput) |
+| **Objectif** | Garantir un JSON parsable, typé et exploitable par le graphe LangGraph |
+| **Modèles validés** | qwen2.5:14b, qwen2.5-coder:14b, qwen3:14b, deepseek-coder-v2:16b |
+| **Avec thinking natif** | Seul le champ `content` est parsé ; le bloc `thinking` est ignoré par LangChain |
+
+**Indispensable** pour le graphe LangGraph.
+
+### 3.4.2 Mode thinking / reasoning natif
+
+| Aspect | Détail |
+|--------|--------|
+| **Thinking natif (Ollama)** | Bloc `thinking` séparé de la réponse finale (qwen3, deepseek-r1, gpt-oss) |
+| **CoT par prompt** | qwen2.5 via "réfléchis étape par étape" ; tout reste dans un seul bloc |
+| **Support langchain-ollama** | `reasoning=True` (équivalent Ollama `think`) pour activer le bloc thinking séparé |
+| **Modèles** | Tier 1 : qwen3:14b (thinking) validé pour Epic/Architecture ; Tier 2 : qwen2.5-coder:14b conservé (pas de modèle thinking coder validé) |
+| **Compromis** | Thinking natif ~2× plus lent ; privilégier Epic/Architecture plutôt que le code |
+
+**Optionnel** — utile pour les tâches de conception (Tier 1).
+
+### 3.4.3 Tools vs tool calling (function call)
+
+| Contexte | Mécanisme | Détail |
+|----------|-----------|--------|
+| **Graphe LangGraph** | Tools (bindés au LLM) | `read_file`, `write_file`, `run_shell` pour R-4 et R-5 |
+| **Roo Code + LiteLLM** | Tool calling (style OpenAI) | `list_files`, `read_file`, `ask_followup_question`, etc., via le protocole OpenAI |
+
+Les modèles locaux (qwen3, hermes3, etc.) peuvent émettre des **tool calls incomplets** (ex. `follow_up` manquant ou invalide) → **fake_stream + post-call** (section 3.5) pour corriger avant envoi des chunks SSE.
+
+### 3.4.4 Récapitulatif par modèle
+
+| Modèle | Structured | Thinking natif | Tool calling (Roo) |
+|--------|------------|----------------|-------------------|
+| qwen2.5:14b | OK | Non (CoT par prompt) | — |
+| qwen2.5-coder:14b | OK (validé) | Non | Avec fake_stream + post-call |
+| qwen3:14b | OK (validé) | Oui | Avec fake_stream + post-call |
+
+**En bref** : structured output est **indispensable** pour le graphe ; thinking natif est une **option** (Tier 1, qwen3:14b) ; les tool calls côté Roo nécessitent **fake_stream + post-call** (section 3.5) pour fonctionner correctement avec les modèles locaux.
 
 ---
 
@@ -494,6 +542,7 @@ Wait for the user's explicit instructions before proceeding with any other tool.
 
 | Proposition Gemini | Config actuelle albert-agile | Statut |
 |--------------------|------------------------------|--------|
+| Caractéristiques modèles locaux (structured, thinking, tools) | Documenté et validé par tests | Voir section 3.4 |
 | fake_stream + post-call (Roo + LLMs locaux) | Déployé : `config/litellm_hooks.py`, fake_stream sur modèles Ollama | Voir section 3.5 |
 | Cascade « Coût Zéro » + fallbacks Low-Cost | Cascade qwen3 → gemini → claude, pas de paliers Free/Vertex/Worker fallbacks | Voir section 5.1b |
 | Schéma Mermaid (flux complet) | Non documenté | Section 1.2 |
