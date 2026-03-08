@@ -477,3 +477,27 @@ Wait for the user's explicit instructions before proceeding with any other tool.
 | Fichier .env (clés Free, Payant, Vertex, DeepSeek) | .env existant sans VERTEX_PROJECT, GEMINI_PAYANT_KEY | Voir section 5.3 |
 
 Voir [Plan_Configuration_VSCode_Ollama_Local.md](Plan_Configuration_VSCode_Ollama_Local.md) pour la configuration déployée et [Strategie_Modeles_LLM_Thinking_Albert_Agile.md](Strategie_Modeles_LLM_Thinking_Albert_Agile.md) pour la stratégie thinking/CoT.
+
+---
+
+## 7. Évolutions inspirées d'OpenClaw et NanoClaw (Mars 2026)
+
+**Source** : Suggestion Gemini 3.1 Pro suite à une question sur OpenClaw et NanoClaw. Sans installer ces frameworks complets, s'inspirer de leurs trouvailles architecturales pour perfectionner albert-agile.
+
+### 7.1 Sandboxing par conteneurs (approche NanoClaw)
+
+**Idée** : Ne pas faire tourner les agents directement sur la machine hôte. Chaque agent est isolé dans son propre conteneur Docker (ou Apple Container) avec un système de fichiers restreint.
+
+**Application à albert-agile** : Lorsque qwen2.5-coder ou Roo Code doit exécuter du code généré ou lancer des tests pytest, LangGraph pourrait instancier un conteneur éphémère (comme le « Docker Shell Sandbox » de NanoClaw) pour éviter toute corruption de la machine locale.
+
+### 7.2 HITL déporté (approche OpenClaw)
+
+**Idée** : Les frameworks OpenClaw excellent dans l'interaction asynchrone via des connecteurs (Baileys pour WhatsApp, Telegram, Signal).
+
+**Application à albert-agile** : Actuellement, `handle_interrupt.py` bloque probablement sur VS Code. Créer une « Gateway » inspirée d'OpenClaw pour que LangGraph envoie les demandes d'approbation (H1–H6) directement sur WhatsApp. Validation depuis le téléphone, puis le graphe reprend son exécution.
+
+### 7.3 Agent swarms isolés (approche NanoClaw)
+
+**Idée** : Faire collaborer des équipes d'agents spécialisés où chacun reste dans sa « bulle » conteneurisée.
+
+**Application à albert-agile** : Faire tourner le Tier 1 (Architecte) et le Tier 2 (Codeur) dans des conteneurs séparés, communiquant uniquement via le serveur chroma-mcp, garantissant une étanchéité totale des contextes de travail.
