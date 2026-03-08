@@ -55,6 +55,24 @@ model_list:
       stream_timeout: 60
       num_ctx: 32768
 
+  # Alias routage sémantique (custom_roo_hook) — architect / ingest / worker
+  - model_name: architect
+    litellm_params:
+      model: ollama_chat/qwen2.5:14b
+      api_base: http://localhost:11434
+      fake_stream: true
+      timeout: 120
+  - model_name: ingest
+    litellm_params:
+      model: gemini/gemini-2.5-flash
+      api_key: os.environ/GOOGLE_API_KEY
+  - model_name: worker
+    litellm_params:
+      model: ollama_chat/qwen2.5-coder:14b
+      api_base: http://localhost:11434
+      fake_stream: true
+      timeout: 120
+
   # Providers cloud (fallback)
   - model_name: gemini
     litellm_params:
@@ -66,13 +84,39 @@ model_list:
       model: anthropic/claude-sonnet-4-6
       api_key: os.environ/ANTHROPIC_API_KEY
 
+  - model_name: claude-opus
+    litellm_params:
+      model: anthropic/claude-opus-4-6
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  # Alias LangGraph via LiteLLM (AGILE_USE_LITELLM_PROXY=true)
+  - model_name: tier1-n0
+    litellm_params:
+      model: ollama_chat/qwen2.5:14b
+      api_base: http://localhost:11434
+      fake_stream: true
+      timeout: 120
+  - model_name: tier2-n0
+    litellm_params:
+      model: ollama_chat/qwen2.5-coder:14b
+      api_base: http://localhost:11434
+      fake_stream: true
+      timeout: 120
+
 # Cascade : gemini en primaire (tool calling fiable) → claude si quota dépassé
 # qwen3/qwen2.5-coder : utilisables en direct mais incompatibles avec les tools Roo Code
 litellm_settings:
   num_retries: 2
   drop_params: true   # ignore les params non supportés (ex. parallel_tool_calls)
-  callbacks: ["litellm_hooks.proxy_handler_instance"]  # injecte system prompt pour tool calling strict
+  callbacks:
+    - custom_roo_hook.proxy_handler_instance   # 1. HITL + routage sémantique -> data["model"]
+    - litellm_hooks.proxy_handler_instance     # 2. TOOL_SCHEMA_PROMPT (si model==worker)
   fallbacks:
+    - tier1-n0: [gemini, claude-opus]
+    - tier2-n0: [gemini, claude-sonnet]
+    - architect: [gemini, claude-sonnet]
+    - ingest: [claude-sonnet, qwen2.5]
+    - worker: [gemini, claude-sonnet]
     - gemini: [claude-sonnet, hermes3, qwen3]
     - hermes3: [gemini, claude-sonnet]
     - granite3.3: [hermes3, gemini, claude-sonnet]
