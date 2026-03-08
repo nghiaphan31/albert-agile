@@ -1,6 +1,6 @@
 # Stratégie de routage intelligent — Proposition Gemini 3.1 Pro
 
-**Source** : Synthèses proposées par Gemini 3.1 Pro (chat navigateur, gratuit) pour optimiser l'utilisation des ressources (RTX 5060, modèles locaux, APIs cloud). Inclut : cascade « Coût Zéro » (Free → Vertex → Local), Cerveau Sémantique (routage par embeddings), HITL anti-boucle, caractéristiques des modèles locaux (structured, thinking, tools), fiabilisation Roo + LLMs locaux (fake_stream + post-call). Annexe (section 8) : synthèse complète construction des prompts Roo / LangGraph et fonctionnement du RAG.
+**Source** : Synthèses proposées par Gemini 3.1 Pro (chat navigateur, gratuit) pour optimiser l'utilisation des ressources (RTX 5060, modèles locaux, APIs cloud). Inclut : cascade « Coût Zéro » (Free → Vertex → Local), Cerveau Sémantique (routage par embeddings), HITL anti-boucle, caractéristiques des modèles locaux (structured, thinking, tools), fiabilisation Roo + LLMs locaux (fake_stream + post-call). Annexe (section 8) : synthèse complète construction des prompts Roo / LangGraph et fonctionnement du RAG. Section 9 : SearXNG — accès web temps réel pour les agents (recherche autonome, alignement Coût Zéro, protection PI).
 
 **Contexte actuel albert-agile** : RTX 5060 Ti 16G, qwen3:14b local via Ollama, fallback Gemini 2.5 Flash puis Claude Sonnet. Voir [Plan_Configuration_VSCode_Ollama_Local.md](Plan_Configuration_VSCode_Ollama_Local.md).
 
@@ -551,6 +551,7 @@ Wait for the user's explicit instructions before proceeding with any other tool.
 | Fallback Ingest payant (Gemini 2.5 Flash $) | Non implémenté | Voir section 5.1b |
 | Fichier .env (clés Free, Payant, Vertex, DeepSeek) | .env existant sans VERTEX_PROJECT, GEMINI_PAYANT_KEY | Voir section 5.3 |
 | Synthèse construction des prompts (Roo + LangGraph + RAG) | Documenté | Voir section 8 (Annexe) |
+| SearXNG (recherche web temps réel pour agents) | Proposé | Voir section 9 |
 
 Voir [Plan_Configuration_VSCode_Ollama_Local.md](Plan_Configuration_VSCode_Ollama_Local.md) pour la configuration déployée et [Strategie_Modeles_LLM_Thinking_Albert_Agile.md](Strategie_Modeles_LLM_Thinking_Albert_Agile.md) pour la stratégie thinking/CoT.
 
@@ -762,9 +763,7 @@ Flux : (1) Question utilisateur → (2) LLM appelle use_mcp_tool → chroma_quer
 - Pertinence dépend du chunking et de la requête.
 - Roo : le LLM décide quand appeler le tool.
 
----
-
-### Tableau récapitulatif des sources
+#### C.10 Tableau récapitulatif des sources
 
 | Source | Roo Code | LangGraph |
 |--------|----------|-----------|
@@ -776,3 +775,47 @@ Flux : (1) Question utilisateur → (2) LLM appelle use_mcp_tool → chroma_quer
 | Anonymisation | — | L-ANON avant N1/N2 |
 | Historique | Oui (conversation) | Non |
 | Structured output | Non | Oui (EpicOutput, ArchitectureOutput, etc.) |
+
+---
+
+## 9. SearXNG — Accès web temps réel pour les agents
+
+**Source** : Proposition Gemini 3.1 Pro. SearXNG est un métamoteur de recherche open source et auto-hébergé. Il interroge simultanément des dizaines de moteurs (Google, Bing, DuckDuckGo, GitHub, StackOverflow, etc.), agrège les résultats, supprime les pisteurs publicitaires et renvoie une réponse propre. Pour albert-agile, c'est la pièce manquante : l'accès internet en temps réel, privé et gratuit. Actuellement, les agents (LangGraph et Ollama) sont limités par le *knowledge cutoff* des modèles et par le contenu statique de Chroma.
+
+### 9.1 Tool LangChain pour les agents
+
+En connectant SearXNG comme outil (Tool), les LLMs obtiennent la capacité de chercher sur le web de manière autonome lorsqu'ils bloquent.
+
+| Rôle | Usage typique |
+|------|---------------|
+| **Worker** (Qwen coder, DeepSeek) | Erreur de compilation obscure, librairie récente : au lieu d'halluciner ou de boucler (HITL), l'agent appelle SearXNG pour « solution issue X github » ou la dernière doc API. |
+| **Architect** | Conception : recherche des dernières CVE d'une stack, benchmarks récents avant validation d'un plan. |
+
+### 9.2 Alignement « Coût Zéro »
+
+- Les API de recherche web commerciales (Tavily, Google Search, Bing) sont payantes.
+- SearXNG s'installe en local via Docker (comme Ollama, ChromaDB).
+- Expose une API JSON native.
+- **100 % gratuit et illimité** : contourne les quotas en masquant l'instance derrière un métamoteur.
+
+### 9.3 Protection de la propriété intellectuelle
+
+Dans un workflow entreprise, les recherches (bugs, stack technique) ne doivent pas fuiter vers Google ou Microsoft. SearXNG agit comme proxy : il anonymise les requêtes des agents avant envoi aux moteurs. Cohérent avec l'anonymisation L-ANON et l'usage des modèles locaux Ollama.
+
+### 9.4 Recherche spécialisée (engines paramétrables)
+
+SearXNG permet de cibler des moteurs spécifiques :
+
+| Cible | Usage |
+|-------|-------|
+| **GitHub** | Exemples d'implémentation, issues, PR. |
+| **StackOverflow** | Debug, stack traces. |
+| **ArXiv** | Pédagogie, état de l'art pour l'architecte. |
+
+### 9.5 Intégration technique
+
+| Étape | Action |
+|-------|--------|
+| **Infrastructure** | Ajouter un conteneur `searxng/searxng` dans `docker-compose.yml` (à côté de FastAPI, ChromaDB), configuré pour le format JSON. |
+| **Code (LangChain)** | Utiliser `SearxSearchWrapper` (LangChain). Déclarer l'outil et le passer au graphe d'état (nœuds R-2, R-4, R-6 selon besoin). |
+

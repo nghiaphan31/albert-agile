@@ -17,7 +17,7 @@
 | I | Matrice Modèles IA (local/cloud) par rôle — cohérence technique |
 | II | Rôles, artefacts et régimes financiers |
 | III | Outils, frameworks, modèles exacts à installer (dont LangGraph, Pydantic) |
-| III.5–III.8 | LangChain/LangGraph ; Modèle de codage ; Human-in-the-Loop ; Mémoire/RAG (recherche sémantique) (dont III.7-bis : temps réel, partage IDE via MCP (Model Context Protocol)) ; Procédures Opérationnelles Consolidées |
+| III.5–III.8 | LangChain/LangGraph ; Modèle de codage ; Human-in-the-Loop ; Mémoire/RAG (recherche sémantique) (III.7-bis : temps réel, partage IDE via MCP (Model Context Protocol) ; III.7-ter : SearXNG recherche web temps réel) ; Procédures Opérationnelles Consolidées |
 | IV | Comptes Cloud gratuits + checklist d'installation |
 | V | Flux détaillés et livrables (Phase 0 + Usine Agile) |
 | VI | Stratégies d'optimisation des coûts |
@@ -115,6 +115,7 @@ L'IDE (VS Code + Continue.dev / Roo Code) supporte deux modes de sélection des 
 | **MCP (Model Context Protocol)** | Contexte structuré de la codebase pour les agents ; chroma-mcp pour partage RAG (recherche sémantique) agents + IDE (III.7-bis) |
 | **Chroma** | Base vectorielle pour RAG (recherche sémantique) agents (codebase, docs projet). Voir III.7. |
 | **nomic-embed-text** (Ollama) | Modèle d'embeddings local pour Chroma. `ollama pull nomic-embed-text`. |
+| **SearXNG** | Métamoteur de recherche web auto-hébergé (Docker). Accès web temps réel pour agents (Worker, Architect) — contourne knowledge cutoff et contenu statique RAG. 100 % gratuit, anonymisation des requêtes. Voir III.7-ter. |
 | **Docker** | Isolation, tests reproductibles |
 | **Jest** (JS/TS) / **Pytest** (Python) | Tests unitaires et intégration |
 | **ESLint** / **Ruff** | Linting |
@@ -151,7 +152,7 @@ L'IDE (VS Code + Continue.dev / Roo Code) supporte deux modes de sélection des 
 | **Sorties structurées** | `with_structured_output` (LangChain) + schémas Pydantic sur chaque LLM. Garantit des sorties valides (Epic, tickets, Architecture, etc.). |
 | **Self-Healing (R-6 (QA & DevOps IA)→R-4 (Dev Team IA))** | Cycle dans le graphe : arête conditionnelle R-6 (QA & DevOps IA)→R-4 (Dev Team IA) si tests en échec. Seuil strict : 3 itérations max, puis interrupt H5 (approbation escalade API payante). |
 | **Human-in-the-Loop** | `interrupt()` dans les nœuds aux points H1 (validation Epic)–H6 (résolution conflit Git). Le graphe suspend, le checkpointer sauvegarde. Reprise via `Command(resume=...)`. |
-| **Tools (E4 (exécution code, sprint), E5 (tests, CI local))** | R-4 (Dev Team IA) : `read_file`, `write_file`, `run_shell` (génération de code, exécution). R-5 (Release Manager IA) : `run_shell` (git checkout, commit, merge). |
+| **Tools (E4 (exécution code, sprint), E5 (tests, CI local))** | R-4 (Dev Team IA) : `read_file`, `write_file`, `run_shell` (génération de code, exécution). R-5 (Release Manager IA) : `run_shell` (git checkout, commit, merge). **Option SearXNG** : tool recherche web pour R-2 (System Architect IA) (CVE, benchmarks), R-4 (Dev Team IA) et R-6 (QA & DevOps IA) (debug, doc API récente) — évite boucles HITL et hallucinations. Voir III.7-ter. |
 | **Flux de données par nœud** | (1) Lire l'état (checkpointer). (2) Interroger le RAG (recherche sémantique) (Chroma) pour chunks pertinents. (3) Appeler l'LLM (cascade). (4) Écrire en BaseStore (mémoire long terme) si nécessaire (E2 (architecture, DoD (Definition of Done)), E6 (clôture sprint, merge)). (5) Retourner la mise à jour d'état. |
 | **Persistance** | Checkpointer (SqliteSaver/PostgresSaver) par step. BaseStore (mémoire long terme) pour mémoire long terme. Chroma pour RAG (recherche sémantique). |
 | **Exposition** | LangServe (FastAPI) : `/invoke`, `/stream`, `/playground`. Alternative : invocation directe en CLI Python. |
@@ -250,6 +251,21 @@ Cette règle renforce la "Règle d'or de sécurité" (section V) et la stratégi
 **Flux partagé** : index_rag.py alimente Chroma. Les nœuds LangGraph interrogent Chroma directement. chroma-mcp (ou MCP (Model Context Protocol) custom) expose la même Chroma aux clients MCP (Model Context Protocol). Continue.dev, Roo Code et Cursor configurés avec chroma-mcp → même index pour agents et humains.
 
 **Flux d'écriture BaseStore (mémoire long terme)** (obligatoire pour mémoire long terme) : À la fin de E2 (architecture, DoD (Definition of Done)), le nœud R-2 (System Architect IA) écrit dans le BaseStore (mémoire long terme) (namespace `project/{id}/architecture`) un résumé "architecture_approved" avec date et version. À la fin de E6 (clôture sprint, merge), un nœud post-review écrit (namespace `project/{id}/sprints`) un "sprint_summary" (résumé incrément, tickets livrés, décisions). Format JSON. Les agents R-3 (Scrum Master IA) et R-4 (Dev Team IA) interrogent le BaseStore (mémoire long terme) avant découpage ou implémentation pour récupérer les résumés pertinents.
+
+#### 3.7-ter SearXNG — Recherche web temps réel pour les agents (complément RAG)
+
+**Justification** : Le RAG (recherche sémantique) (Chroma) fournit le contexte code/docs projet, mais les agents restent limités par le *knowledge cutoff* des LLM et le contenu statique indexé. SearXNG comble ce manque : accès web en temps réel, privé et gratuit.
+
+| Aspect | Détail |
+|--------|--------|
+| **Qu'est-ce que SearXNG** | Métamoteur open source auto-hébergé. Interroge simultanément Google, Bing, DuckDuckGo, GitHub, StackOverflow, etc., agrège les résultats, supprime les pisteurs, renvoie JSON. |
+| **Usage par rôle** | **R-2 (System Architect IA)** : CVE, benchmarks, état de l'art. **R-4 (Dev Team IA)** : erreurs de compilation, doc API récente, issues GitHub. **R-6 (QA & DevOps IA)** : debug, stack traces. |
+| **Alignement Coût Zéro** | 100 % gratuit et illimité. Alternative aux API payantes (Tavily, Google Search, Bing). Conteneur Docker aux côtés de Chroma, FastAPI. |
+| **Protection PI** | Proxy : anonymise les requêtes des agents avant envoi aux moteurs. Cohérent avec L-ANON (données locales). |
+| **Engines paramétrables** | Requêtes ciblées : GitHub (implémentation), StackOverflow (debug), ArXiv (recherche). |
+| **Intégration LangChain** | `SearxSearchWrapper` (LangChain). Tool standard passé au graphe. Conteneur `searxng/searxng` dans docker-compose, format JSON. |
+
+**Référence** : Voir `specs/plans/Strategie_Routage_Intelligent_Proposition_Gemini.md` section 9.
 
 #### 3.8 Procédures Opérationnelles Consolidées
 
@@ -588,6 +604,7 @@ IV. Comptes de Services Cloud à Mettre en Place (Priorité Gratuit)
 4. **Roo Code** : Extension depuis le marketplace. Même configuration Ollama. Modes manuel ou routage automatique (voir Plan_Configuration_VSCode_Ollama_Local.md).
 5. **LangGraph + LangChain + Pydantic + Chroma** : pip install langgraph langchain langchain-ollama langchain-anthropic langchain-google-genai langchain-chroma pydantic chromadb. Créer le projet Python du graphe (III.5), configurer le checkpointer et le RAG (III.7, III.7-bis). État TypedDict : inclure dod, sprint_number, adr_counter, needs_architecture_review. Nœud load_context en entrée de thread. Voir III.8. Stratégie branches Git : feature depuis develop (III.8-D). Créer les scripts : handle_interrupt.py, index_rag.py, setup_project_hooks.sh, purge_checkpoints.py, export_chroma.py, import_chroma.py, notify_pending_interrupts.py, status.py (III.8-B, III.8-C, III.8-J, III.8-L, III.8-P). Créer graph/anonymizer.py, specs/REGLES_ANONYMISATION.md, config/anonymisation.yaml (III.5-ter L-ANON). Créer specs/REGLES_AGENTS_AGILE.md, graph/laws.py (lois Albert Core). Créer projects.json (format III.8-G). Variable AGILE_PROJECTS_JSON. API_429_MAX_RETRIES=3. GitHub Actions sur pull_request (III.8-F). Checklist de clôture (III.8-M). Voir III.8.
 6. **chroma-mcp** (optionnel, pour RAG (recherche sémantique) partagé IDE) : `uvx chroma-mcp` ou `pip install chroma-mcp`. Configurer pour pointer vers la même Chroma que index_rag (client persistent ou HTTP). Ajouter à Continue (mcpServers), Roo Code (`.roo/mcp.json`) ou Cursor (`~/.cursor/mcp.json`) pour que l'IDE utilise le même RAG (recherche sémantique) que les agents. Voir III.7-bis.
+6bis. **SearXNG** (optionnel, recherche web temps réel pour agents) : Conteneur `searxng/searxng` dans docker-compose, config format JSON. Intégration LangChain : `SearxSearchWrapper` passé aux nœuds R-2, R-4, R-6. Voir III.7-ter et `specs/plans/Strategie_Routage_Intelligent_Proposition_Gemini.md` section 9.
 7. **LangSmith** : Compte sur https://smith.langchain.com. Clé API à définir dans `LANGCHAIN_TRACING_V2=true` et `LANGCHAIN_API_KEY=...` pour traçage.
 8. **Google AI Studio** : Clé API sur https://aistudio.google.com. Provider de fallback N1 (cloud gratuit).
 9. **Anthropic** : Clé API sur https://console.anthropic.com pour Opus/Sonnet en dernier recours.
