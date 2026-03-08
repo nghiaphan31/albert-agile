@@ -13,6 +13,8 @@
 
 Voir [Strategie_Modeles_LLM_Thinking_Albert_Agile.md](Strategie_Modeles_LLM_Thinking_Albert_Agile.md) pour les recommandations thinking/CoT.
 
+**Proposition stratégique** : [Strategie_Routage_Intelligent_Proposition_Gemini.md](Strategie_Routage_Intelligent_Proposition_Gemini.md) — routage ingest/architect/worker, HITL anti-boucle, transfert de contexte IDE ↔ Gemini chat navigateur (synthèse proposée par Gemini 3.1 Pro).
+
 ---
 
 ## Modes d'utilisation : manuel vs routage automatique
