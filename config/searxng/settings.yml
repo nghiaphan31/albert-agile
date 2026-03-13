@@ -1,0 +1,15 @@
+# SearXNG — config minimale (spec §9)
+# Utilisé par docker-compose pour l’instance locale.
+# API JSON: http://localhost:8080/search?q=...&format=json
+
+use_default_settings: true
+
+server:
+  secret_key: "change-me-in-production"
+  limiter: false
+  image_proxy: true
+
+search:
+  formats:
+    - html
+    - json

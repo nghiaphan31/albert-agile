@@ -1,0 +1,42 @@
+# Docker Compose — Stratégie Routage Intelligent (spec §10.1, §9, §7.1)
+# Presidio (PII), SearXNG (recherche web), sandbox (run_shell isolé)
+#
+# Usage:
+#   docker compose up -d                    # tous les services
+#   docker compose build sandbox            # construire image albert-sandbox (spec §7.1)
+
+services:
+  sandbox:
+    build:
+      context: ./docker/sandbox
+      dockerfile: Dockerfile
+    image: albert-sandbox
+    profiles:
+      - build-only
+    # Pas de port: image utilisée par `docker run` pour exécuter pytest en isolation
+  presidio-analyzer:
+    image: mcr.microsoft.com/presidio-analyzer:latest
+    ports:
+      - "5002:5002"
+    networks:
+      - albert-net
+
+  presidio-anonymizer:
+    image: mcr.microsoft.com/presidio-anonymizer:latest
+    ports:
+      - "5001:5001"
+    networks:
+      - albert-net
+
+  searxng:
+    image: searxng/searxng:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./config/searxng:/etc/searxng:ro
+    networks:
+      - albert-net
+
+networks:
+  albert-net:
+    driver: bridge

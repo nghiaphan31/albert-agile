@@ -103,14 +103,23 @@ model_list:
       fake_stream: true
       timeout: 120
 
+# Paramètres de résilience (spec §5.1b)
+router_settings:
+  routing_strategy: simple-shuffle
+  enable_fallbacks: true
+  allowed_fails: 3
+  cooldown_time: 3600
+
 # Cascade : gemini en primaire (tool calling fiable) → claude si quota dépassé
 # qwen3/qwen2.5-coder : utilisables en direct mais incompatibles avec les tools Roo Code
 litellm_settings:
   num_retries: 2
   drop_params: true   # ignore les params non supportés (ex. parallel_tool_calls)
   callbacks:
-    - custom_roo_hook.proxy_handler_instance   # 1. HITL + routage sémantique -> data["model"]
-    - litellm_hooks.proxy_handler_instance     # 2. TOOL_SCHEMA_PROMPT (si model==worker)
+    - config.custom_roo_hook.proxy_handler_instance   # 1. HITL + routage sémantique -> data["model"]
+    - config.litellm_hooks.proxy_handler_instance     # 2. TOOL_SCHEMA_PROMPT (si model==worker)
+    # Presidio (spec §10.1) : masquer PII avant envoi cloud. Désactiver si Presidio non lancé.
+    - presidio
   fallbacks:
     - tier1-n0: [gemini, claude-opus]
     - tier2-n0: [gemini, claude-sonnet]

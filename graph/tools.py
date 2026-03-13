@@ -1,12 +1,17 @@
 """
 Tools pour R-4 (Albert Dev Team) et R-5 (Albert Release Manager) — spec III.8-H, F9, L8, L19.
 read_file, write_file (atomique), run_shell (allowlist stricte).
+search_web (spec §9) via SearxSearchWrapper — recherche web temps réel via SearXNG.
+run_shell sandboxé (spec §7.1) — optionnel via AGILE_SANDBOX_RUN_SHELL.
 """
 
 import os
 import shlex
 import subprocess
 from pathlib import Path
+
+# Commandes exécutées en sandbox si AGILE_SANDBOX_RUN_SHELL=true (spec §7.1)
+SANDBOX_BINARIES = frozenset({"pytest"})
 
 # Allowlist : binaire -> set de sous-commandes autorisées, ou None = tous args OK
 ALLOWLIST: dict[str, set[str] | None] = {
@@ -48,6 +53,7 @@ def run_shell(cmd: str, cwd: Path, timeout: int = 300) -> subprocess.CompletedPr
     """
     Exécution avec allowlist stricte (L8 Non-destruction).
     Valide via shlex.split sur le premier token ET le sous-token.
+    Si AGILE_SANDBOX_RUN_SHELL=true et cmd est pytest, exécute en conteneur (spec §7.1).
     """
     parts = shlex.split(cmd)
     if not parts:
@@ -60,6 +66,17 @@ def run_shell(cmd: str, cwd: Path, timeout: int = 300) -> subprocess.CompletedPr
     if allowed_subcmds is not None and subcmd not in allowed_subcmds:
         raise PermissionError(f"Sous-commande non autorisée : {binary} {subcmd!r}")
 
+    use_sandbox = (
+        os.environ.get("AGILE_SANDBOX_RUN_SHELL", "").lower() in ("1", "true", "yes")
+        and binary in SANDBOX_BINARIES
+    )
+    if use_sandbox:
+        from graph.sandbox import is_sandbox_available, run_shell_sandboxed
+
+        if is_sandbox_available():
+            return run_shell_sandboxed(cmd, cwd, timeout=timeout)
+        # fallback to local if sandbox image absent
+
     result = subprocess.run(
         parts,
         cwd=cwd,
@@ -71,8 +88,17 @@ def run_shell(cmd: str, cwd: Path, timeout: int = 300) -> subprocess.CompletedPr
     return result
 
 
+def create_search_web_tool():
+    """Crée le tool search_web (spec §9) via SearxSearchWrapper."""
+    from langchain_community.agent_toolkits.load_tools import load_tools
+
+    host = os.environ.get("SEARXNG_BASE_URL", os.environ.get("SEARXNG_HOST", "http://localhost:8080"))
+    tools = load_tools(["searx-search"], searx_host=host.rstrip("/"), allow_dangerous_tools=True)
+    return tools[0] if tools else None
+
+
 def create_tools_r4(project_root: Path) -> list:
-    """Crée les tools LangChain pour R-4 (read_file, write_file, run_shell)."""
+    """Crée les tools LangChain pour R-4 (read_file, write_file, run_shell, search_web)."""
     from langchain_core.tools import tool
 
     @tool
@@ -93,7 +119,15 @@ def create_tools_r4(project_root: Path) -> list:
         out = (r.stdout or "") + (r.stderr or "")
         return f"exit={r.returncode}\n{out}" if out else f"exit={r.returncode}"
 
-    return [read_file_tool, write_file_tool, run_shell_tool]
+    tools = [read_file_tool, write_file_tool, run_shell_tool]
+    # search_web (spec §9) — recherche web via SearXNG local
+    try:
+        search_tool = create_search_web_tool()
+        if search_tool:
+            tools.append(search_tool)
+    except Exception:
+        pass
+    return tools
 
 
 def create_tools_r5(project_root: Path) -> list:

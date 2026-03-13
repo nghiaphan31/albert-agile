@@ -1,6 +1,6 @@
 # Stratégie de routage intelligent — Proposition Gemini 3.1 Pro
 
-**Source** : Synthèses proposées par Gemini 3.1 Pro (chat navigateur, gratuit) pour optimiser l'utilisation des ressources (RTX 5060, modèles locaux, APIs cloud). Inclut : cascade « Coût Zéro » (Free → Vertex → Local), Cerveau Sémantique (routage par embeddings), HITL anti-boucle, caractéristiques des modèles locaux (structured, thinking, tools), fiabilisation Roo + LLMs locaux (fake_stream + post-call). Annexe (section 8) : synthèse complète construction des prompts Roo / LangGraph et fonctionnement du RAG. Section 9 : SearXNG — accès web temps réel pour les agents. Section 10 : Sécurité & Extensions (Microsoft Presidio, nomenclature technique).
+**Source** : Synthèses proposées par Gemini 3.1 Pro (chat navigateur, gratuit) pour optimiser l'utilisation des ressources (RTX 5060, modèles locaux, APIs cloud). Inclut : cascade « Coût Zéro » (Free → Vertex → Local), Cerveau Sémantique (routage par embeddings), HITL anti-boucle, caractéristiques des modèles locaux (structured, thinking, tools), fiabilisation Roo + LLMs locaux (fake_stream + post-call). Annexe (section 8) : synthèse complète construction des prompts Roo / LangGraph et fonctionnement du RAG. Section 9 : SearXNG — accès web temps réel pour les agents. Section 10 : Sécurité & Extensions (Microsoft Presidio, nomenclature technique). Section 11 : Démarrage unifié — script `start_services.sh` pour lancer Presidio, SearXNG et le proxy LiteLLM en une commande.
 
 **Contexte actuel albert-agile** : RTX 5060 Ti 16G, qwen3:14b local via Ollama, fallback Gemini 2.5 Flash puis Claude Sonnet. Voir [Plan_Configuration_VSCode_Ollama_Local.md](Plan_Configuration_VSCode_Ollama_Local.md).
 
@@ -853,4 +853,86 @@ Voir section 9. Résumé : SearXNG contourne le *knowledge cutoff* et évite les
 | **Microsoft Presidio** | Moteur NLP local d'anonymisation et désanonymisation des prompts (PII, secrets, IP, variables internes). |
 | **SearXNG** | Métamoteur de recherche auto-hébergé (web-browsing privé pour agents). |
 | **LangChain SearxSearchWrapper** | Interface connectant le graphe LangGraph à l'API locale SearXNG. |
+
+---
+
+## 11. Démarrage unifié — script `start_services.sh`
+
+**Objectif** : Regrouper le lancement de tous les services nécessaires pour Roo Code et LangGraph en une seule commande, afin d'éviter d'exécuter manuellement Presidio, SearXNG et le proxy LiteLLM.
+
+### 11.1 Contexte du problème
+
+L'utilisation de la Stratégie de Routage Intelligent implique plusieurs composants qui doivent être démarrés *avant* que Roo ou LangGraph puissent les utiliser :
+
+| Composant | Rôle | Pourquoi il faut le lancer au préalable |
+|-----------|------|----------------------------------------|
+| **Presidio** (Analyzer + Anonymizer) | Masque les PII avant envoi aux modèles cloud | Le callback `presidio` dans LiteLLM appelle ces services à chaque requête. S'ils ne tournent pas, les requêtes échouent. |
+| **SearXNG** | Recherche web pour le tool `search_web` | Si un agent invoque `search_web` et SearXNG est arrêté, la recherche échoue. |
+| **Proxy LiteLLM** | Point d'entrée unique pour Roo et LangGraph | Tous les appels LLM (routage sémantique, cascade, fallbacks) passent par ce proxy sur le port 4000. |
+
+Sans script unifié, l'utilisateur devrait lancer manuellement : `docker compose up -d presidio-analyzer presidio-anonymizer searxng`, puis `./scripts/run_litellm_proxy.sh`. Le script `start_services.sh` automatise cette séquence.
+
+### 11.2 Séquence d'exécution et logique
+
+```
+Étape 1 : Docker (Presidio + SearXNG)
+    ↓
+Étape 2 : Proxy LiteLLM (foreground)
+```
+
+#### Étape 1 — Services Docker (en arrière-plan)
+
+Le script lance d'abord **Presidio** et **SearXNG** via Docker. L'ordre est important :
+
+1. **Presidio doit être prêt avant LiteLLM** : Le proxy LiteLLM charge la config au démarrage. Dès la première requête, il appelle le callback `presidio`, qui contacte `localhost:5002` (Analyzer) et `localhost:5001` (Anonymizer). Si ces services ne sont pas encore démarrés, la requête échoue. En les lançant *avant* le proxy, on garantit qu'ils seront disponibles lorsque LiteLLM commencera à traiter des requêtes.
+
+2. **SearXNG en parallèle** : SearXNG n'est pas sollicité au démarrage de LiteLLM. Il est appelé uniquement lorsque le tool `search_web` est invoqué par un agent. On le lance en même temps que Presidio pour avoir un environnement complet d'un coup.
+
+3. **Mode détaché (`-d`)** : `docker compose up -d` lance les conteneurs en arrière-plan. Le script continue immédiatement vers l'étape 2 au lieu d'attendre indéfiniment.
+
+#### Étape 2 — Proxy LiteLLM (en avant-plan)
+
+Le script exécute ensuite `run_litellm_proxy.sh` via `exec`. Cela remplace le processus du script par le processus LiteLLM : le terminal reste « bloqué » sur le proxy, ce qui est voulu pour :
+
+- Voir les logs en temps réel (debug, requêtes, erreurs)
+- Arrêter proprement le proxy avec `Ctrl+C` sans laisser de processus orphelin
+
+Le proxy écoute sur le port 4000. Roo et LangGraph doivent être configurés pour pointer vers `http://localhost:4000` (variable `base_url` ou équivalent).
+
+### 11.3 Options du script
+
+| Option | Effet | Cas d'usage |
+|--------|-------|-------------|
+| (aucune) | Lance Docker puis LiteLLM | Démarrage complet standard |
+| `--no-docker` | Lance uniquement LiteLLM | Presidio et SearXNG déjà lancés ailleurs, ou non souhaités |
+| `--no-litellm` | Lance uniquement Docker | On veut démarrer Presidio/SearXNG mais lancer LiteLLM dans un autre terminal ou plus tard |
+
+### 11.4 Gestion de l'absence de Docker Compose
+
+Le script teste d'abord `docker compose` (Plugin Compose V2), puis `docker-compose` (commande legacy). Si ni l'un ni l'autre n'est disponible, il affiche un avertissement et les commandes `docker run` manuelles pour Presidio et SearXNG, puis passe à LiteLLM. Ainsi, même sans Docker Compose, l'utilisateur peut lancer au minimum le proxy LiteLLM.
+
+### 11.5 Flux résumé
+
+```
+Utilisateur : ./scripts/start_services.sh
+    │
+    ├─ Chargement .env (clés API, PRESIDIO_*, SEARXNG_*, etc.)
+    │
+    ├─ Si --no-docker non passé :
+    │      └─ docker compose up -d presidio-analyzer presidio-anonymizer searxng
+    │
+    └─ Si --no-litellm non passé :
+           └─ exec ./scripts/run_litellm_proxy.sh 4000
+                  (processus LiteLLM occupe le terminal)
+```
+
+**Pour Roo** : Après `start_services.sh`, configurer Roo pour utiliser `http://localhost:4000` comme base URL de l'API LLM.
+
+**Pour LangGraph** : Idem, et définir `AGILE_USE_LITELLM_PROXY=true` pour que le graphe passe par le proxy au lieu d'Ollama/Gemini/Claude directs.
+
+### 11.6 Lancement automatique à l'ouverture du workspace
+
+**VS Code / Roo** : Une tâche `.vscode/tasks.json` lance `start_services.sh` automatiquement à l'ouverture du dossier (`runOn: folderOpen`). Pour l'activer : `Ctrl+Shift+P` → « Tasks: Manage Automatic Tasks in Folder » → « Allow Automatic Tasks in Folder », puis rouvrir le workspace. Cette autorisation est **unique par workspace** : pas besoin de la refaire à chaque démarrage de VS Code.
+
+**LangGraph** : Si `AGILE_USE_LITELLM_PROXY=true` et que le proxy n'est pas accessible, `run_graph.py` affiche un message d'erreur indiquant de lancer `./scripts/start_services.sh` avant de relancer.
 

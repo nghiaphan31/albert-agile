@@ -1,0 +1,83 @@
+# LiteLLM Proxy — Cascade Coût Zéro (spec §5.1b)
+# Usage: LITELLM_CONFIG=cascade_complete litellm --config config/litellm_config_cascade_complete.yaml --port 4000
+# Ou: litellm --config config/litellm_config_cascade_complete.yaml --port 4000
+#
+# Prérequis: .env avec GEMINI_FREE_KEY, GEMINI_PAYANT_KEY, VERTEX_PROJECT, DEEPSEEK_API_KEY
+
+model_list:
+  # --- ARCHITECT (Gemini Free → Vertex → DeepSeek) ---
+  - model_name: architect
+    litellm_params:
+      model: gemini/gemini-2.5-pro
+      api_key: os.environ/GEMINI_FREE_KEY
+    model_info:
+      max_input_tokens: 1000000
+  - model_name: architect-vertex
+    litellm_params:
+      model: vertex_ai/gemini-2.5-pro
+      vertex_project: os.environ/VERTEX_PROJECT
+  - model_name: architect-deepseek
+    litellm_params:
+      model: deepseek/deepseek-chat
+      api_key: os.environ/DEEPSEEK_API_KEY
+
+  # --- INGEST (Gemini Free → Vertex → Gemini Payant) ---
+  - model_name: ingest
+    litellm_params:
+      model: gemini/gemini-2.5-flash
+      api_key: os.environ/GEMINI_FREE_KEY
+  - model_name: ingest-vertex
+    litellm_params:
+      model: vertex_ai/gemini-2.0-flash
+      vertex_project: os.environ/VERTEX_PROJECT
+  - model_name: ingest-payant
+    litellm_params:
+      model: gemini/gemini-2.5-flash
+      api_key: os.environ/GEMINI_PAYANT_KEY
+
+  # --- WORKER (Local → Gemini Lite Free → DeepSeek) ---
+  - model_name: worker
+    litellm_params:
+      model: ollama_chat/qwen2.5-coder:14b
+      api_base: http://localhost:11434
+      fake_stream: true
+      timeout: 120
+  - model_name: worker-gemini
+    litellm_params:
+      model: gemini/gemini-2.5-flash
+      api_key: os.environ/GEMINI_FREE_KEY
+  - model_name: worker-deepseek
+    litellm_params:
+      model: deepseek/deepseek-chat
+      api_key: os.environ/DEEPSEEK_API_KEY
+
+  # Modèles de base pour fallbacks
+  - model_name: gemini
+    litellm_params:
+      model: gemini/gemini-2.5-flash
+      api_key: os.environ/GOOGLE_API_KEY
+  - model_name: claude-sonnet
+    litellm_params:
+      model: anthropic/claude-sonnet-4-6
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+router_settings:
+  routing_strategy: simple-shuffle
+  enable_fallbacks: true
+  allowed_fails: 3
+  cooldown_time: 3600
+
+litellm_settings:
+  num_retries: 2
+  drop_params: true
+  callbacks:
+    - config.custom_roo_hook.proxy_handler_instance
+    - config.litellm_hooks.proxy_handler_instance
+    - presidio
+  fallbacks:
+    - architect: [architect-vertex, architect-deepseek]
+    - ingest: [ingest-vertex, ingest-payant]
+    - worker: [worker-gemini, worker-deepseek]
+    - architect-vertex: [architect-deepseek]
+    - ingest-vertex: [ingest-payant]
+    - worker-gemini: [worker-deepseek]

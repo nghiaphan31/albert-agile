@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """CLI pour lancer le graphe Agile (spec III.8)."""
 import argparse
+import socket
 import os
 import sys
 
@@ -10,6 +11,15 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from graph.graph import graph
+
+
+def _is_litellm_reachable(host: str = "localhost", port: int = 4000, timeout: float = 2.0) -> bool:
+    """Vérifie si le proxy LiteLLM est accessible."""
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except (socket.error, OSError):
+        return False
 
 
 def main() -> int:
@@ -22,6 +32,30 @@ def main() -> int:
 
     thread_id = args.thread_id or f"{args.project_id}-phase-0"
     config = {"configurable": {"thread_id": thread_id}}
+
+    # Vérifier que le proxy LiteLLM est accessible si AGILE_USE_LITELLM_PROXY est activé
+    use_proxy = os.environ.get("AGILE_USE_LITELLM_PROXY", "").lower() in ("1", "true", "yes")
+    if use_proxy:
+        base = os.environ.get("AGILE_LITELLM_BASE_URL", "http://localhost:4000/v1")
+        try:
+            if base.startswith("http://"):
+                host = base.split("//")[1].split(":")[0]
+                port = int(base.split(":")[-1].split("/")[0])
+            elif base.startswith("https://"):
+                host = base.split("//")[1].split(":")[0]
+                port = int(base.split(":")[-1].split("/")[0]) if ":" in base.split("//")[1] else 443
+            else:
+                host, port = "localhost", 4000
+        except (IndexError, ValueError):
+            host, port = "localhost", 4000
+        if not _is_litellm_reachable(host, port):
+            print(
+                "Erreur: AGILE_USE_LITELLM_PROXY est activé mais le proxy LiteLLM n'est pas accessible.",
+                file=sys.stderr,
+            )
+            print(f"  Vérifiez que {host}:{port} répond.", file=sys.stderr)
+            print("  Lancez d'abord: ./scripts/start_services.sh", file=sys.stderr)
+            return 1
 
     initial = {
         "project_id": args.project_id,
