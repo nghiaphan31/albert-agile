@@ -232,14 +232,14 @@ class TestGetModelForSignature:
 
     def test_hidden_params_model_fallback(self):
         resp = SimpleNamespace(model=None, _hidden_params={"model": "gemini/gemini-2.5-pro"})
-        assert _get_model_for_signature(resp, {}) == "gemini/gemini-2.5-pro"
+        assert _get_model_for_signature(resp, {}) == "architect-free-gemini-2.5-pro"
 
     def test_hidden_params_litellm_actual_model(self):
         resp = SimpleNamespace(
             model=None,
             _hidden_params={"litellm_actual_model": "vertex_ai/gemini-2.5-pro"},
         )
-        assert _get_model_for_signature(resp, {}) == "vertex_ai/gemini-2.5-pro"
+        assert _get_model_for_signature(resp, {}) == "architect-vertex-gemini-2.5-pro"
 
     def test_hidden_params_litellm_params_model(self):
         resp = SimpleNamespace(
@@ -266,6 +266,17 @@ class TestGetModelForSignature:
         resp = SimpleNamespace(model="", _hidden_params={})
         data = {"model": "worker-local-qwen2.5-coder:14b"}
         assert _get_model_for_signature(resp, data) == "worker-local-qwen2.5-coder:14b"
+
+    def test_convention_model_name_conserve(self):
+        """Les model_name en convention passent inchangés."""
+        resp = SimpleNamespace(model=None, _hidden_params={})
+        data = {"model": "langgraph-conception-qwen2.5:14b"}
+        assert _get_model_for_signature(resp, data) == "langgraph-conception-qwen2.5:14b"
+
+    def test_provider_id_mappe_vers_convention(self):
+        """Les provider IDs sont mappés vers la convention."""
+        resp = SimpleNamespace(model="ollama_chat/qwen2.5-coder:14b", _hidden_params={})
+        assert _get_model_for_signature(resp, {}) == "local-qwen2.5-coder:14b"
 
 
 # --- Signature : _append_model_signature ---
@@ -297,4 +308,4 @@ class TestAppendModelSignature:
         enforcer = ToolSchemaEnforcer()
         out = _run_async(enforcer.async_post_call_success_hook(data, None, resp))
         assert out is resp
-        assert "généré par gemini/gemini-2.5-flash" in msg.content
+        assert "généré par fallback-gemini-2.5-flash" in msg.content

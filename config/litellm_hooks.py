@@ -65,43 +65,89 @@ def _repair_ask_followup_tc(tc) -> bool:
 
 MODEL_SIGNATURE = "\n\n— *généré par {model}*"
 
-# Préfixes de modèles Roo (convention role-tier-modele)
-ROO_MODEL_PREFIXES = ("architect-", "ingest-", "worker-")
+# Préfixes convention model_name (architect-, ingest-, worker-, local-, fallback-, langgraph-)
+CONVENTION_PREFIXES = ("architect-", "ingest-", "worker-", "local-", "fallback-", "langgraph-")
+
+# Mapping provider_id → model_name (convention) quand LiteLLM retourne un ID fournisseur
+PROVIDER_TO_MODEL_NAME = {
+    "ollama_chat/qwen3:14b": "local-qwen3:14b",
+    "ollama_chat/qwen2.5-coder:14b": "local-qwen2.5-coder:14b",
+    "ollama_chat/qwen2.5:14b": "local-qwen2.5:14b",
+    "gemini/gemini-2.5-pro": "architect-free-gemini-2.5-pro",
+    "gemini/gemini-2.5-flash": "fallback-gemini-2.5-flash",
+    "vertex_ai/gemini-2.5-pro": "architect-vertex-gemini-2.5-pro",
+    "vertex_ai/gemini-2.0-flash": "ingest-vertex-gemini-2.0-flash",
+    "deepseek/deepseek-chat": "architect-pay-deepseek-chat",
+    "anthropic/claude-sonnet-4-6": "fallback-claude-sonnet-4-6",
+    "anthropic/claude-opus-4-6": "fallback-claude-opus-4-6",
+}
+
+
+def _is_convention_model_name(s: str) -> bool:
+    """Vérifie si la chaîne respecte notre convention model_name."""
+    s = (s or "").strip()
+    return any(s.startswith(p) for p in CONVENTION_PREFIXES) if s else False
+
+
+def _normalize_to_convention(raw: str) -> str:
+    """
+    Normalise un identifiant modèle vers notre convention model_name.
+    Retourne la chaîne telle quelle si déjà en convention, sinon mappe via PROVIDER_TO_MODEL_NAME.
+    """
+    raw = (raw or "").strip()
+    if not raw:
+        return ""
+    if _is_convention_model_name(raw):
+        return raw
+    return PROVIDER_TO_MODEL_NAME.get(raw, raw)  # garder raw si pas de mapping (lisible)
 
 
 def _get_model_for_signature(response, data: dict) -> str:
     """
-    Extrait le modèle réel utilisé pour la signature, avec fallbacks.
+    Extrait le modèle réel utilisé pour la signature, fiable selon notre convention.
 
-    Ordre de priorité (proxy LiteLLM) :
-    1. response.model — valeur au moment du hook, avant override du proxy
-    2. response._hidden_params (model, litellm_actual_model, litellm_params.model)
+    Ordre de priorité :
+    1. data["model"] si déjà en convention (routage custom_roo_hook)
+    2. response.model, _hidden_params (modèle effectivement appelé)
     3. data.litellm_params.model
-    4. data.model — dernier recours (peut être un alias)
+    Puis normalisation provider_id → model_name via PROVIDER_TO_MODEL_NAME.
     """
+    candidates = []
+
+    # response = modèle effectivement utilisé (inclut fallback)
     model = getattr(response, "model", None)
     if model and str(model).strip():
-        _store_actual_model(response, str(model).strip())
-        return str(model).strip()
+        candidates.append(str(model).strip())
 
     hidden = getattr(response, "_hidden_params", None) or {}
     if isinstance(hidden, dict):
-        for key in ("model", "litellm_actual_model"):
+        for key in ("model", "litellm_actual_model", "litellm_params"):
             val = hidden.get(key)
-            if val and str(val).strip():
-                return str(val).strip()
-        lp = hidden.get("litellm_params") or {}
-        val = lp.get("model") if isinstance(lp, dict) else None
+            if isinstance(val, dict) and "model" in val:
+                v = val.get("model")
+                if v and str(v).strip():
+                    candidates.append(str(v).strip())
+            elif val and str(val).strip():
+                candidates.append(str(val).strip())
+
+    lp = (data or {}).get("litellm_params") or {}
+    if isinstance(lp, dict):
+        val = lp.get("model")
         if val and str(val).strip():
-            return str(val).strip()
+            candidates.append(str(val).strip())
 
-    lp = data.get("litellm_params") or {}
-    val = lp.get("model") if isinstance(lp, dict) else None
-    if val and str(val).strip():
-        return str(val).strip()
+    # data["model"] = modèle routé (fallback si response vide)
+    dm = (data or {}).get("model") or ""
+    if dm and str(dm).strip():
+        candidates.append(str(dm).strip())
 
-    fallback = data.get("model", "")
-    return str(fallback).strip() if fallback else ""
+    for c in candidates:
+        normalized = _normalize_to_convention(c)
+        if normalized:
+            _store_actual_model(response, normalized)
+            return normalized
+
+    return ""
 
 
 def _store_actual_model(response, model: str) -> None:
