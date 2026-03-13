@@ -18,7 +18,7 @@
 | Catégories architect/ingest/worker          | §5.2             | Mêmes descriptions que dans la spec                                                             |
 | HITL limité à tool/user                     | Plan remédiation | Filtrage `role in ("tool", "user")`                                                             |
 | Ordre callbacks                             | §5.1             | 1. config.custom_roo_hook 2. config.litellm_hooks                                                |
-| Injection conditionnelle TOOL_SCHEMA_PROMPT | §3.5, plan       | Uniquement si `model == "worker"`                                                               |
+| Injection conditionnelle TOOL_SCHEMA_PROMPT | §3.5, plan       | Uniquement si `model.startswith("worker-")` (convention role-tier-modele)                        |
 | Post-call (fake_stream + réparation)        | §3.5             | `config/litellm_hooks.py` : réparation follow_up, Option A (suppression si irréparable)         |
 | fake_stream sur Ollama                      | §3.5             | `config/litellm_config.yaml` : fake_stream: true sur modèles Ollama                             |
 | model_list architect/ingest/worker          | §5.1, §5.1b      | architect: Gemini→Vertex→DeepSeek ; ingest: Gemini→Vertex→Payant ; worker: Local→Gemini→DeepSeek |

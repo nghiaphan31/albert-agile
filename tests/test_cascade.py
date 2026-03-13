@@ -12,7 +12,7 @@ import pytest
 def _mock_llm():
     """LLM factice qui retourne une valeur sans appel réseau."""
     llm = MagicMock()
-    llm.model = "tier1-n0"
+    llm.model = "langgraph-conception-qwen2.5:14b"
     llm.base_url = "http://localhost:4000/v1"
     llm.invoke.return_value = SimpleNamespace(content="ok")
     llm.with_structured_output.return_value.invoke.return_value = {"title": "Test", "description": "x"}

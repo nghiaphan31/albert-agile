@@ -13,7 +13,7 @@ Prérequis :
 
 Usage :
   python scripts/test_litellm_hooks_integration.py
-  python scripts/test_litellm_hooks_integration.py --model worker --prompt "Fix this bug"
+  python scripts/test_litellm_hooks_integration.py --model worker-local-qwen2.5-coder:14b --prompt "Fix this bug"
 """
 from __future__ import annotations
 
@@ -32,8 +32,8 @@ def main():
     )
     parser.add_argument(
         "--model",
-        default="worker",
-        help="Modèle virtuel (worker, architect, ingest) ou alias",
+        default="worker-local-qwen2.5-coder:14b",
+        help="Modèle (ex: worker-local-qwen2.5-coder:14b, architect-free-gemini-2.5-pro)",
     )
     parser.add_argument(
         "-p",

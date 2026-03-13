@@ -65,7 +65,7 @@ def _debug_log(msg: str, data: dict):
         pass
 
 def _model_name(llm) -> str:
-    """Nom du modèle pour la signature (tier1-n0, gemini-2.5-flash, etc.)."""
+    """Nom du modèle pour la signature (langgraph-conception-*, gemini-2.5-flash, etc.)."""
     return str(getattr(llm, "model", "?"))
 
 

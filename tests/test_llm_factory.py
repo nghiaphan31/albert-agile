@@ -19,7 +19,7 @@ def _get_llm_factory_module():
 
 
 class TestLlmFactoryProxyMode:
-    """Mode proxy : ChatOpenAI avec base_url et tier1-n0 / tier2-n0."""
+    """Mode proxy : ChatOpenAI avec base_url et langgraph-conception / langgraph-code."""
 
     def test_proxy_tier1_returns_chatopenai(self):
         with patch.dict(
@@ -31,7 +31,7 @@ class TestLlmFactoryProxyMode:
             n0, n1, n2 = mod.get_llms_tier1()
         from langchain_openai import ChatOpenAI
         assert isinstance(n0, ChatOpenAI)
-        assert n0.model == "tier1-n0"
+        assert n0.model == "langgraph-conception-qwen2.5:14b"
         base = getattr(n0, "openai_api_base", None) or getattr(n0, "base_url", None) or ""
         assert "localhost:4000" in str(base)
         assert n1 is None
@@ -47,7 +47,7 @@ class TestLlmFactoryProxyMode:
             n0, n1, n2 = mod.get_llms_tier2()
         from langchain_openai import ChatOpenAI
         assert isinstance(n0, ChatOpenAI)
-        assert n0.model == "tier2-n0"
+        assert n0.model == "langgraph-code-qwen2.5-coder:14b"
         assert n1 is None
         assert n2 is None
 

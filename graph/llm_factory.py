@@ -4,7 +4,7 @@ Tier 1 (R0, R2): qwen2.5:14b → Gemini → Claude Opus
 Tier 2 (R3-R6): qwen2.5-coder:14b → Gemini → Claude Sonnet
 
 Si AGILE_USE_LITELLM_PROXY=true : utilise ChatOpenAI vers localhost:4000/v1 avec
-model tier1-n0 ou tier2-n0 (LiteLLM gère les fallbacks).
+model langgraph-conception-qwen2.5:14b (R0,R2) ou langgraph-code-qwen2.5-coder:14b (R3-R6).
 """
 
 import os
@@ -40,12 +40,12 @@ def get_llms_tier1():
     Option thinking : qwen3:14b (structured output validé, plus lent).
     Voir specs/plans/Strategie_Modeles_LLM_Thinking_Albert_Agile.md.
 
-    Si AGILE_USE_LITELLM_PROXY=true : un seul LLM (ChatOpenAI tier1-n0), LiteLLM gère les fallbacks.
+    Si AGILE_USE_LITELLM_PROXY=true : un seul LLM (ChatOpenAI langgraph-conception-*), LiteLLM gère les fallbacks.
     """
     if USE_LITELLM_PROXY:
         from langchain_openai import ChatOpenAI
         return (
-            ChatOpenAI(base_url=LITELLM_BASE_URL, model="tier1-n0", temperature=0.3),
+            ChatOpenAI(base_url=LITELLM_BASE_URL, model="langgraph-conception-qwen2.5:14b", temperature=0.3),
             None,
             None,
         )
@@ -63,12 +63,12 @@ def get_llms_tier1():
 def get_llms_tier2():
     """Tier 2 : R3-R6 — N0 coder configurable (qwen2.5-coder:14b par défaut), Gemini, Claude Sonnet.
 
-    Si AGILE_USE_LITELLM_PROXY=true : un seul LLM (ChatOpenAI tier2-n0), LiteLLM gère les fallbacks.
+    Si AGILE_USE_LITELLM_PROXY=true : un seul LLM (ChatOpenAI langgraph-code-*), LiteLLM gère les fallbacks.
     """
     if USE_LITELLM_PROXY:
         from langchain_openai import ChatOpenAI
         return (
-            ChatOpenAI(base_url=LITELLM_BASE_URL, model="tier2-n0", temperature=0.3),
+            ChatOpenAI(base_url=LITELLM_BASE_URL, model="langgraph-code-qwen2.5-coder:14b", temperature=0.3),
             None,
             None,
         )

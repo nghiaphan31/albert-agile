@@ -9,7 +9,7 @@ Lorsque `AGILE_USE_LITELLM_PROXY=true`, le graphe LangGraph (R0–R6) utilise le
 ```
 ┌─────────────────┐     ChatOpenAI          ┌─────────────────────┐
 │   LangGraph     │  base_url=localhost:4000│  LiteLLM Proxy      │
-│  R0 R2 R3 R4... │ ──────────────────────> │  tier1-n0 / tier2-n0│
+│  R0 R2 R3 R4... │ ──────────────────────> │  langgraph-conception / langgraph-code│
 └─────────────────┘                         └──────────┬──────────┘
                                                       │
                         ┌─────────────────────────────┼─────────────────────────────┐
@@ -37,12 +37,12 @@ Lorsque `AGILE_USE_LITELLM_PROXY=true`, le graphe LangGraph (R0–R6) utilise le
 3. **Variables optionnelles** :
    - `AGILE_LITELLM_BASE_URL` : URL du proxy (défaut : `http://localhost:4000/v1`)
 
-## Alias modèles
+## Alias modèles LangGraph
 
-| Alias      | Primaire        | Fallbacks                |
-|-----------|-----------------|---------------------------|
-| tier1-n0  | qwen2.5:14b     | gemini → claude-opus      |
-| tier2-n0  | qwen2.5-coder:14b| gemini → claude-sonnet   |
+| model_name                            | Primaire             | Fallbacks                    |
+|--------------------------------------|----------------------|-----------------------------|
+| langgraph-conception-qwen2.5:14b      | qwen2.5:14b (R0, R2) | gemini → claude-opus        |
+| langgraph-code-qwen2.5-coder:14b      | qwen2.5-coder:14b (R3-R6) | gemini → claude-sonnet |
 
 ## Tests
 
@@ -63,7 +63,7 @@ PYTHONPATH=. .venv/bin/python scripts/test_structured_cli.py epic --tier tier1 \
   --prompt "Propose une Epic courte."
 ```
 
-Vérifier que le proxy expose `tier1-n0` et `tier2-n0` : `curl -s http://localhost:4000/v1/models`.
+Vérifier que le proxy expose `langgraph-conception-qwen2.5:14b` et `langgraph-code-qwen2.5-coder:14b` : `curl -s http://localhost:4000/v1/models`.
 
 ## Limitations
 
@@ -75,5 +75,5 @@ Vérifier que le proxy expose `tier1-n0` et `tier2-n0` : `curl -s http://localho
 
 - `graph/llm_factory.py` : `get_llms_tier1()` et `get_llms_tier2()` retournent `(ChatOpenAI, None, None)` si le proxy est activé
 - `graph/cascade.py` : skip du warmup Ollama si `AGILE_USE_LITELLM_PROXY`
-- `config/litellm_config.yaml` : alias `tier1-n0`, `tier2-n0`, `claude-opus`
+- `config/litellm_config.yaml` : alias `langgraph-conception-qwen2.5:14b`, `langgraph-code-qwen2.5-coder:14b`, `fallback-*`
 - `requirements.txt` : `langchain-openai`

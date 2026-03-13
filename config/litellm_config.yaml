@@ -1,13 +1,14 @@
 # LiteLLM Proxy — Stratégie Routage Intelligent (spec §5.1, §5.1b)
 # Usage: litellm --config config/litellm_config.yaml --port 4000
 #
+# Convention model_name: {role}-{tier}-{modele} (Roo) | local-* | fallback-* | langgraph-*
 # Clés requises: GOOGLE_API_KEY (ou GEMINI_FREE_KEY), ANTHROPIC_API_KEY
 # Cascade Vertex/DeepSeek: VERTEX_PROJECT, DEEPSEEK_API_KEY
-# Ingest payant: GEMINI_PAYANT_KEY (optionnel, sinon GOOGLE_API_KEY)
+# Ingest payant: GEMINI_PAYANT_KEY (optionnel)
 
 model_list:
-  # --- Modèles Ollama (fake_stream + post-call pour Roo, section 3.5) ---
-  - model_name: qwen3
+  # --- Local (Ollama) — fake_stream + post-call pour Roo (section 3.5) ---
+  - model_name: local-qwen3:14b
     litellm_params:
       model: ollama_chat/qwen3:14b
       api_base: http://localhost:11434
@@ -15,7 +16,7 @@ model_list:
       timeout: 120
       stream_timeout: 60
       num_ctx: 32768
-  - model_name: qwen2.5-coder
+  - model_name: local-qwen2.5-coder:14b
     litellm_params:
       model: ollama_chat/qwen2.5-coder:14b
       api_base: http://localhost:11434
@@ -23,7 +24,7 @@ model_list:
       timeout: 120
       stream_timeout: 60
       num_ctx: 32768
-  - model_name: qwen2.5
+  - model_name: local-qwen2.5:14b
     litellm_params:
       model: ollama_chat/qwen2.5:14b
       api_base: http://localhost:11434
@@ -32,73 +33,73 @@ model_list:
       stream_timeout: 60
       num_ctx: 32768
 
-  # --- ARCHITECT (spec §1, §5.1b) : Cloud Free → Vertex → DeepSeek ---
-  - model_name: architect
+  # --- ARCHITECT (spec §1, §5.1b) : free → vertex → pay ---
+  - model_name: architect-free-gemini-2.5-pro
     litellm_params:
       model: gemini/gemini-2.5-pro
       api_key: os.environ/GEMINI_FREE_KEY  # fallback: GOOGLE_API_KEY (alias dans .env)
-  - model_name: architect-vertex
+  - model_name: architect-vertex-gemini-2.5-pro
     litellm_params:
       model: vertex_ai/gemini-2.5-pro
       vertex_project: os.environ/VERTEX_PROJECT
-  - model_name: architect-deepseek
+  - model_name: architect-pay-deepseek-chat
     litellm_params:
       model: deepseek/deepseek-chat
       api_key: os.environ/DEEPSEEK_API_KEY
 
-  # --- INGEST (spec §1, §5.1b) : Gemini Free → Vertex → Payant ---
-  - model_name: ingest
+  # --- INGEST (spec §1, §5.1b) : free → vertex → pay ---
+  - model_name: ingest-free-gemini-2.5-flash
     litellm_params:
       model: gemini/gemini-2.5-flash
-      api_key: os.environ/GEMINI_FREE_KEY  # fallback: GOOGLE_API_KEY (alias dans .env)
-  - model_name: ingest-vertex
+      api_key: os.environ/GEMINI_FREE_KEY
+  - model_name: ingest-vertex-gemini-2.0-flash
     litellm_params:
       model: vertex_ai/gemini-2.0-flash
       vertex_project: os.environ/VERTEX_PROJECT
-  - model_name: ingest-payant
+  - model_name: ingest-pay-gemini-2.5-flash
     litellm_params:
       model: gemini/gemini-2.5-flash
       api_key: os.environ/GEMINI_PAYANT_KEY
 
-  # --- WORKER (spec §1, §5.1b) : Local → Gemini Lite → DeepSeek ---
-  - model_name: worker
+  # --- WORKER (spec §1, §5.1b) : local → free → pay ---
+  - model_name: worker-local-qwen2.5-coder:14b
     litellm_params:
       model: ollama_chat/qwen2.5-coder:14b
       api_base: http://localhost:11434
       fake_stream: true
       timeout: 120
       stream_timeout: 60
-  - model_name: worker-gemini
+  - model_name: worker-free-gemini-2.5-flash
     litellm_params:
       model: gemini/gemini-2.5-flash
-      api_key: os.environ/GEMINI_FREE_KEY  # fallback: GOOGLE_API_KEY (alias dans .env)
-  - model_name: worker-deepseek
+      api_key: os.environ/GEMINI_FREE_KEY
+  - model_name: worker-pay-deepseek-chat
     litellm_params:
       model: deepseek/deepseek-chat
       api_key: os.environ/DEEPSEEK_API_KEY
 
-  # --- Providers cloud (fallbacks transversaux) ---
-  - model_name: gemini
+  # --- Fallbacks cloud (transversaux) ---
+  - model_name: fallback-gemini-2.5-flash
     litellm_params:
       model: gemini/gemini-2.5-flash
       api_key: os.environ/GOOGLE_API_KEY
-  - model_name: claude-sonnet
+  - model_name: fallback-claude-sonnet-4-6
     litellm_params:
       model: anthropic/claude-sonnet-4-6
       api_key: os.environ/ANTHROPIC_API_KEY
-  - model_name: claude-opus
+  - model_name: fallback-claude-opus-4-6
     litellm_params:
       model: anthropic/claude-opus-4-6
       api_key: os.environ/ANTHROPIC_API_KEY
 
-  # --- Alias LangGraph (AGILE_USE_LITELLM_PROXY=true) — tiers R0-R6 ---
-  - model_name: tier1-n0
+  # --- LangGraph (R0-R6) — conception (R0,R2) / code (R3-R6) ---
+  - model_name: langgraph-conception-qwen2.5:14b
     litellm_params:
       model: ollama_chat/qwen2.5:14b
       api_base: http://localhost:11434
       fake_stream: true
       timeout: 120
-  - model_name: tier2-n0
+  - model_name: langgraph-code-qwen2.5-coder:14b
     litellm_params:
       model: ollama_chat/qwen2.5-coder:14b
       api_base: http://localhost:11434
@@ -118,19 +119,19 @@ litellm_settings:
   drop_params: true
   callbacks:
     - config.custom_roo_hook.proxy_handler_instance   # 1. HITL + routage sémantique -> data["model"]
-    - config.litellm_hooks.proxy_handler_instance     # 2. TOOL_SCHEMA_PROMPT (si model==worker)
+    - config.litellm_hooks.proxy_handler_instance     # 2. TOOL_SCHEMA_PROMPT (si model worker-*)
     # Presidio (spec §10.1) : masquer PII avant envoi cloud. Décommenter + lancer Presidio (start_services)
     # - presidio
   fallbacks:
-    - architect: [architect-vertex, architect-deepseek]
-    - architect-vertex: [architect-deepseek]
-    - ingest: [ingest-vertex, ingest-payant]
-    - ingest-vertex: [ingest-payant]
-    - worker: [worker-gemini, worker-deepseek]
-    - worker-gemini: [worker-deepseek]
-    - tier1-n0: [gemini, claude-opus]
-    - tier2-n0: [gemini, claude-sonnet]
-    - gemini: [claude-sonnet, qwen3]
-    - qwen3: [gemini, claude-sonnet]
-    - qwen2.5-coder: [gemini, claude-sonnet]
-    - qwen2.5: [gemini, claude-sonnet]
+    - architect-free-gemini-2.5-pro: [architect-vertex-gemini-2.5-pro, architect-pay-deepseek-chat]
+    - architect-vertex-gemini-2.5-pro: [architect-pay-deepseek-chat]
+    - ingest-free-gemini-2.5-flash: [ingest-vertex-gemini-2.0-flash, ingest-pay-gemini-2.5-flash]
+    - ingest-vertex-gemini-2.0-flash: [ingest-pay-gemini-2.5-flash]
+    - worker-local-qwen2.5-coder:14b: [worker-free-gemini-2.5-flash, worker-pay-deepseek-chat]
+    - worker-free-gemini-2.5-flash: [worker-pay-deepseek-chat]
+    - langgraph-conception-qwen2.5:14b: [fallback-gemini-2.5-flash, fallback-claude-opus-4-6]
+    - langgraph-code-qwen2.5-coder:14b: [fallback-gemini-2.5-flash, fallback-claude-sonnet-4-6]
+    - fallback-gemini-2.5-flash: [fallback-claude-sonnet-4-6, local-qwen3:14b]
+    - local-qwen3:14b: [fallback-gemini-2.5-flash, fallback-claude-sonnet-4-6]
+    - local-qwen2.5-coder:14b: [fallback-gemini-2.5-flash, fallback-claude-sonnet-4-6]
+    - local-qwen2.5:14b: [fallback-gemini-2.5-flash, fallback-claude-sonnet-4-6]

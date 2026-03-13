@@ -11,7 +11,7 @@ Chargé via litellm_config.yaml (en 2e après custom_roo_hook) :
   litellm_settings:
     callbacks:
       - custom_roo_hook.proxy_handler_instance   # 1. HITL + routage
-      - litellm_hooks.proxy_handler_instance     # 2. TOOL_SCHEMA_PROMPT (si model==worker)
+      - litellm_hooks.proxy_handler_instance     # 2. TOOL_SCHEMA_PROMPT (si model worker-*)
 """
 import json
 import logging
@@ -65,9 +65,8 @@ def _repair_ask_followup_tc(tc) -> bool:
 
 MODEL_SIGNATURE = "\n\n— *généré par {model}*"
 
-# Alias connus du config : si on ne reçoit que l'alias, on ne peut pas
-# récupérer le modèle réel sans accès au logging_obj.
-KNOWN_ALIASES = frozenset({"architect", "worker", "ingest"})
+# Préfixes de modèles Roo (convention role-tier-modele)
+ROO_MODEL_PREFIXES = ("architect-", "ingest-", "worker-")
 
 
 def _get_model_for_signature(response, data: dict) -> str:
@@ -181,10 +180,11 @@ class ToolSchemaEnforcer(CustomLogger):
     """
 
     async def async_pre_call_hook(self, user_api_key_dict, cache, data, call_type):
-        # Injection conditionnelle : uniquement si model==worker et tools présents
+        # Injection conditionnelle : uniquement si model worker-* et tools présents
         if not data.get("tools"):
             return data
-        if data.get("model") != "worker":
+        model = data.get("model") or ""
+        if not model.startswith("worker-"):
             return data  # Architect, Ingest : pas de contrainte tool obligatoire
         messages = data.get("messages", [])
         if not messages:

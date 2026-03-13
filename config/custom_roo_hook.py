@@ -4,7 +4,10 @@ Routage sémantique + HITL anti-boucle pour Roo Code (LiteLLM pre-call hook).
 Exécuté en premier dans la chaîne des callbacks (avant litellm_hooks).
 - Bloc 1 — HITL : détecte boucle d'erreurs (messages tool/user uniquement)
 - Bloc 2 — Routage sémantique : embeddings nomic-embed-text, similarité cosinus
-- Fallback : si similarité max < seuil, data["model"] = "worker"
+- Fallback : si similarité max < seuil, data["model"] = modèle primaire worker
+
+Routage : architect → architect-free-gemini-2.5-pro, ingest → ingest-free-gemini-2.5-flash,
+worker → worker-local-qwen2.5-coder:14b (convention role-tier-modele).
 
 Prérequis : ollama pull nomic-embed-text, pip install numpy ollama
 """
@@ -18,6 +21,13 @@ except ImportError:
     np = ollama = None
 
 SIMILARITY_THRESHOLD = float(os.environ.get("ROO_SIMILARITY_THRESHOLD", "0.4"))
+
+# Modèles primaires par rôle (convention role-tier-modele)
+ROO_PRIMARY_MODEL = {
+    "architect": "architect-free-gemini-2.5-pro",
+    "ingest": "ingest-free-gemini-2.5-flash",
+    "worker": "worker-local-qwen2.5-coder:14b",
+}
 
 
 def cosine_similarity(a, b):
@@ -66,17 +76,17 @@ class RooCodeHandler(CustomLogger):
         if error_count >= 3:
             print("\a🚨 [HITL] BOUCLE D'ERREUR DÉTECTÉE")
             data["messages"] = [{"role": "user", "content": "STOP: Error loop. Use 'ask_user'."}]
-            data["model"] = "worker"
+            data["model"] = ROO_PRIMARY_MODEL["worker"]
             return data
 
         # --- Bloc 2 : Routage sémantique (message -1) ---
         if np is None or ollama is None:
-            data["model"] = "worker"
+            data["model"] = ROO_PRIMARY_MODEL["worker"]
             return data
 
         vectors = self._get_category_vectors()
         if not vectors:
-            data["model"] = "worker"
+            data["model"] = ROO_PRIMARY_MODEL["worker"]
             return data
 
         user_intent = str(messages[-1].get("content", ""))
@@ -84,7 +94,7 @@ class RooCodeHandler(CustomLogger):
             emb = ollama.embed(model="nomic-embed-text", input=user_intent)
             intent_vector = np.array(emb["embeddings"][0])
         except Exception:
-            data["model"] = "worker"
+            data["model"] = ROO_PRIMARY_MODEL["worker"]
             return data
 
         scores = {name: cosine_similarity(intent_vector, vec) for name, vec in vectors.items()}
@@ -92,10 +102,10 @@ class RooCodeHandler(CustomLogger):
         best_score = scores[best_category]
 
         if best_score < SIMILARITY_THRESHOLD:
-            data["model"] = "worker"
+            data["model"] = ROO_PRIMARY_MODEL["worker"]
             print(f"--- [ROUTAGE] Fallback worker (score max={best_score:.2f} < {SIMILARITY_THRESHOLD}) ---")
         else:
-            data["model"] = best_category
+            data["model"] = ROO_PRIMARY_MODEL[best_category]
             print(f"--- [ROUTAGE] : {best_category.upper()} (Score: {best_score:.2f}) ---")
         return data
 

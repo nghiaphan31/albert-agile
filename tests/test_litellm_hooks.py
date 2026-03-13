@@ -1,7 +1,7 @@
 """
 Tests pour config/litellm_hooks.py :
 - Post-call hook Option A (_fix_tool_calls, _repair_ask_followup_tc)
-- Injection conditionnelle TOOL_SCHEMA_PROMPT (model==worker)
+- Injection conditionnelle TOOL_SCHEMA_PROMPT (model worker-*)
 - Extraction robuste du modèle pour la signature (_get_model_for_signature)
 - Signature du modèle (_append_model_signature)
 """
@@ -163,12 +163,12 @@ def _run_async(coro):
 
 
 class TestToolSchemaEnforcerInjection:
-    """Injection de TOOL_SCHEMA_PROMPT uniquement si model==worker."""
+    """Injection de TOOL_SCHEMA_PROMPT uniquement si model worker-*."""
 
     def test_model_worker_injecte_prompt(self):
         enforcer = ToolSchemaEnforcer()
         data = {
-            "model": "worker",
+            "model": "worker-local-qwen2.5-coder:14b",
             "tools": [{"type": "function", "function": {"name": "ask_followup_question"}}],
             "messages": [{"role": "user", "content": "Fix this bug"}],
         }
@@ -179,7 +179,7 @@ class TestToolSchemaEnforcerInjection:
     def test_model_worker_avec_system_prepend(self):
         enforcer = ToolSchemaEnforcer()
         data = {
-            "model": "worker",
+            "model": "worker-local-qwen2.5-coder:14b",
             "tools": [{}],
             "messages": [{"role": "system", "content": "Base system"}, {"role": "user", "content": "Fix bug"}],
         }
@@ -190,7 +190,7 @@ class TestToolSchemaEnforcerInjection:
     def test_model_architect_pas_injection(self):
         enforcer = ToolSchemaEnforcer()
         data = {
-            "model": "architect",
+            "model": "architect-free-gemini-2.5-pro",
             "tools": [{}],
             "messages": [{"role": "user", "content": "Design the architecture"}],
         }
@@ -201,7 +201,7 @@ class TestToolSchemaEnforcerInjection:
     def test_model_ingest_pas_injection(self):
         enforcer = ToolSchemaEnforcer()
         data = {
-            "model": "ingest",
+            "model": "ingest-free-gemini-2.5-flash",
             "tools": [{}],
             "messages": [{"role": "user", "content": "Scan the repo"}],
         }
@@ -211,7 +211,7 @@ class TestToolSchemaEnforcerInjection:
     def test_tools_absent_pas_injection(self):
         enforcer = ToolSchemaEnforcer()
         data = {
-            "model": "worker",
+            "model": "worker-local-qwen2.5-coder:14b",
             "messages": [{"role": "user", "content": "Fix"}],
         }
         out = _run_async(enforcer.async_pre_call_hook(None, None, data, "completion"))
@@ -255,8 +255,8 @@ class TestGetModelForSignature:
 
     def test_data_model_dernier_recours(self):
         resp = SimpleNamespace(model=None, _hidden_params={})
-        data = {"model": "architect"}
-        assert _get_model_for_signature(resp, data) == "architect"
+        data = {"model": "architect-free-gemini-2.5-pro"}
+        assert _get_model_for_signature(resp, data) == "architect-free-gemini-2.5-pro"
 
     def test_vide_retourne_chaine_vide(self):
         resp = SimpleNamespace(model=None, _hidden_params={})
@@ -264,8 +264,8 @@ class TestGetModelForSignature:
 
     def test_response_model_vide_utilise_fallback(self):
         resp = SimpleNamespace(model="", _hidden_params={})
-        data = {"model": "worker"}
-        assert _get_model_for_signature(resp, data) == "worker"
+        data = {"model": "worker-local-qwen2.5-coder:14b"}
+        assert _get_model_for_signature(resp, data) == "worker-local-qwen2.5-coder:14b"
 
 
 # --- Signature : _append_model_signature ---

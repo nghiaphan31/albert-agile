@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from config.custom_roo_hook import RooCodeHandler, SIMILARITY_THRESHOLD
+from config.custom_roo_hook import RooCodeHandler, ROO_PRIMARY_MODEL, SIMILARITY_THRESHOLD
 
 
 def _run_async(coro):
@@ -35,7 +35,7 @@ class TestRooCodeHandlerHITL:
             ],
         }
         out = _run_async(handler.async_pre_call_hook(None, None, data, "completion"))
-        assert out["model"] == "worker"
+        assert out["model"] == ROO_PRIMARY_MODEL["worker"]
         assert len(out["messages"]) == 1
         assert out["messages"][0]["role"] == "user"
         assert "STOP" in out["messages"][0]["content"]
@@ -53,14 +53,14 @@ class TestRooCodeHandlerHITL:
         # 2 messages tool/user avec error/failed, pas 3 → HITL ne doit pas se déclencher
         out = _run_async(handler.async_pre_call_hook(None, None, data, "completion"))
         assert "STOP" not in str(out.get("messages", []))
-        # model sera worker (fallback) ou architect/ingest (routage) selon ollama
-        assert out["model"] in ("architect", "ingest", "worker")
+        # model sera primaire worker ou architect ou ingest selon routage
+        assert out["model"] in ROO_PRIMARY_MODEL.values()
 
     def test_call_type_pas_completion_ignore(self):
         handler = RooCodeHandler()
         data = {"messages": [{"role": "user", "content": "error"}, {"role": "tool", "content": "failed"}]}
         out = _run_async(handler.async_pre_call_hook(None, None, data, "embedding"))
-        assert "model" not in out or out.get("model") != "worker"
+        assert "model" not in out or out.get("model") != ROO_PRIMARY_MODEL["worker"]
         # Pas de modification car call_type != completion
 
     def test_messages_vide_ignore(self):
@@ -82,14 +82,14 @@ class TestRooCodeHandlerRoutage:
         data = {"messages": [{"role": "user", "content": "Fix this bug"}]}
         with patch("config.custom_roo_hook.np", None), patch("config.custom_roo_hook.ollama", None):
             out = _run_async(handler.async_pre_call_hook(None, None, data, "completion"))
-        assert out["model"] == "worker"
+        assert out["model"] == ROO_PRIMARY_MODEL["worker"]
 
     def test_vectors_vide_fallback_worker(self):
         handler = RooCodeHandler()
         data = {"messages": [{"role": "user", "content": "Fix bug"}]}
         with patch.object(handler, "_get_category_vectors", return_value={}):
             out = _run_async(handler.async_pre_call_hook(None, None, data, "completion"))
-        assert out["model"] == "worker"
+        assert out["model"] == ROO_PRIMARY_MODEL["worker"]
 
     def test_score_inferieur_seuil_fallback_worker(self):
         """Intent vector orthogonal aux catégories → scores ~0 < seuil → fallback worker."""
@@ -105,7 +105,7 @@ class TestRooCodeHandlerRoutage:
         with patch("config.custom_roo_hook.ollama") as mock_ollama:
             mock_ollama.embed = lambda **kw: {"embeddings": [[0.0, 0.0, 0.0]]}
             out = _run_async(handler.async_pre_call_hook(None, None, data, "completion"))
-        assert out["model"] == "worker"
+        assert out["model"] == ROO_PRIMARY_MODEL["worker"]
 
     def test_score_superieur_seuil_best_category(self):
         """Intent proche de worker → score élevé → model = worker ou autre catégorie."""
@@ -121,4 +121,4 @@ class TestRooCodeHandlerRoutage:
         with patch("config.custom_roo_hook.ollama") as mock_ollama:
             mock_ollama.embed = lambda **kw: {"embeddings": [[0.05, 0.05, 0.99]]}
             out = _run_async(handler.async_pre_call_hook(None, None, data, "completion"))
-        assert out["model"] in ("architect", "ingest", "worker")
+        assert out["model"] in ROO_PRIMARY_MODEL.values()
