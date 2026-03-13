@@ -28,7 +28,7 @@ class TestCascadeSkipWarmup:
             with patch.dict("os.environ", {"AGILE_USE_LITELLM_PROXY": "true"}, clear=False):
                 from graph.cascade import call_with_cascade
                 llm = _mock_llm()
-                result = call_with_cascade(llm, None, None, "test", schema=None)
+                result, _ = call_with_cascade(llm, None, None, "test", schema=None)
         calls = mock_urlopen.call_args_list
         generate_urls = [str(c) for c in calls if len(c[0]) > 0 and "generate" in str(c[0][0])]
         assert len(generate_urls) == 0
@@ -43,5 +43,5 @@ class TestCascadeSkipWarmup:
                 from graph.cascade import call_with_cascade
                 llm = _mock_llm()
                 llm.model = "qwen2.5:14b"
-                result = call_with_cascade(llm, None, None, "test", schema=None)
+                result, _ = call_with_cascade(llm, None, None, "test", schema=None)
         assert result is not None

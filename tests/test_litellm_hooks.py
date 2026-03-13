@@ -2,6 +2,8 @@
 Tests pour config/litellm_hooks.py :
 - Post-call hook Option A (_fix_tool_calls, _repair_ask_followup_tc)
 - Injection conditionnelle TOOL_SCHEMA_PROMPT (model==worker)
+- Extraction robuste du modèle pour la signature (_get_model_for_signature)
+- Signature du modèle (_append_model_signature)
 """
 from __future__ import annotations
 
@@ -14,9 +16,12 @@ import pytest
 
 from config.litellm_hooks import (
     DEFAULT_FOLLOW_UP,
+    MODEL_SIGNATURE,
     TOOL_SCHEMA_PROMPT,
     ToolSchemaEnforcer,
+    _append_model_signature,
     _fix_tool_calls,
+    _get_model_for_signature,
     _repair_ask_followup_tc,
 )
 
@@ -212,3 +217,84 @@ class TestToolSchemaEnforcerInjection:
         out = _run_async(enforcer.async_pre_call_hook(None, None, data, "completion"))
         assert out["messages"][0]["content"] == "Fix"
         assert TOOL_SCHEMA_PROMPT not in str(out.get("messages", []))
+
+
+# --- Signature du modèle : _get_model_for_signature ---
+
+
+class TestGetModelForSignature:
+    """Tests de l'extraction robuste du modèle pour la signature."""
+
+    def test_response_model_prioritaire(self):
+        resp = SimpleNamespace(model="vertex_ai/gemini-2.5-pro-001", _hidden_params={})
+        assert _get_model_for_signature(resp, {}) == "vertex_ai/gemini-2.5-pro-001"
+        assert resp._hidden_params.get("_actual_model_used") == "vertex_ai/gemini-2.5-pro-001"
+
+    def test_hidden_params_model_fallback(self):
+        resp = SimpleNamespace(model=None, _hidden_params={"model": "gemini/gemini-2.5-pro"})
+        assert _get_model_for_signature(resp, {}) == "gemini/gemini-2.5-pro"
+
+    def test_hidden_params_litellm_actual_model(self):
+        resp = SimpleNamespace(
+            model=None,
+            _hidden_params={"litellm_actual_model": "vertex_ai/gemini-2.5-pro"},
+        )
+        assert _get_model_for_signature(resp, {}) == "vertex_ai/gemini-2.5-pro"
+
+    def test_hidden_params_litellm_params_model(self):
+        resp = SimpleNamespace(
+            model=None,
+            _hidden_params={"litellm_params": {"model": "groq/llama-3-70b"}},
+        )
+        assert _get_model_for_signature(resp, {}) == "groq/llama-3-70b"
+
+    def test_data_litellm_params_model(self):
+        resp = SimpleNamespace(model=None, _hidden_params={})
+        data = {"litellm_params": {"model": "openai/gpt-4o"}}
+        assert _get_model_for_signature(resp, data) == "openai/gpt-4o"
+
+    def test_data_model_dernier_recours(self):
+        resp = SimpleNamespace(model=None, _hidden_params={})
+        data = {"model": "architect"}
+        assert _get_model_for_signature(resp, data) == "architect"
+
+    def test_vide_retourne_chaine_vide(self):
+        resp = SimpleNamespace(model=None, _hidden_params={})
+        assert _get_model_for_signature(resp, {}) == ""
+
+    def test_response_model_vide_utilise_fallback(self):
+        resp = SimpleNamespace(model="", _hidden_params={})
+        data = {"model": "worker"}
+        assert _get_model_for_signature(resp, data) == "worker"
+
+
+# --- Signature : _append_model_signature ---
+
+
+class TestAppendModelSignature:
+    """Tests de l'ajout de la signature du modèle."""
+
+    def test_ajoute_signature(self):
+        msg = SimpleNamespace(content="Hello world")
+        choice = SimpleNamespace(message=msg)
+        resp = SimpleNamespace(choices=[choice])
+        _append_model_signature(resp, "vertex_ai/gemini-2.5-pro")
+        assert "généré par vertex_ai/gemini-2.5-pro" in msg.content
+        assert msg.content.endswith(MODEL_SIGNATURE.format(model="vertex_ai/gemini-2.5-pro"))
+
+    def test_modele_vide_ne_modifie_pas(self):
+        msg = SimpleNamespace(content="Hello")
+        choice = SimpleNamespace(message=msg)
+        resp = SimpleNamespace(choices=[choice])
+        _append_model_signature(resp, "")
+        assert msg.content == "Hello"
+
+    def test_post_call_hook_signe_reponse(self):
+        msg = SimpleNamespace(content="Réponse ici", tool_calls=[])
+        choice = SimpleNamespace(message=msg)
+        resp = SimpleNamespace(model="gemini/gemini-2.5-flash", choices=[choice], _hidden_params={})
+        data = {}
+        enforcer = ToolSchemaEnforcer()
+        out = _run_async(enforcer.async_post_call_success_hook(data, None, resp))
+        assert out is resp
+        assert "généré par gemini/gemini-2.5-flash" in msg.content

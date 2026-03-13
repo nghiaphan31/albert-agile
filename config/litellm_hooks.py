@@ -63,6 +63,78 @@ def _repair_ask_followup_tc(tc) -> bool:
     return True
 
 
+MODEL_SIGNATURE = "\n\n— *généré par {model}*"
+
+# Alias connus du config : si on ne reçoit que l'alias, on ne peut pas
+# récupérer le modèle réel sans accès au logging_obj.
+KNOWN_ALIASES = frozenset({"architect", "worker", "ingest"})
+
+
+def _get_model_for_signature(response, data: dict) -> str:
+    """
+    Extrait le modèle réel utilisé pour la signature, avec fallbacks.
+
+    Ordre de priorité (proxy LiteLLM) :
+    1. response.model — valeur au moment du hook, avant override du proxy
+    2. response._hidden_params (model, litellm_actual_model, litellm_params.model)
+    3. data.litellm_params.model
+    4. data.model — dernier recours (peut être un alias)
+    """
+    model = getattr(response, "model", None)
+    if model and str(model).strip():
+        _store_actual_model(response, str(model).strip())
+        return str(model).strip()
+
+    hidden = getattr(response, "_hidden_params", None) or {}
+    if isinstance(hidden, dict):
+        for key in ("model", "litellm_actual_model"):
+            val = hidden.get(key)
+            if val and str(val).strip():
+                return str(val).strip()
+        lp = hidden.get("litellm_params") or {}
+        val = lp.get("model") if isinstance(lp, dict) else None
+        if val and str(val).strip():
+            return str(val).strip()
+
+    lp = data.get("litellm_params") or {}
+    val = lp.get("model") if isinstance(lp, dict) else None
+    if val and str(val).strip():
+        return str(val).strip()
+
+    fallback = data.get("model", "")
+    return str(fallback).strip() if fallback else ""
+
+
+def _store_actual_model(response, model: str) -> None:
+    """Stocke le modèle réel dans _hidden_params pour traçabilité."""
+    try:
+        hidden = getattr(response, "_hidden_params", None)
+        if hidden is None:
+            return
+        if not isinstance(hidden, dict):
+            return
+        hidden["_actual_model_used"] = model
+    except Exception:
+        pass
+
+
+def _append_model_signature(response_obj, model_name: str):
+    """Ajoute la signature du modèle à la fin du content de la réponse."""
+    if not model_name:
+        return
+    try:
+        choices = getattr(response_obj, "choices", None) or []
+        for choice in choices:
+            msg = getattr(choice, "message", None)
+            if msg is None:
+                continue
+            content = getattr(msg, "content", None)
+            if content and isinstance(content, str):
+                setattr(msg, "content", content + MODEL_SIGNATURE.format(model=model_name))
+    except Exception as e:
+        _logger.warning("Signature modèle non ajoutée: %s", e)
+
+
 def _fix_tool_calls(response_obj):
     """
     Corrige les tool calls invalides dans la réponse (modifie en place).
@@ -127,8 +199,11 @@ class ToolSchemaEnforcer(CustomLogger):
         return data
 
     async def async_post_call_success_hook(self, data, user_api_key_dict, response):
-        """Répare les tool calls invalides avant que la réponse soit renvoyée au client."""
+        """Répare les tool calls invalides et signe la réponse avec le nom du modèle."""
         _fix_tool_calls(response)
+        model = _get_model_for_signature(response, data or {})
+        if model:
+            _append_model_signature(response, model)
         return response
 
 

@@ -64,10 +64,16 @@ def _debug_log(msg: str, data: dict):
     except Exception:
         pass
 
+def _model_name(llm) -> str:
+    """Nom du modèle pour la signature (tier1-n0, gemini-2.5-flash, etc.)."""
+    return str(getattr(llm, "model", "?"))
+
+
 def call_with_cascade(llm_n0, llm_n1, llm_n2, prompt, schema=None, h5_before_n2: bool = True):
     """
     Appelle N0, escalade vers N1 puis N2 en cas d'échec.
     Avant N2 : interrupt H5 (approbation API payante) si h5_before_n2.
+    Retourne (result, model_name) pour permettre de signer la réponse.
     """
     # #region agent log
     _ollama_loaded = None
@@ -118,7 +124,7 @@ def call_with_cascade(llm_n0, llm_n1, llm_n2, prompt, schema=None, h5_before_n2:
     try:
         out = _invoke_with_retry(llm_n0, prompt, _n0_schema)
         _debug_log("call_with_cascade N0 success", {"used_schema": _n0_schema is not None, "hypothesisId": "H6"})
-        return out
+        return out, _model_name(llm_n0)
     except Exception as e:
         # #region agent log
         _debug_log("call_with_cascade N0 failure", {
@@ -135,7 +141,8 @@ def call_with_cascade(llm_n0, llm_n1, llm_n2, prompt, schema=None, h5_before_n2:
     if llm_n1:
         try:
             prompt_n1 = _anonymize_prompt(prompt)
-            return _invoke_with_retry(llm_n1, prompt_n1, schema)
+            out = _invoke_with_retry(llm_n1, prompt_n1, schema)
+            return out, _model_name(llm_n1)
         except Exception as e:
             logger.warning("n1_failure reason=%r escalating_to=N2", str(e))
 
@@ -148,6 +155,7 @@ def call_with_cascade(llm_n0, llm_n1, llm_n2, prompt, schema=None, h5_before_n2:
             human_ok = lg_interrupt({"reason": "H5", "payload": {"escalation": "N2_claude", "context": ctx}})
             if not (isinstance(human_ok, dict) and human_ok.get("status") == "approved"):
                 raise PermissionError("Escalade N2 refusée par l'humain")
-        return _invoke_with_retry(llm_n2, prompt_n2, schema)
+        out = _invoke_with_retry(llm_n2, prompt_n2, schema)
+        return out, _model_name(llm_n2)
 
     raise RuntimeError("Tous les niveaux (N0, N1, N2) ont échoué.")

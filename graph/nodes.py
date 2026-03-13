@@ -111,20 +111,29 @@ def _build_messages(role: str, user_content: str) -> list:
     return [SystemMessage(content=system), HumanMessage(content=user_content)]
 
 
+def _sign_content(content: str, model_name: str) -> str:
+    """Signe le contenu avec le nom du modèle qui l'a généré."""
+    if not model_name or model_name == "?":
+        return content
+    return content + f"\n\n— *généré par {model_name}*"
+
+
 def node_r0(state: State) -> dict:
     """R-0 Albert Business Analyst — produit Epic, interrupt H1 (validation Product Owner)."""
     project_id = state.get("project_id", "?")
     user = f"Produis un Epic structuré (cahier des charges) pour le projet {project_id}. Format: titre, description, critères d'acceptation en liste."
     msgs = _build_messages("r0", user)
     n0, n1, n2 = get_llms_tier1()
+    model_name = "?"
     try:
-        epic = call_with_cascade(n0, n1, n2, msgs, schema=EpicOutput)
+        epic, model_name = call_with_cascade(n0, n1, n2, msgs, schema=EpicOutput)
         content = epic.model_dump_json() if hasattr(epic, "model_dump_json") else str(epic)
         backlog = {"epic": epic.model_dump() if hasattr(epic, "model_dump") else {"raw": content}}
     except Exception as e:
         logger.exception("node_r0 failed: %s", e)
         content = f"Erreur R-0: {e}"
         backlog = {"epic": {"raw": content}}
+    content = _sign_content(content, model_name)
     payload = {"reason": "H1", "payload": {"epic": backlog.get("epic", {}), "content": content}}
     human_response = lg_interrupt(payload)
     approved = isinstance(human_response, dict) and human_response.get("status") == "approved"
@@ -150,14 +159,16 @@ def node_r2(state: State) -> dict:
     msgs = _build_messages("r2", user)
     n0, n1, n2 = get_llms_tier1()
     arch = None
+    model_name = "?"
     try:
-        arch = call_with_cascade(n0, n1, n2, msgs, schema=ArchitectureOutput)
+        arch, model_name = call_with_cascade(n0, n1, n2, msgs, schema=ArchitectureOutput)
         content = arch.model_dump_json() if hasattr(arch, "model_dump_json") else str(arch)
         arch_dict = arch.model_dump() if hasattr(arch, "model_dump") else {"raw": content}
     except Exception as e:
         logger.exception("node_r2 failed: %s", e)
         content = f"Erreur R-2: {e}"
         arch_dict = {"raw": content}
+    content = _sign_content(content, model_name)
     sources = []
     if arch and getattr(arch, "contradiction_detected", False):
         sources = getattr(arch, "contradiction_sources", None) or ["(sources non spécifiées)"]
@@ -185,14 +196,16 @@ def node_r3(state: State) -> dict:
     user = f"Projet {project_id}, sprint {sprint_number}. Backlog: {json.dumps(backlog, ensure_ascii=False)[:300]}. Architecture: {str(arch)[:300]}.\nRAG:\n{rag_str}\n\nDécoupe le Sprint Backlog en tickets."
     msgs = _build_messages("r3", user)
     n0, n1, n2 = get_llms_tier2()
+    model_name = "?"
     try:
-        sb = call_with_cascade(n0, n1, n2, msgs, schema=SprintBacklogOutput)
+        sb, model_name = call_with_cascade(n0, n1, n2, msgs, schema=SprintBacklogOutput)
         content = sb.model_dump_json() if hasattr(sb, "model_dump_json") else str(sb)
         sb_dict = sb.model_dump() if hasattr(sb, "model_dump") else {"raw": content}
     except Exception as e:
         logger.exception("node_r3 failed: %s", e)
         content = f"Erreur R-3: {e}"
         sb_dict = {"raw": content}
+    content = _sign_content(content, model_name)
     payload = {"reason": "H3", "payload": {"sprint_backlog": sb_dict}}
     human_response = lg_interrupt(payload)
     approved = isinstance(human_response, dict) and human_response.get("status") == "approved"
@@ -214,12 +227,14 @@ def node_r4(state: State) -> dict:
     user = f"Sprint Backlog: {str(sprint_backlog)[:500]}. DoD: {dod}.\nRAG (code existant):\n{rag_str}\n\nImplémente les tickets (résumé des changements à effectuer)."
     msgs = _build_messages("r4", user)
     n0, n1, n2 = get_llms_tier2()
+    model_name = "?"
     try:
-        out = call_with_cascade(n0, n1, n2, msgs)
+        out, model_name = call_with_cascade(n0, n1, n2, msgs)
         content = out.content if hasattr(out, "content") else str(out)
     except Exception as e:
         logger.exception("node_r4 failed: %s", e)
         content = f"Erreur R-4: {e}"
+    content = _sign_content(content, model_name)
     return {"messages": state.get("messages", []) + [{"role": "assistant", "content": content}]}
 
 
@@ -228,12 +243,14 @@ def node_r5(state: State) -> dict:
     user = "Résume les actions Git et PR à effectuer pour ce sprint (branch, commit, PR)."
     msgs = _build_messages("r5", user)
     n0, n1, n2 = get_llms_tier2()
+    model_name = "?"
     try:
-        out = call_with_cascade(n0, n1, n2, msgs)
+        out, model_name = call_with_cascade(n0, n1, n2, msgs)
         content = out.content if hasattr(out, "content") else str(out)
     except Exception as e:
         logger.exception("node_r5 failed: %s", e)
         content = f"Erreur R-5: {e}"
+    content = _sign_content(content, model_name)
     return {"messages": state.get("messages", []) + [{"role": "assistant", "content": content}]}
 
 
@@ -246,14 +263,16 @@ def node_r6(state: State) -> dict:
     user = "Résume le pipeline E5 : build_docs → unit → intégration → E2E. Verdict CI. L21: refuse commit sans docstrings."
     msgs = _build_messages("r6", user)
     n0, n1, n2 = get_llms_tier2()
+    model_name = "?"
     try:
-        out = call_with_cascade(n0, n1, n2, msgs)
+        out, model_name = call_with_cascade(n0, n1, n2, msgs)
         content = out.content if hasattr(out, "content") else str(out)
         tests_ok = True
     except Exception as e:
         logger.exception("node_r6 failed: %s", e)
         content = f"Erreur R-6: {e}"
         tests_ok = False
+    content = _sign_content(content, model_name)
 
     if not tests_ok:
         iterations += 1

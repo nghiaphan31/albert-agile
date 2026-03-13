@@ -121,12 +121,13 @@ def main() -> None:
     llm_factory = TIERS[args.tier]
     llm_n0, llm_n1, llm_n2 = llm_factory()
 
-    result = call_with_cascade(llm_n0, llm_n1, llm_n2, prompt, schema=schema)
+    result, model_name = call_with_cascade(llm_n0, llm_n1, llm_n2, prompt, schema=schema)
 
     if args.raw:
         print(result)
         return
 
+    print(f"# Modèle: {model_name}", file=sys.stderr)
     data = _to_json_serializable(result)
     print(json.dumps(data, ensure_ascii=False, indent=2))
 

@@ -21,12 +21,12 @@
 | Injection conditionnelle TOOL_SCHEMA_PROMPT | §3.5, plan       | Uniquement si `model == "worker"`                                                               |
 | Post-call (fake_stream + réparation)        | §3.5             | `config/litellm_hooks.py` : réparation follow_up, Option A (suppression si irréparable)         |
 | fake_stream sur Ollama                      | §3.5             | `config/litellm_config.yaml` : fake_stream: true sur modèles Ollama                             |
-| model_list architect/ingest/worker          | §5.1             | Présents avec fallbacks                                                                         |
+| model_list architect/ingest/worker          | §5.1, §5.1b      | architect: Gemini→Vertex→DeepSeek ; ingest: Gemini→Vertex→Payant ; worker: Local→Gemini→DeepSeek |
 | Risque Chroma                               | §C.9             | Documenté (Specs + Strategie)                                                                   |
 | LangGraph via LiteLLM                       | Phase 3          | `graph/llm_factory`, `graph/cascade`, `docs/LANGGRAPH_VIA_LITELLM.md`                           |
-| router_settings (allowed_fails, cooldown_time)         | §5.1b            | `config/litellm_config.yaml` : router_settings (allowed_fails: 3, cooldown_time: 3600)          |
-| Cascade Coût Zéro (Vertex, DeepSeek)                   | §5.1b            | `config/litellm_config_cascade_complete.yaml` + `LITELLM_CONFIG=cascade_complete`              |
-| Fallbacks Worker (crash → Gemini Lite, 429 → DeepSeek) | §5.1b            | `litellm_config_cascade_complete.yaml` : worker → worker-gemini → worker-deepseek              |
+| router_settings (model_cooldown_time, allowed_fails)   | §5.1b, §1.1      | `config/litellm_config.yaml` : model_cooldown_time: 61, allowed_fails: 3, cooldown_time: 3600  |
+| Cascade Coût Zéro (Vertex, DeepSeek)                   | §5.1b            | `config/litellm_config.yaml` : architect/ingest/worker avec fallbacks Vertex et DeepSeek       |
+| Fallbacks Worker (crash → Gemini, 429 → DeepSeek)      | §5.1b            | `config/litellm_config.yaml` : worker → worker-gemini → worker-deepseek                        |
 | Presidio (anonymisation LiteLLM)                       | §10.1            | docker-compose, callback presidio, docs/PRESIDIO_SETUP.md                                      |
 | SearXNG (recherche web)                               | §9               | docker-compose, create_search_web_tool, create_tools_r4, docs/SEARXNG_SETUP.md                  |
 
@@ -46,7 +46,7 @@
 
 | Élément Spec                           | Section     |
 | -------------------------------------- | ----------- |
-| Vertex AI, DeepSeek, GEMINI_PAYANT_KEY | Config cascade_complete uniquement (optionnel) |
+| Vertex AI, DeepSeek, GEMINI_PAYANT_KEY | Optionnel : définir VERTEX_PROJECT, DEEPSEEK_API_KEY, GEMINI_PAYANT_KEY pour activer ces paliers |
 | Sandboxing conteneurs (pytest)         | Implémenté  | graph/sandbox.py, docker/sandbox, docs/SANDBOXING_SETUP.md |
 | HITL WhatsApp (Gateway)                | §7.2        | Optionnel, roadmap |
 

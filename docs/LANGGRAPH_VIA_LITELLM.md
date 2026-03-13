@@ -68,7 +68,7 @@ Vérifier que le proxy expose `tier1-n0` et `tier2-n0` : `curl -s http://localho
 ## Limitations
 
 - **Latence** : un appel supplémentaire via le proxy (vs direct).
-- **Presidio** : pas intégré au niveau LiteLLM ; L-ANON (anonymisation) reste géré côté cascade si N1/N2 sont utilisés. En mode proxy, un seul niveau est appelé (LiteLLM gère les fallbacks).
+- **Presidio** : prévu par la spec §10.1 au niveau LiteLLM (callback `presidio`). Actuellement désactivé (commenté dans `config/litellm_config.yaml`). Pour l'activer : décommenter `presidio` dans les callbacks, lancer Presidio (Docker) puis le proxy. L-ANON reste utilisé en mode direct (cascade N1/N2).
 - **Ollama warmup** : désactivé en mode proxy (le proxy gère les appels à Ollama).
 
 ## Fichiers modifiés
