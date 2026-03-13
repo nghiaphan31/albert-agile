@@ -22,25 +22,25 @@ Référence : [NOMENCLATURE_R_H_E.md](NOMENCLATURE_R_H_E.md), [SYNTHESE_REGLES_E
 ### Lois par rôle
 
 
-| Rôle                               | Codes            | Application                                                             |
-| ---------------------------------- | ---------------- | ----------------------------------------------------------------------- |
-| R-0 (Business Analyst IA)         | L1, L4           | Anti-précipitation, Gabarit CDC (Cahier des charges)                    |
-| R-2 (System Architect IA)         | L2, L5, L18      | Traçabilité verticale, Confinement spatial, Arrêt sur contradiction     |
-| R-3 (Scrum Master IA)             | L6               | V.A.R. — Plans exécutables, nomenclature 4D                             |
-| R-4 (Dev Team IA)                 | L8, L9, L19, L21 | Non-destruction, Zéro-hardcode, Idempotence, Doc-as-code + Règles Tests |
-| R-5 (Release Manager IA)          | L7, L8           | Transparence, Non-destruction (git allowlist)                           |
-| R-6 (QA & DevOps IA)              | L15, L21         | Intégration E2E, Doc-as-code + Règles Tests                             |
+| Rôle                      | Codes            | Application                                                             |
+| ------------------------- | ---------------- | ----------------------------------------------------------------------- |
+| R-0 (Business Analyst IA) | L1, L4           | Anti-précipitation, Gabarit CDC (Cahier des charges)                    |
+| R-2 (System Architect IA) | L2, L5, L18      | Traçabilité verticale, Confinement spatial, Arrêt sur contradiction     |
+| R-3 (Scrum Master IA)     | L6               | V.A.R. — Plans exécutables, nomenclature 4D                             |
+| R-4 (Dev Team IA)         | L8, L9, L19, L21 | Non-destruction, Zéro-hardcode, Idempotence, Doc-as-code + Règles Tests |
+| R-5 (Release Manager IA)  | L7, L8           | Transparence, Non-destruction (git allowlist)                           |
+| R-6 (QA & DevOps IA)      | L15, L21         | Intégration E2E, Doc-as-code + Règles Tests                             |
 
 
 ## 2. Règles de mise en forme
 
 
-| Règle | Objet                     | Format                                                                                            |
-| ----- | ------------------------- | ------------------------------------------------------------------------------------------------- |
-| **A** | Commandes / scripts       | Code fence ````bash` — une commande par ligne, bouton Copy GitHub.                                |
-| **B** | Tableaux / spécifications | Markdown standard avec pipes `|`. Backlog, Architecture, Sprint Backlog en **tableaux Markdown**. |
-| **C** | Prompts IA                | Templates en bloc texte avec frontmatter YAML (config/prompts/ ou graph/prompts/).                |
-| **D** | Doc-in-code               | Docstrings obligatoires sur éléments publics ; doc générée (sphinx-build) si API modifiée.        |
+| Règle | Objet                     | Format                                                                                     |
+| ----- | ------------------------- | ------------------------------------------------------------------------------------------ |
+| **A** | Commandes / scripts       | Code fence ````bash` — une commande par ligne, bouton Copy GitHub.                         |
+| **B** | Tableaux / spécifications | Markdown standard avec pipes `                                                             |
+| **C** | Prompts IA                | Templates en bloc texte avec frontmatter YAML (config/prompts/ ou graph/prompts/).         |
+| **D** | Doc-in-code               | Docstrings obligatoires sur éléments publics ; doc générée (sphinx-build) si API modifiée. |
 
 
 ## 3. Règles Tests
