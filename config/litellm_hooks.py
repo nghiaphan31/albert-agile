@@ -29,6 +29,7 @@ FALLBACK_CHAINS = {
     "architect-vertex-gemini-2.5-pro": ["architect-pay-deepseek-chat"],
     "ingest-free-gemini-2.5-flash": ["ingest-vertex-gemini-2.0-flash", "ingest-pay-gemini-2.5-flash"],
     "ingest-vertex-gemini-2.0-flash": ["ingest-pay-gemini-2.5-flash"],
+    "qwen3": ["worker-free-gemini-2.5-flash", "worker-pay-deepseek-chat"],
     "worker-local-qwen2.5-coder:14b": ["worker-free-gemini-2.5-flash", "worker-pay-deepseek-chat"],
     "worker-free-gemini-2.5-flash": ["worker-pay-deepseek-chat"],
     "langgraph-conception-qwen2.5:14b": ["fallback-gemini-2.5-flash", "fallback-claude-opus-4-6"],

@@ -36,6 +36,14 @@ model_list:
       api_key: os.environ/GEMINI_PAYANT_KEY
 
   # --- 3. WORKER (§5.1b) : local → free → pay ---
+  # Alias qwen3 pour Roo Smart Router (openAiModelId: qwen3) — évite rejet avant pre-call hook
+  - model_name: qwen3
+    litellm_params:
+      model: ollama_chat/qwen2.5-coder:14b
+      api_base: http://localhost:11434
+      fake_stream: true
+      timeout: 120
+      stream_timeout: 60
   - model_name: worker-local-qwen2.5-coder:14b
     litellm_params:
       model: ollama_chat/qwen2.5-coder:14b
@@ -127,6 +135,7 @@ litellm_settings:
     - architect-vertex-gemini-2.5-pro: [architect-pay-deepseek-chat]
     - ingest-free-gemini-2.5-flash: [ingest-vertex-gemini-2.0-flash, ingest-pay-gemini-2.5-flash]
     - ingest-vertex-gemini-2.0-flash: [ingest-pay-gemini-2.5-flash]
+    - qwen3: [worker-free-gemini-2.5-flash, worker-pay-deepseek-chat]
     - worker-local-qwen2.5-coder:14b: [worker-free-gemini-2.5-flash, worker-pay-deepseek-chat]
     - worker-free-gemini-2.5-flash: [worker-pay-deepseek-chat]
     - langgraph-conception-qwen2.5:14b: [fallback-gemini-2.5-flash, fallback-claude-opus-4-6]

@@ -39,10 +39,15 @@ esac
 # Forcer le port pour éviter tout override (LiteLLM lit aussi PORT)
 export PORT
 
+# Debug : si ROO_DEBUG_LOG défini, le hook log model_in → model_out
+[ -n "$ROO_DEBUG_LOG" ] && echo "[run_litellm_proxy] ROO_DEBUG_LOG=$ROO_DEBUG_LOG (hook tracera le routage)"
+
 # Utiliser le venv du projet si disponible
 VENV_LITELLM="$ROOT/.venv/bin/litellm"
+EXTRA_ARGS=""
+[ -n "$LITELLM_DEBUG" ] && EXTRA_ARGS="--detailed_debug"
 if [ -x "$VENV_LITELLM" ]; then
-  exec "$VENV_LITELLM" --config "$CONFIG_FILE" --port "$PORT"
+  exec $VENV_LITELLM --config "$CONFIG_FILE" --port "$PORT" $EXTRA_ARGS
 else
-  exec litellm --config "$CONFIG_FILE" --port "$PORT"
+  exec litellm --config "$CONFIG_FILE" --port "$PORT" $EXTRA_ARGS
 fi
