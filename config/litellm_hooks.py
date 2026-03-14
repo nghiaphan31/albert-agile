@@ -6,6 +6,7 @@ LiteLLM hooks — deux stratégies pour fiabiliser le tool calling des LLMs loca
               - ask_followup_question sans follow_up → on ajoute des suggestions génériques
               - follow_up non-array → on le convertit en array
               - Option A : si réparation impossible, supprime le tool_call (réponse texte safe)
+3. Post-call streaming : injecte la signature du modèle sur le dernier chunk (visible par Roo)
 
 Chargé via litellm_config.yaml (en 2e après custom_roo_hook) :
   litellm_settings:
@@ -15,6 +16,8 @@ Chargé via litellm_config.yaml (en 2e après custom_roo_hook) :
 """
 import json
 import logging
+from typing import AsyncGenerator, Any
+
 from litellm.integrations.custom_logger import CustomLogger
 
 _logger = logging.getLogger(__name__)
@@ -163,6 +166,12 @@ def _store_actual_model(response, model: str) -> None:
         pass
 
 
+def _get_model_from_request_data(request_data: dict) -> str:
+    """Extrait et normalise le nom du modèle depuis request_data (routage custom_roo_hook)."""
+    raw = (request_data or {}).get("model") or ""
+    return _normalize_to_convention(str(raw).strip())
+
+
 def _append_model_signature(response_obj, model_name: str):
     """Ajoute la signature du modèle à la fin du content de la réponse."""
     if not model_name:
@@ -178,6 +187,30 @@ def _append_model_signature(response_obj, model_name: str):
                 setattr(msg, "content", content + MODEL_SIGNATURE.format(model=model_name))
     except Exception as e:
         _logger.warning("Signature modèle non ajoutée: %s", e)
+
+
+def _append_signature_to_stream_chunk(chunk: Any, model_name: str) -> None:
+    """
+    Ajoute la signature au content du dernier chunk streaming (modifie en place).
+    chunk.choices[0].delta.content pour ModelResponseStream.
+    """
+    if not model_name:
+        return
+    try:
+        choices = getattr(chunk, "choices", None) or []
+        if not choices:
+            return
+        choice = choices[0]
+        delta = getattr(choice, "delta", None)
+        if delta is None:
+            return
+        content = getattr(delta, "content", None) or ""
+        if not isinstance(content, str):
+            content = str(content) if content else ""
+        new_content = content + MODEL_SIGNATURE.format(model=model_name)
+        setattr(delta, "content", new_content)
+    except Exception as e:
+        _logger.warning("Signature streaming non ajoutée: %s", e)
 
 
 def _fix_tool_calls(response_obj):
@@ -245,12 +278,30 @@ class ToolSchemaEnforcer(CustomLogger):
         return data
 
     async def async_post_call_success_hook(self, data, user_api_key_dict, response):
-        """Répare les tool calls invalides et signe la réponse avec le nom du modèle."""
+        """Répare les tool calls invalides et signe la réponse avec le nom du modèle (non-streaming)."""
         _fix_tool_calls(response)
         model = _get_model_for_signature(response, data or {})
         if model:
             _append_model_signature(response, model)
         return response
+
+    async def async_post_call_streaming_iterator_hook(
+        self, user_api_key_dict, response, request_data
+    ) -> AsyncGenerator[Any, None]:
+        """
+        Injecte la signature du modèle sur le dernier chunk du flux (visible par Roo en streaming).
+        """
+        model_name = _get_model_from_request_data(request_data or {})
+        async for chunk in response:
+            try:
+                choices = getattr(chunk, "choices", None) or []
+                if choices:
+                    finish_reason = getattr(choices[0], "finish_reason", None)
+                    if finish_reason is not None and str(finish_reason).strip():
+                        _append_signature_to_stream_chunk(chunk, model_name)
+            except Exception as e:
+                _logger.debug("Stream chunk skip signature: %s", e)
+            yield chunk
 
 
 proxy_handler_instance = ToolSchemaEnforcer()
