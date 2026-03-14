@@ -50,7 +50,7 @@ class RooCodeHandler(CustomLogger):
         if np is None or ollama is None:
             return {}
         categories = {
-            "architect": "System design, software architecture, test strategy, high-level planning, database schema",
+            "architect": "System design, software architecture, authentication module, RBAC, authorization, design patterns, high-level planning, database schema, component design, API design",
             "ingest": "Scan whole repository, read all documentation files, analyze huge context, deep code search",
             "worker": "Fix bugs, refactor code, write functions, terminal commands, git operations, unit tests",
         }
@@ -109,7 +109,30 @@ class RooCodeHandler(CustomLogger):
             _debug_log(data["model"])
             return data
 
-        # --- Bloc 2 : Routage sémantique (message -1) ---
+        # --- Bloc 2 : Routage sémantique ---
+        # Pré-check ingest (priorité): si premier message user demande analyse/scan
+        _user_msgs = [str(m.get("content", "")).lower() for m in messages if m.get("role") == "user"]
+        _first_user = (_user_msgs[0] if _user_msgs else "")[:500]
+        if any(k in _first_user for k in ("analyze", "analyse", "scan", "read all", "examine", "specs/", "documentation", "recursively")):
+            data["model"] = ROO_PRIMARY_MODEL["ingest"]
+            print(f"--- [ROUTAGE] model_in={model_in!r} → ingest (keywords user) ---", flush=True)
+            _debug_log(data["model"])
+            return data
+
+        # Pré-check architect
+        # Pré-check: si le contexte récent évoque architect (réponses courtes type "internes"/"aucun"),
+        # forcer architect quand assistant/user mentionnent architecture, conception, module
+        _architect_keywords = ("architecture", "concevoir", "conception", "architect", "module d'", "module d’")
+        _recent_text = " ".join(
+            str(m.get("content", "")).lower() for m in messages[-8:]
+            if m.get("role") in ("user", "assistant")
+        )[:2000]
+        if any(kw in _recent_text for kw in _architect_keywords):
+            data["model"] = ROO_PRIMARY_MODEL["architect"]
+            print(f"--- [ROUTAGE] model_in={model_in!r} → architect (keywords dans contexte) ---", flush=True)
+            _debug_log(data["model"])
+            return data
+
         if np is None or ollama is None:
             data["model"] = ROO_PRIMARY_MODEL["worker"]
             _debug_log(data["model"])
@@ -121,7 +144,15 @@ class RooCodeHandler(CustomLogger):
             _debug_log(data["model"])
             return data
 
-        user_intent = str(messages[-1].get("content", ""))
+        # Prendre le dernier message user/tool le plus substantiel (les choix courts peuvent masquer l'intent)
+        user_msgs = [
+            str(m.get("content", "")) for m in messages
+            if m.get("role") in ("user",)
+        ]
+        user_intent = (user_msgs[-1] if user_msgs else "") or str(messages[-1].get("content", ""))
+        # Si dernier message court et un message antérieur plus long, préférer celui-ci pour le routage
+        if len(user_msgs) >= 2 and len(user_intent) < 80 and len(user_msgs[-2]) > len(user_intent):
+            user_intent = user_msgs[-2]
         try:
             emb = ollama.embed(model="nomic-embed-text", input=user_intent)
             intent_vector = np.array(emb["embeddings"][0])
