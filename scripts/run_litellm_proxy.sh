@@ -13,8 +13,11 @@ set -e
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-# Permettre l'import de config.* (custom_roo_hook, litellm_hooks)
-export PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}"
+# Permettre l'import des callbacks (custom_roo_hook, litellm_hooks)
+# config/ dans le path pour que custom_roo_hook.proxy_handler_instance soit trouvé
+export PYTHONPATH="$ROOT/config${PYTHONPATH:+:$PYTHONPATH}:$ROOT"
+# Stdout non bufferisé pour voir les logs du hook en temps réel
+export PYTHONUNBUFFERED=1
 
 # Charger .env si présent
 [ -f .env ] && set -a && source .env && set +a
@@ -41,6 +44,8 @@ export PORT
 
 # Debug : si ROO_DEBUG_LOG défini, le hook log model_in → model_out
 [ -n "$ROO_DEBUG_LOG" ] && echo "[run_litellm_proxy] ROO_DEBUG_LOG=$ROO_DEBUG_LOG (hook tracera le routage)"
+# Force worker local : bypass routage sémantique
+[ -n "$ROO_FORCE_WORKER_LOCAL" ] && echo "[run_litellm_proxy] ROO_FORCE_WORKER_LOCAL=1 → worker-local. Hook log: /tmp/roo_hook.log"
 
 # Utiliser le venv du projet si disponible
 VENV_LITELLM="$ROOT/.venv/bin/litellm"

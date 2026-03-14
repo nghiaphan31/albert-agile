@@ -23,12 +23,14 @@ except ImportError:
     np = ollama = None
 
 SIMILARITY_THRESHOLD = float(os.environ.get("ROO_SIMILARITY_THRESHOLD", "0.4"))
+# Force worker-local (bypass sémantique) pour debug : ROO_FORCE_WORKER_LOCAL=1
+FORCE_WORKER_LOCAL = os.environ.get("ROO_FORCE_WORKER_LOCAL", "").lower() in ("1", "true", "yes")
 
 # Modèles primaires par rôle (convention role-tier-modele)
 ROO_PRIMARY_MODEL = {
     "architect": "architect-free-gemini-2.5-pro",
     "ingest": "ingest-free-gemini-2.5-flash",
-    "worker": "worker-local-qwen2.5-coder:14b",
+    "worker": "worker-free-gemini-2.5-flash",
 }
 
 
@@ -60,9 +62,18 @@ class RooCodeHandler(CustomLogger):
 
     async def async_pre_call_hook(self, user_api_key_dict, cache, data, call_type):
         model_in = data.get("model", "")
+        # Log inconditionnel pour vérifier que le hook est appelé
+        _log_path = os.environ.get("ROO_HOOK_DEBUG") or (os.environ.get("TMPDIR", "/tmp") + "/roo_hook.log" if FORCE_WORKER_LOCAL else None)
+        if _log_path:
+            try:
+                with open(_log_path, "a") as f:
+                    f.write(f"pre_call: call_type={call_type!r} model_in={model_in!r} has_messages={bool(data.get('messages'))}\n")
+            except OSError:
+                pass
 
         messages = data.get("messages", [])
-        if not messages or call_type != "completion":
+        # "completion" = sync, "acompletion" = async (proxy)
+        if not messages or call_type not in ("completion", "acompletion"):
             return data
 
         # --- Bloc 1 : HITL (messages tool/user uniquement) ---
@@ -85,8 +96,14 @@ class RooCodeHandler(CustomLogger):
                 except OSError:
                     pass
 
+        if FORCE_WORKER_LOCAL:
+            data["model"] = ROO_PRIMARY_MODEL["worker"]
+            print(f"--- [ROUTAGE] model_in={model_in!r} → worker-local (FORCE) ---", flush=True)
+            _debug_log(data["model"])
+            return data
+
         if error_count >= 3:
-            print("\a🚨 [HITL] BOUCLE D'ERREUR DÉTECTÉE")
+            print("\a🚨 [HITL] BOUCLE D'ERREUR DÉTECTÉE", flush=True)
             data["messages"] = [{"role": "user", "content": "STOP: Error loop. Use 'ask_user'."}]
             data["model"] = ROO_PRIMARY_MODEL["worker"]
             _debug_log(data["model"])
@@ -119,10 +136,10 @@ class RooCodeHandler(CustomLogger):
 
         if best_score < SIMILARITY_THRESHOLD:
             data["model"] = ROO_PRIMARY_MODEL["worker"]
-            print(f"--- [ROUTAGE] Fallback worker (score max={best_score:.2f} < {SIMILARITY_THRESHOLD}) ---")
+            print(f"--- [ROUTAGE] Fallback worker (score max={best_score:.2f} < {SIMILARITY_THRESHOLD}) ---", flush=True)
         else:
             data["model"] = ROO_PRIMARY_MODEL[best_category]
-            print(f"--- [ROUTAGE] : {best_category.upper()} (Score: {best_score:.2f}) ---")
+            print(f"--- [ROUTAGE] model_in={model_in!r} → {data['model']} ({best_category}, score={best_score:.2f}) ---", flush=True)
 
         _debug_log(data["model"])
         return data

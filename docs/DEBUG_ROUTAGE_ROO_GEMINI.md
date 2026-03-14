@@ -5,9 +5,12 @@
 Avec « Smart Semantic Routing to LiteLLM » activé, Roo affiche :
 `Chemin de routage : worker-free-gemini-2.5-flash (réponse générée)` au lieu de `worker-local-qwen2.5-coder:14b`.
 
-## Cause
+## Cause identifiée (2026-03-14)
 
-Le fallback vers Gemini indique que **worker-local (Ollama) échoue** avant que la réponse ne soit envoyée. Le routage vers worker-local est bien effectué, mais l’appel à Ollama provoque une erreur → fallback automatique vers worker-free-gemini-2.5-flash.
+**OllamaError 404** : LiteLLM appelle `get_model_info()` et construit une URL incorrecte :
+`http://localhost:11434/api/chat/api/show` → 404 Not Found → fallback vers Gemini.
+
+**Correction** : Utiliser l’API OpenAI-compatible d’Ollama (`openai/` + `api_base: http://localhost:11434/v1`) au lieu de `ollama_chat/` pour les modèles qwen3 et worker-local. Cela évite l’appel `get_model_info()` défaillant.
 
 ## Procédure de diagnostic
 
@@ -39,7 +42,8 @@ Dans `logs/proxy_debug.log`, cherchez :
 
 | Cause | Piste de correction |
 |-------|---------------------|
-| Erreur de parsing JSON en streaming (Ollama) | Vérifier que `fake_stream: true` est bien défini pour worker-local (déjà fait). Mettre à jour LiteLLM et Ollama. |
+| api_key manquant (openai/) | LiteLLM exige `api_key` pour le provider `openai/`. Ajouter `api_key: "ollama"` dans litellm_params (Ollama l'ignore). |
+| Erreur de parsing JSON en streaming (Ollama) | Vérifier que `fake_stream: true` est bien défini pour worker-local (et qwen3). Mettre à jour LiteLLM et Ollama. |
 | Timeout (contexte long, tools nombreux) | Augmenter `timeout` et `stream_timeout` dans `litellm_config.yaml` pour worker-local. |
 | Conflit nomic-embed-text | Le routage sémantique appelle `ollama.embed()`. Si nomic-embed-text charge en même temps que qwen2.5-coder, risque de timeout ou de saturation. |
 | Roo pointe ailleurs | Vérifier que Roo utilise bien `http://localhost:4000` (SSH Remote = localhost sur la machine distante). |

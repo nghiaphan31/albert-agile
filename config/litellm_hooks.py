@@ -31,6 +31,7 @@ FALLBACK_CHAINS = {
     "ingest-vertex-gemini-2.0-flash": ["ingest-pay-gemini-2.5-flash"],
     "qwen3": ["worker-free-gemini-2.5-flash", "worker-pay-deepseek-chat"],
     "worker-local-qwen2.5-coder:14b": ["worker-free-gemini-2.5-flash", "worker-pay-deepseek-chat"],
+    "worker-local-qwen3:14b": ["worker-free-gemini-2.5-flash", "worker-pay-deepseek-chat"],
     "worker-free-gemini-2.5-flash": ["worker-pay-deepseek-chat"],
     "langgraph-conception-qwen2.5:14b": ["fallback-gemini-2.5-flash", "fallback-claude-opus-4-6"],
     "langgraph-code-qwen2.5-coder:14b": ["fallback-gemini-2.5-flash", "fallback-claude-sonnet-4-6"],
@@ -378,13 +379,16 @@ class ToolSchemaEnforcer(CustomLogger):
         """
         routed = _get_model_from_request_data(request_data or {})
         actual = routed  # fallback info non dispo dans le flux streaming
+        _signature_appended = False
         async for chunk in response:
             try:
                 choices = getattr(chunk, "choices", None) or []
-                if choices:
+                if choices and not _signature_appended:
                     finish_reason = getattr(choices[0], "finish_reason", None)
-                    if finish_reason is not None and str(finish_reason).strip():
+                    # Signature uniquement sur le dernier chunk (stop / tool_calls)
+                    if finish_reason in ("stop", "tool_calls", "length"):
                         _append_signature_to_stream_chunk(chunk, routed, actual)
+                        _signature_appended = True
             except Exception as e:
                 _logger.debug("Stream chunk skip signature: %s", e)
             yield chunk
