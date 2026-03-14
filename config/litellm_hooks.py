@@ -16,11 +16,28 @@ Chargé via litellm_config.yaml (en 2e après custom_roo_hook) :
 """
 import json
 import logging
-from typing import AsyncGenerator, Any
+from collections import deque
+from typing import AsyncGenerator, Any, List, Tuple
 
 from litellm.integrations.custom_logger import CustomLogger
 
 _logger = logging.getLogger(__name__)
+
+# Chaînes de fallback (même structure que litellm_config.yaml) pour reconstruire le chemin
+FALLBACK_CHAINS = {
+    "architect-free-gemini-2.5-pro": ["architect-vertex-gemini-2.5-pro", "architect-pay-deepseek-chat"],
+    "architect-vertex-gemini-2.5-pro": ["architect-pay-deepseek-chat"],
+    "ingest-free-gemini-2.5-flash": ["ingest-vertex-gemini-2.0-flash", "ingest-pay-gemini-2.5-flash"],
+    "ingest-vertex-gemini-2.0-flash": ["ingest-pay-gemini-2.5-flash"],
+    "worker-local-qwen2.5-coder:14b": ["worker-free-gemini-2.5-flash", "worker-pay-deepseek-chat"],
+    "worker-free-gemini-2.5-flash": ["worker-pay-deepseek-chat"],
+    "langgraph-conception-qwen2.5:14b": ["fallback-gemini-2.5-flash", "fallback-claude-opus-4-6"],
+    "langgraph-code-qwen2.5-coder:14b": ["fallback-gemini-2.5-flash", "fallback-claude-sonnet-4-6"],
+    "fallback-gemini-2.5-flash": ["fallback-claude-sonnet-4-6", "local-qwen3:14b"],
+    "local-qwen3:14b": ["fallback-gemini-2.5-flash", "fallback-claude-sonnet-4-6"],
+    "local-qwen2.5-coder:14b": ["fallback-gemini-2.5-flash", "fallback-claude-sonnet-4-6"],
+    "local-qwen2.5:14b": ["fallback-gemini-2.5-flash", "fallback-claude-sonnet-4-6"],
+}
 
 TOOL_SCHEMA_PROMPT = """TOOL CALLING RULES — MANDATORY:
 1. You MUST call exactly one tool per response.
@@ -66,7 +83,64 @@ def _repair_ask_followup_tc(tc) -> bool:
     return True
 
 
-MODEL_SIGNATURE = "\n\n— *généré par {model}*"
+def _get_routing_path(routed: str, actual: str) -> List[Tuple[str, bool]]:
+    """
+    Reconstruit le chemin de routage (modèles demandés puis échoués → modèle qui a répondu).
+    BFS sur FALLBACK_CHAINS. Si actual hors chaîne (ex. provider ID normalisé), on l'ajoute à la fin.
+    """
+    if not routed and not actual:
+        return []
+    routed = (routed or "").strip()
+    actual = (actual or routed).strip()
+    if routed == actual:
+        return [(routed, True)]  # pas de fallback
+    if not routed:
+        return [(actual, True)]
+    if not actual:
+        return [(routed, False)]
+
+    # BFS : routed → ... → actual
+    parent = {routed: None}
+    queue = deque([routed])
+    found = False
+    while queue:
+        cur = queue.popleft()
+        for fb in FALLBACK_CHAINS.get(cur, []):
+            if fb not in parent:
+                parent[fb] = cur
+                if fb == actual:
+                    found = True
+                    break
+                queue.append(fb)
+        if found:
+            break
+
+    if found:
+        path_models = []
+        node = actual
+        while node is not None:
+            path_models.insert(0, node)
+            node = parent.get(node)
+        return [(m, m == actual) for m in path_models]
+
+    # actual hors chaîne (ex. fallback-gemini quand worker-free a répondu)
+    return [(routed, False), (actual, True)]
+
+
+def _format_routing_path(path: List[Tuple[str, bool]]) -> str:
+    """Formate le chemin pour la signature : A (échec) → B (échec) → C (réponse générée)."""
+    if not path:
+        return ""
+    parts = []
+    for model, success in path:
+        if success:
+            parts.append(f"{model} (réponse générée)")
+        else:
+            parts.append(f"{model} (échec)")
+    return " → ".join(parts)
+
+
+MODEL_SIGNATURE = "\n\n— *Chemin de routage : {path}*"
 
 # Préfixes convention model_name (architect-, ingest-, worker-, local-, fallback-, langgraph-)
 CONVENTION_PREFIXES = ("architect-", "ingest-", "worker-", "local-", "fallback-", "langgraph-")
@@ -172,10 +246,12 @@ def _get_model_from_request_data(request_data: dict) -> str:
     return _normalize_to_convention(str(raw).strip())
 
 
-def _append_model_signature(response_obj, model_name: str):
-    """Ajoute la signature du modèle à la fin du content de la réponse."""
-    if not model_name:
+def _append_model_signature(response_obj, routed_model: str, actual_model: str):
+    """Ajoute la signature (chemin de routage détaillé) à la fin du content."""
+    path = _get_routing_path(routed_model or "", actual_model or "")
+    if not path:
         return
+    path_str = _format_routing_path(path)
     try:
         choices = getattr(response_obj, "choices", None) or []
         for choice in choices:
@@ -184,18 +260,22 @@ def _append_model_signature(response_obj, model_name: str):
                 continue
             content = getattr(msg, "content", None)
             if content and isinstance(content, str):
-                setattr(msg, "content", content + MODEL_SIGNATURE.format(model=model_name))
+                setattr(msg, "content", content + MODEL_SIGNATURE.format(path=path_str))
     except Exception as e:
         _logger.warning("Signature modèle non ajoutée: %s", e)
 
 
-def _append_signature_to_stream_chunk(chunk: Any, model_name: str) -> None:
+def _append_signature_to_stream_chunk(
+    chunk: Any, routed_model: str, actual_model: str
+) -> None:
     """
-    Ajoute la signature au content du dernier chunk streaming (modifie en place).
-    chunk.choices[0].delta.content pour ModelResponseStream.
+    Ajoute la signature (chemin de routage détaillé) au dernier chunk streaming.
+    En streaming, actual = routed si pas d'info de fallback.
     """
-    if not model_name:
+    path = _get_routing_path(routed_model or "", actual_model or "")
+    if not path:
         return
+    path_str = _format_routing_path(path)
     try:
         choices = getattr(chunk, "choices", None) or []
         if not choices:
@@ -207,7 +287,7 @@ def _append_signature_to_stream_chunk(chunk: Any, model_name: str) -> None:
         content = getattr(delta, "content", None) or ""
         if not isinstance(content, str):
             content = str(content) if content else ""
-        new_content = content + MODEL_SIGNATURE.format(model=model_name)
+        new_content = content + MODEL_SIGNATURE.format(path=path_str)
         setattr(delta, "content", new_content)
     except Exception as e:
         _logger.warning("Signature streaming non ajoutée: %s", e)
@@ -278,27 +358,32 @@ class ToolSchemaEnforcer(CustomLogger):
         return data
 
     async def async_post_call_success_hook(self, data, user_api_key_dict, response):
-        """Répare les tool calls invalides et signe la réponse avec le nom du modèle (non-streaming)."""
+        """Répare les tool calls, signe avec modèle routé + modèle réel (non-streaming)."""
         _fix_tool_calls(response)
-        model = _get_model_for_signature(response, data or {})
-        if model:
-            _append_model_signature(response, model)
+        data_dict = data or {}
+        routed = _get_model_from_request_data(data_dict)
+        actual = _get_model_for_signature(response, data_dict)
+        if routed or actual:
+            _append_model_signature(response, routed, actual)
         return response
 
     async def async_post_call_streaming_iterator_hook(
         self, user_api_key_dict, response, request_data
     ) -> AsyncGenerator[Any, None]:
         """
-        Injecte la signature du modèle sur le dernier chunk du flux (visible par Roo en streaming).
+        Injecte la signature (modèle routé + modèle réel) sur le dernier chunk.
+        En streaming, LiteLLM ne fournit pas le modèle réel en cas de fallback :
+        on utilise le modèle routé pour les deux (identique si pas de fallback).
         """
-        model_name = _get_model_from_request_data(request_data or {})
+        routed = _get_model_from_request_data(request_data or {})
+        actual = routed  # fallback info non dispo dans le flux streaming
         async for chunk in response:
             try:
                 choices = getattr(chunk, "choices", None) or []
                 if choices:
                     finish_reason = getattr(choices[0], "finish_reason", None)
                     if finish_reason is not None and str(finish_reason).strip():
-                        _append_signature_to_stream_chunk(chunk, model_name)
+                        _append_signature_to_stream_chunk(chunk, routed, actual)
             except Exception as e:
                 _logger.debug("Stream chunk skip signature: %s", e)
             yield chunk

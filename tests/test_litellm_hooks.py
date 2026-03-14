@@ -289,23 +289,26 @@ class TestAppendModelSignature:
         msg = SimpleNamespace(content="Hello world")
         choice = SimpleNamespace(message=msg)
         resp = SimpleNamespace(choices=[choice])
-        _append_model_signature(resp, "vertex_ai/gemini-2.5-pro")
-        assert "généré par vertex_ai/gemini-2.5-pro" in msg.content
-        assert msg.content.endswith(MODEL_SIGNATURE.format(model="vertex_ai/gemini-2.5-pro"))
+        _append_model_signature(resp, "worker-local-qwen2.5-coder:14b", "worker-free-gemini-2.5-flash")
+        assert "Chemin de routage :" in msg.content
+        assert "worker-local-qwen2.5-coder:14b (échec)" in msg.content
+        assert "worker-free-gemini-2.5-flash (réponse générée)" in msg.content
 
     def test_modele_vide_ne_modifie_pas(self):
         msg = SimpleNamespace(content="Hello")
         choice = SimpleNamespace(message=msg)
         resp = SimpleNamespace(choices=[choice])
-        _append_model_signature(resp, "")
+        _append_model_signature(resp, "", "")
         assert msg.content == "Hello"
 
     def test_post_call_hook_signe_reponse(self):
         msg = SimpleNamespace(content="Réponse ici", tool_calls=[])
         choice = SimpleNamespace(message=msg)
         resp = SimpleNamespace(model="gemini/gemini-2.5-flash", choices=[choice], _hidden_params={})
-        data = {}
+        data = {"model": "worker-local-qwen2.5-coder:14b"}
         enforcer = ToolSchemaEnforcer()
         out = _run_async(enforcer.async_post_call_success_hook(data, None, resp))
         assert out is resp
-        assert "généré par fallback-gemini-2.5-flash" in msg.content
+        assert "Chemin de routage :" in msg.content
+        assert "worker-local-qwen2.5-coder:14b (échec)" in msg.content
+        assert "fallback-gemini-2.5-flash (réponse générée)" in msg.content
