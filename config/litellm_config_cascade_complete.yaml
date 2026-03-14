@@ -67,8 +67,8 @@ litellm_settings:
   num_retries: 2
   drop_params: true
   callbacks:
-    - config.custom_roo_hook.proxy_handler_instance
-    - config.litellm_hooks.proxy_handler_instance
+    - custom_roo_hook.proxy_handler_instance
+    - litellm_hooks.proxy_handler_instance
     - presidio
   fallbacks:
     - architect-free-gemini-2.5-pro: [architect-vertex-gemini-2.5-pro, architect-pay-deepseek-chat]

@@ -118,8 +118,8 @@ litellm_settings:
   num_retries: 2
   drop_params: true
   callbacks:
-    - config.custom_roo_hook.proxy_handler_instance   # 1. HITL + routage sémantique -> data["model"]
-    - config.litellm_hooks.proxy_handler_instance     # 2. TOOL_SCHEMA_PROMPT (si model worker-*)
+    - custom_roo_hook.proxy_handler_instance   # 1. HITL + routage sémantique -> data["model"]
+    - litellm_hooks.proxy_handler_instance     # 2. TOOL_SCHEMA_PROMPT (si model worker-*)
     # Presidio (spec §10.1) : masquer PII avant envoi cloud. Décommenter + lancer Presidio (start_services)
     # - presidio
   fallbacks:
