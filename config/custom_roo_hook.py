@@ -1,7 +1,9 @@
 """
 Routage sémantique + HITL anti-boucle pour Roo Code (LiteLLM pre-call hook).
 
-Debug: Lancer avec ROO_DEBUG_LOG=/path/to/roo_debug.log pour tracer model_in → model_out.
+Debug:
+  ROO_DEBUG_LOG=/path/to/roo_debug.log — trace model_in → model_out (1 ligne)
+  ROO_ROUTING_LOG=/path/to/routing.jsonl — fenêtre détaillée pour affiner l'algo (JSON lines)
 
 Exécuté en premier dans la chaîne des callbacks (avant litellm_hooks).
 - Bloc 1 — HITL : détecte boucle d'erreurs (messages tool/user uniquement)
@@ -36,6 +38,57 @@ ROO_PRIMARY_MODEL = {
 
 def cosine_similarity(a, b):
     return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b) + 1e-9))
+
+
+def _log_routing_decision(
+    model_in: str,
+    model_out: str,
+    source: str,
+    messages: list,
+    user_intent: str = "",
+    score: float | str | None = None,
+    scores: dict | None = None,
+    has_tools: bool = False,
+) -> None:
+    """
+    Log une décision de routage (JSON lines) pour analyse et affinage de l'algo.
+    Activé via ROO_ROUTING_LOG=/path/to/routing.jsonl
+    ROO_ROUTING_WINDOW=12 (défaut) : nb de messages dans la fenêtre.
+    """
+    import json
+    from datetime import datetime
+    path = os.environ.get("ROO_ROUTING_LOG")
+    if not path:
+        return
+    window = int(os.environ.get("ROO_ROUTING_WINDOW", "12"))
+    try:
+        window_msgs = [
+            {
+                "role": m.get("role", ""),
+                "len": len(str(m.get("content", ""))),
+                "preview": str(m.get("content", ""))[:200],
+            }
+            for m in messages[-window:]
+        ]
+        entry = {
+            "ts": datetime.utcnow().isoformat() + "Z",
+            "model_in": model_in,
+            "model_out": model_out,
+            "source": source,
+            "n_messages": len(messages),
+            "window": window_msgs,
+            "user_intent_preview": (user_intent or "")[:500],
+            "user_intent_len": len(user_intent or ""),
+            "has_tools": has_tools,
+        }
+        if score is not None:
+            entry["score"] = score
+        if scores:
+            entry["scores"] = {k: round(v, 4) for k, v in scores.items()}
+        with open(path, "a") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except OSError:
+        pass
 
 
 class RooCodeHandler(CustomLogger):
@@ -96,8 +149,10 @@ class RooCodeHandler(CustomLogger):
                 except OSError:
                     pass
 
+        has_tools = bool(data.get("tools"))
         if FORCE_WORKER_LOCAL:
             data["model"] = ROO_PRIMARY_MODEL["worker"]
+            _log_routing_decision(model_in, data["model"], "force_worker", messages, has_tools=has_tools)
             print(f"--- [ROUTAGE] model_in={model_in!r} → worker-local (FORCE) ---", flush=True)
             _debug_log(data["model"])
             return data
@@ -106,15 +161,18 @@ class RooCodeHandler(CustomLogger):
             print("\a🚨 [HITL] BOUCLE D'ERREUR DÉTECTÉE", flush=True)
             data["messages"] = [{"role": "user", "content": "STOP: Error loop. Use 'ask_user'."}]
             data["model"] = ROO_PRIMARY_MODEL["worker"]
+            _log_routing_decision(model_in, data["model"], "hitl", messages, has_tools=has_tools)
             _debug_log(data["model"])
             return data
 
         # --- Bloc 2 : Routage sémantique ---
-        # Pré-check ingest (priorité): si premier message user demande analyse/scan
+        # Pré-check ingest: si dernier message user demande analyse/scan (pas le 1er, qui peut être une ancienne tâche)
         _user_msgs = [str(m.get("content", "")).lower() for m in messages if m.get("role") == "user"]
-        _first_user = (_user_msgs[0] if _user_msgs else "")[:500]
-        if any(k in _first_user for k in ("analyze", "analyse", "scan", "read all", "examine", "specs/", "documentation", "recursively")):
+        _last_user = (_user_msgs[-1] if _user_msgs else "")[:500]
+        if any(k in _last_user for k in ("analyze", "analyse", "scan", "read all", "examine", "specs/", "documentation", "recursively")):
             data["model"] = ROO_PRIMARY_MODEL["ingest"]
+            data["_roo_routing_score"] = "keywords"
+            _log_routing_decision(model_in, data["model"], "keywords_ingest", messages, _last_user, score="keywords", has_tools=has_tools)
             print(f"--- [ROUTAGE] model_in={model_in!r} → ingest (keywords user) ---", flush=True)
             _debug_log(data["model"])
             return data
@@ -129,35 +187,42 @@ class RooCodeHandler(CustomLogger):
         )[:2000]
         if any(kw in _recent_text for kw in _architect_keywords):
             data["model"] = ROO_PRIMARY_MODEL["architect"]
+            data["_roo_routing_score"] = "keywords"
+            _log_routing_decision(model_in, data["model"], "keywords_architect", messages, _recent_text[:500], score="keywords", has_tools=has_tools)
             print(f"--- [ROUTAGE] model_in={model_in!r} → architect (keywords dans contexte) ---", flush=True)
             _debug_log(data["model"])
             return data
 
         if np is None or ollama is None:
             data["model"] = ROO_PRIMARY_MODEL["worker"]
+            _log_routing_decision(model_in, data["model"], "no_embeddings", messages, has_tools=has_tools)
             _debug_log(data["model"])
             return data
 
         vectors = self._get_category_vectors()
         if not vectors:
             data["model"] = ROO_PRIMARY_MODEL["worker"]
+            _log_routing_decision(model_in, data["model"], "no_vectors", messages, has_tools=has_tools)
             _debug_log(data["model"])
             return data
 
-        # Prendre le dernier message user/tool le plus substantiel (les choix courts peuvent masquer l'intent)
-        user_msgs = [
-            str(m.get("content", "")) for m in messages
-            if m.get("role") in ("user",)
-        ]
+        # Construire l'intent pour l'embedding
+        user_msgs = [str(m.get("content", "")) for m in messages if m.get("role") == "user"]
         user_intent = (user_msgs[-1] if user_msgs else "") or str(messages[-1].get("content", ""))
-        # Si dernier message court et un message antérieur plus long, préférer celui-ci pour le routage
-        if len(user_msgs) >= 2 and len(user_intent) < 80 and len(user_msgs[-2]) > len(user_intent):
-            user_intent = user_msgs[-2]
+        # Si dernier message court (<80 chars), enrichir avec l'historique récent pour un meilleur embedding
+        if len(user_intent) < 80:
+            recent = [
+                f"{m.get('role','')}: {str(m.get('content',''))}"
+                for m in messages[-6:]
+                if m.get("role") in ("user", "assistant") and m.get("content")
+            ]
+            user_intent = " | ".join(recent)[:1500]  # limite pour nomic-embed-text
         try:
             emb = ollama.embed(model="nomic-embed-text", input=user_intent)
             intent_vector = np.array(emb["embeddings"][0])
         except Exception:
             data["model"] = ROO_PRIMARY_MODEL["worker"]
+            _log_routing_decision(model_in, data["model"], "embedding_error", messages, user_intent, has_tools=has_tools)
             _debug_log(data["model"])
             return data
 
@@ -167,9 +232,13 @@ class RooCodeHandler(CustomLogger):
 
         if best_score < SIMILARITY_THRESHOLD:
             data["model"] = ROO_PRIMARY_MODEL["worker"]
+            data["_roo_routing_score"] = round(best_score, 2)
+            _log_routing_decision(model_in, data["model"], "embedding_fallback", messages, user_intent, score=round(best_score, 4), scores=scores, has_tools=has_tools)
             print(f"--- [ROUTAGE] Fallback worker (score max={best_score:.2f} < {SIMILARITY_THRESHOLD}) ---", flush=True)
         else:
             data["model"] = ROO_PRIMARY_MODEL[best_category]
+            data["_roo_routing_score"] = round(best_score, 2)
+            _log_routing_decision(model_in, data["model"], "embedding", messages, user_intent, score=round(best_score, 4), scores=scores, has_tools=has_tools)
             print(f"--- [ROUTAGE] model_in={model_in!r} → {data['model']} ({best_category}, score={best_score:.2f}) ---", flush=True)
 
         _debug_log(data["model"])

@@ -142,7 +142,17 @@ def _format_routing_path(path: List[Tuple[str, bool]]) -> str:
     return " → ".join(parts)
 
 
-MODEL_SIGNATURE = "\n\n— *Chemin de routage : {path}*"
+MODEL_SIGNATURE = "\n\n— *Chemin de routage : {path}{score_suffix}*"
+
+
+def _format_score_suffix(request_data: dict) -> str:
+    """Extrait le score de routage pour la signature (custom_roo_hook)."""
+    score = (request_data or {}).get("_roo_routing_score")
+    if score is None:
+        return ""
+    if isinstance(score, str):
+        return f" ({score})"
+    return f" — score={score}"
 
 # Préfixes convention model_name (architect-, ingest-, worker-, local-, fallback-, langgraph-)
 CONVENTION_PREFIXES = ("architect-", "ingest-", "worker-", "local-", "fallback-", "langgraph-")
@@ -248,12 +258,13 @@ def _get_model_from_request_data(request_data: dict) -> str:
     return _normalize_to_convention(str(raw).strip())
 
 
-def _append_model_signature(response_obj, routed_model: str, actual_model: str):
+def _append_model_signature(response_obj, routed_model: str, actual_model: str, request_data: dict = None):
     """Ajoute la signature (chemin de routage détaillé) à la fin du content."""
     path = _get_routing_path(routed_model or "", actual_model or "")
     if not path:
         return
     path_str = _format_routing_path(path)
+    score_suffix = _format_score_suffix(request_data)
     try:
         choices = getattr(response_obj, "choices", None) or []
         for choice in choices:
@@ -262,13 +273,13 @@ def _append_model_signature(response_obj, routed_model: str, actual_model: str):
                 continue
             content = getattr(msg, "content", None)
             if content and isinstance(content, str):
-                setattr(msg, "content", content + MODEL_SIGNATURE.format(path=path_str))
+                setattr(msg, "content", content + MODEL_SIGNATURE.format(path=path_str, score_suffix=score_suffix))
     except Exception as e:
         _logger.warning("Signature modèle non ajoutée: %s", e)
 
 
 def _append_signature_to_stream_chunk(
-    chunk: Any, routed_model: str, actual_model: str
+    chunk: Any, routed_model: str, actual_model: str, request_data: dict = None
 ) -> None:
     """
     Ajoute la signature (chemin de routage détaillé) au dernier chunk streaming.
@@ -278,6 +289,7 @@ def _append_signature_to_stream_chunk(
     if not path:
         return
     path_str = _format_routing_path(path)
+    score_suffix = _format_score_suffix(request_data)
     try:
         choices = getattr(chunk, "choices", None) or []
         if not choices:
@@ -289,7 +301,7 @@ def _append_signature_to_stream_chunk(
         content = getattr(delta, "content", None) or ""
         if not isinstance(content, str):
             content = str(content) if content else ""
-        new_content = content + MODEL_SIGNATURE.format(path=path_str)
+        new_content = content + MODEL_SIGNATURE.format(path=path_str, score_suffix=score_suffix)
         setattr(delta, "content", new_content)
     except Exception as e:
         _logger.warning("Signature streaming non ajoutée: %s", e)
@@ -366,7 +378,7 @@ class ToolSchemaEnforcer(CustomLogger):
         routed = _get_model_from_request_data(data_dict)
         actual = _get_model_for_signature(response, data_dict)
         if routed or actual:
-            _append_model_signature(response, routed, actual)
+            _append_model_signature(response, routed, actual, data_dict)
         return response
 
     async def async_post_call_streaming_iterator_hook(
@@ -387,7 +399,7 @@ class ToolSchemaEnforcer(CustomLogger):
                     finish_reason = getattr(choices[0], "finish_reason", None)
                     # Signature uniquement sur le dernier chunk (stop / tool_calls)
                     if finish_reason in ("stop", "tool_calls", "length"):
-                        _append_signature_to_stream_chunk(chunk, routed, actual)
+                        _append_signature_to_stream_chunk(chunk, routed, actual, request_data)
                         _signature_appended = True
             except Exception as e:
                 _logger.debug("Stream chunk skip signature: %s", e)
