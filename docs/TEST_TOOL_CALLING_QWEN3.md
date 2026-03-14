@@ -8,12 +8,12 @@ Référence : [`scripts/test_qwen3_tool_calling.py`](../scripts/test_qwen3_tool_
 
 Roo Code utilise le proxy LiteLLM en mode streaming (`stream: true`). Pour les modèles Ollama locaux, `fake_stream: true` est activé dans `config/litellm_config.yaml` : LiteLLM fait une requête non-streaming en interne, puis simule un flux SSE.
 
-Des boucles anormales ont été observées dans Roo avec `worker-local-qwen3:14b`. Ce script diagnostique les causes potentielles à travers 3 couches d'abstraction et 4 scénarios représentatifs.
+Des boucles anormales ont été observées dans Roo avec `worker-local-qwen3:14b`. Ce script diagnostique les causes potentielles à travers 3 couches d'abstraction et 5 scénarios représentatifs (S1-S4 : prompts courts ; S5 : contexte long ~30K tokens + historique multi-turn).
 
 ## Architecture du test
 
 ```
-  3 couches × 4 scénarios = 12 combinaisons testées
+  3 couches × 5 scénarios (4 courts + 1 contexte long)
   ┌─────────────────────────────────────────────────────────┐
   │ L0 — Ollama direct   :11434/v1   stream=false (baseline)│
   │ L1 — Proxy LiteLLM   :4000       stream=false           │
@@ -24,6 +24,7 @@ Des boucles anormales ont été observées dans Roo avec `worker-local-qwen3:14b
   │ S2 — Tâche ambiguë      → ask_followup_question          │
   │ S3 — Stress think tokens (prompt anti-XML)              │
   │ S4 — Suite complète tools Roo (5 outils disponibles)    │
+  │ S5 — Contexte long ~30K tokens + historique multi-turn  │
   └─────────────────────────────────────────────────────────┘
 ```
 
@@ -61,6 +62,9 @@ ollama pull qwen3:14b
 # Scénario isolé
 .venv/bin/python scripts/test_qwen3_tool_calling.py --scenario 2 --repeat 5
 
+# Contexte long ~30K tokens + historique multi-turn (S5)
+.venv/bin/python scripts/test_qwen3_tool_calling.py --layer 2 --scenario 5 --repeat 5
+
 # Afficher les réponses JSON brutes pour inspection manuelle
 .venv/bin/python scripts/test_qwen3_tool_calling.py --layer 2 --scenario 1 --repeat 1 --verbose
 
@@ -80,6 +84,7 @@ Run de référence : 3 couches × 4 scénarios × 3 répétitions + stress L2 ×
 | L0 — Ollama direct | 12/12 | ✅ 100% |
 | L1 — Proxy non-streaming | 20/20 | ✅ 100% |
 | L2 — Proxy fake_stream (Roo) | 40/40 | ✅ 100% |
+| L2 — S5 contexte long ~30K tokens + multi-turn | 5/5 | ✅ 100% |
 
 ### Hypothèses diagnostiquées
 
@@ -157,12 +162,12 @@ Un `✗` sur `tool_calls_json_valid` indique que le modèle a émis des argument
 
 ## Causes probables non couvertes par ces tests
 
-Ces scénarios utilisent des prompts courts (< 500 tokens). Les boucles Roo réelles impliquent souvent :
+S1-S4 utilisent des prompts courts (< 500 tokens) ; S5 couvre le contexte long (~30K tokens). Les boucles Roo réelles impliquent souvent :
 
 | Cause | Signature dans les tests | Piste |
 |---|---|---|
-| Contexte trop long (> 28K tokens) | Timeouts en L0/L1/L2, ou `tool_calls_json_valid` < 100% sur S4 | Augmenter `num_ctx` ou raccourcir le contexte Roo |
-| Historique multi-turn corrompu | Échecs intermittents sur S2 après plusieurs rounds | Ajouter des scénarios multi-turn dans S5 |
+| Contexte long (> 28K tokens) | **Couvert par S5** (5/5 au 2026-03-14) — augmenter `--repeat` pour plus de confiance | Si échecs : augmenter `num_ctx` ou raccourcir le contexte Roo |
+| Historique multi-turn profond (> 6 tours) | S5 couvre 3 tours — insuffisant pour reproduire une session Roo longue | Ajouter S6 avec 6-8 turns tool_call→résultat→tool_call |
 | Outil Roo inconnu du modèle | `expected_tool_called` renvoie un nom d'outil inattendu | Vérifier que `TOOL_SCHEMA_PROMPT` couvre bien l'outil |
 | Compétition GPU (nomic-embed-text + qwen3) | Timeouts L0 uniquement | Surveiller `nvidia-smi` pendant les tests |
 
@@ -170,7 +175,7 @@ Ces scénarios utilisent des prompts courts (< 500 tokens). Les boucles Roo rée
 
 | Script | Usage |
 |---|---|
-| `scripts/test_qwen3_tool_calling.py` | Ce guide — test structuré 3 couches × 4 scénarios |
+| `scripts/test_qwen3_tool_calling.py` | Ce guide — test structuré 3 couches × 5 scénarios (S5 = contexte long ~30K tokens) |
 | `scripts/test_litellm_hooks_integration.py` | Test HTTP ad-hoc du proxy (1 requête, output console) |
 | `scripts/test_worker_local_curl.sh` | Test curl minimal (`worker-local-qwen2.5-coder:14b`, non-streaming) |
 | `tests/test_litellm_hooks.py` | Tests unitaires des hooks (pytest, sans proxy ni Ollama) |

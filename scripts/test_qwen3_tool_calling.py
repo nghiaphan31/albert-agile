@@ -151,6 +151,151 @@ TOOL_EXECUTE_COMMAND = {
 # Scénarios
 # ---------------------------------------------------------------------------
 
+def _build_long_context_system_prompt() -> str:
+    """
+    Construit un system prompt de ~30K tokens en injectant les vrais fichiers du projet.
+    Simule le contexte réel que Roo envoie au modèle (system prompt + contenus de fichiers lus).
+    """
+    import pathlib
+
+    root = pathlib.Path(__file__).resolve().parent.parent
+
+    # Faux system prompt Roo (structure réaliste, ~3K tokens)
+    roo_preamble = """You are Roo, a highly skilled software engineer with extensive knowledge in many programming languages, frameworks, design patterns, and best practices.
+
+====
+
+TOOL USE
+
+You have access to a set of tools that are executed upon the user's approval. You can use one tool per message, and will receive the result of that tool use in the user's response. You use tools step-by-step to accomplish a given task, with each tool use informed by the result of the previous tool use.
+
+# Tool Use Formatting
+
+Tool use is formatted using XML-style tags. The tool name is enclosed in opening and closing tags, and each parameter is similarly enclosed within its own set of tags:
+
+<tool_name>
+<parameter1_name>value1</parameter1_name>
+<parameter2_name>value2</parameter2_name>
+</tool_name>
+
+Always adhere to this format for the tool use to ensure proper parsing and execution.
+
+# Tools
+
+## attempt_completion
+Description: After each tool use, the user will respond with the result of that tool use, i.e. if it succeeded or failed, along with any reasons for failure. Once you've received the results of tool uses and can see that the task is complete, use this tool to present the result of your work to the user. The user may respond with feedback if they are not satisfied with the result, which you can use to make improvements and try again.
+IMPORTANT NOTE: This tool CANNOT be used until you've confirmed from the user that any previous tool uses were successful. Failure to do so will result in code errors and system failures. Always confirm success before proceeding.
+
+## ask_followup_question
+Description: Ask the user a question to gather additional information needed to complete the task. This tool should be used when you encounter ambiguities, need clarification, or require more details to proceed effectively. It allows for interactive problem-solving by enabling direct communication with the user. Do not ask for information that is already available in the context or inferred from the task.
+
+## read_file
+Description: Request to read the contents of a file at the specified path. Use this when you need to examine the contents of an existing file you do not know the contents of, for example to analyze code, review text files, or extract information from configuration files. Automatically extracts raw text from PDF and DOCX files. May not be suitable for other types of binary files, as it returns the raw content as a string.
+
+## write_to_file
+Description: Request to write content to a file at the specified path. If the file exists, it will be overwritten with the provided content. If the file does not exist, it will be created. This tool will automatically create any directories needed to write the file.
+
+## execute_command
+Description: Request to execute a CLI command on the system. Use this when you need to perform system operations or run specific commands to accomplish any step in the task. You must tailor your command to the user's system and provide a clear explanation of what the command does.
+
+====
+
+RULES
+
+- Your current working directory is: /home/nghia-phan/PROJECTS_WITH_ALBERT/albert-agile
+- Do not use the ~ character or $HOME to refer to the home directory in any of the paths, as this may lead to errors.
+- Before writing or editing files, read the file first if it exists.
+- Prefer to make targeted edits rather than rewriting files wholesale.
+- When making changes to code, always consider the context in which the code is being used.
+- You MUST always call a tool. Never reply with plain text only.
+
+====
+
+SYSTEM INFORMATION
+
+Operating System: Linux 6.17.0-14-generic
+Default Shell: /bin/bash
+Home Directory: /home/nghia-phan
+Current Working Directory: /home/nghia-phan/PROJECTS_WITH_ALBERT/albert-agile
+
+====
+"""
+
+    # Fichiers réels du projet à inclure comme contexte lu
+    files_to_inject = [
+        "config/litellm_hooks.py",
+        "config/custom_roo_hook.py",
+        "config/litellm_config.yaml",
+        "scripts/test_qwen3_tool_calling.py",
+        "tests/test_litellm_hooks.py",
+        "tests/test_custom_roo_hook.py",
+    ]
+
+    file_sections = []
+    total_chars = len(roo_preamble)
+    target_chars = 110_000  # ~27K tokens (4 chars/token), avec marge
+
+    for rel_path in files_to_inject:
+        if total_chars >= target_chars:
+            break
+        fpath = root / rel_path
+        if not fpath.exists():
+            continue
+        content = fpath.read_text(encoding="utf-8", errors="replace")
+        section = f"\n<file_content path=\"{rel_path}\">\n{content}\n</file_content>\n"
+        file_sections.append(section)
+        total_chars += len(section)
+
+    # Si on n'a pas atteint la cible, rembourrer avec un extrait répété du premier fichier
+    if total_chars < target_chars and file_sections:
+        padding_content = file_sections[0]
+        while total_chars < target_chars:
+            file_sections.append(padding_content)
+            total_chars += len(padding_content)
+
+    system_prompt = roo_preamble + "".join(file_sections)
+    tokens_approx = len(system_prompt) // 4
+    print(f"  [S5] Contexte long généré : {len(system_prompt):,} chars ≈ {tokens_approx:,} tokens")
+    return system_prompt
+
+
+def _build_long_context_scenario() -> dict:
+    """
+    Scénario S5 : contexte long (~30K tokens) avec historique multi-turn.
+    Simule une session Roo réaliste après plusieurs échanges.
+    """
+    system_prompt = _build_long_context_system_prompt()
+
+    # Historique multi-turn (3 tours) simulant une session avancée
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": "I need you to refactor the litellm_hooks.py file to improve error handling. Start by reading it."},
+        {"role": "assistant", "content": None, "tool_calls": [
+            {"id": "call_001", "type": "function", "function": {
+                "name": "read_file",
+                "arguments": '{"path": "config/litellm_hooks.py"}'
+            }}
+        ]},
+        {"role": "tool", "tool_call_id": "call_001", "content": "Error: file too large to display inline (409 lines). Use start_line/end_line parameters."},
+        {"role": "assistant", "content": None, "tool_calls": [
+            {"id": "call_002", "type": "function", "function": {
+                "name": "read_file",
+                "arguments": '{"path": "config/litellm_hooks.py", "start_line": 1, "end_line": 100}'
+            }}
+        ]},
+        {"role": "tool", "tool_call_id": "call_002", "content": "def _fix_tool_calls(response_obj):\n    \"\"\"Corrige les tool calls invalides.\"\"\"\n    # ... (100 lines shown)"},
+        {"role": "user", "content": "Good. Now add proper logging with timestamps to every exception handler in that file. Use a tool call to proceed."},
+    ]
+
+    return {
+        "name": "S5 - Contexte long ~30K tokens + multi-turn",
+        "messages": messages,
+        "tools": [TOOL_ATTEMPT_COMPLETION, TOOL_ASK_FOLLOWUP, TOOL_READ_FILE, TOOL_WRITE_FILE, TOOL_EXECUTE_COMMAND],
+        "tool_choice": "required",
+        "expect_tool": None,
+    }
+
+
 SCENARIOS = {
     1: {
         "name": "S1 - Tâche simple (→ attempt_completion)",
@@ -198,6 +343,8 @@ SCENARIOS = {
         "tool_choice": "required",
         "expect_tool": None,  # Any tool acceptable
     },
+    # S5 est construit dynamiquement (_build_long_context_scenario) car il lit des fichiers réels.
+    # Il est injecté dans main() après parsing des args pour éviter l'I/O au module load.
 }
 
 # ---------------------------------------------------------------------------
@@ -789,7 +936,7 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--layer", choices=["0", "1", "2", "all"], default="all", help="Couche à tester")
-    parser.add_argument("--scenario", type=int, choices=[1, 2, 3, 4], default=None, help="Scénario seul (1-4)")
+    parser.add_argument("--scenario", type=int, choices=[1, 2, 3, 4, 5], default=None, help="Scénario seul (1-5 ; 5=contexte long ~30K tokens)")
     parser.add_argument("--repeat", type=int, default=3, help="Répétitions par test (défaut: 3, recommandé: 10)")
     parser.add_argument("--verbose", action="store_true", help="Afficher les réponses brutes JSON")
     parser.add_argument("--ollama-model", default=CFG["ollama_model"], help=f"Modèle Ollama (défaut: {CFG['ollama_model']})")
@@ -803,6 +950,10 @@ def main() -> None:
     CFG["proxy_model"] = args.proxy_model
     CFG["ollama_url"] = args.ollama_url
     CFG["proxy_url"] = args.proxy_url
+
+    # S5 est construit dynamiquement (lit les fichiers du projet)
+    if args.scenario == 5 or args.scenario is None:
+        SCENARIOS[5] = _build_long_context_scenario()
 
     scenario_ids = [args.scenario] if args.scenario else list(SCENARIOS.keys())
     layers = [int(args.layer)] if args.layer != "all" else [0, 1, 2]
