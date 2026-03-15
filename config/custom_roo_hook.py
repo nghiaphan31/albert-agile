@@ -29,6 +29,7 @@ SIMILARITY_THRESHOLD = float(os.environ.get("ROO_SIMILARITY_THRESHOLD", "0.4"))
 FORCE_WORKER_LOCAL = os.environ.get("ROO_FORCE_WORKER_LOCAL", "").lower() in ("1", "true", "yes")
 
 # Modèles primaires par rôle (convention role-tier-modele)
+# worker: worker-local-qwen3:14b pour utiliser le modèle local par défaut ; worker-free-gemini-2.5-flash pour cloud
 ROO_PRIMARY_MODEL = {
     "architect": "architect-free-gemini-2.5-pro",
     "ingest": "ingest-free-gemini-2.5-flash",
@@ -151,9 +152,9 @@ class RooCodeHandler(CustomLogger):
 
         has_tools = bool(data.get("tools"))
         if FORCE_WORKER_LOCAL:
-            data["model"] = ROO_PRIMARY_MODEL["worker"]
+            data["model"] = os.environ.get("ROO_WORKER_LOCAL_MODEL", "worker-local-qwen3:14b")
             _log_routing_decision(model_in, data["model"], "force_worker", messages, has_tools=has_tools)
-            print(f"--- [ROUTAGE] model_in={model_in!r} → worker-local (FORCE) ---", flush=True)
+            print(f"--- [ROUTAGE] model_in={model_in!r} → {data['model']} (FORCE) ---", flush=True)
             _debug_log(data["model"])
             return data
 
@@ -166,9 +167,77 @@ class RooCodeHandler(CustomLogger):
             return data
 
         # --- Bloc 2 : Routage sémantique ---
-        # Pré-check ingest: si dernier message user demande analyse/scan (pas le 1er, qui peut être une ancienne tâche)
         _user_msgs = [str(m.get("content", "")).lower() for m in messages if m.get("role") == "user"]
         _last_user = (_user_msgs[-1] if _user_msgs else "")[:500]
+        # Derniers messages user (pour couvrir le 1er tour et les tours où le dernier msg est un tool)
+        _recent_user_msgs = _user_msgs[-3:] if len(_user_msgs) >= 3 else _user_msgs
+
+        # --- Détection de boucle comportementale (2 mécanismes) ---
+
+        # Mécanisme A : réponses assistant texte répétées (sans tool_call ou contenu similaire)
+        # qwen3 génère "Please share the code..." plusieurs fois → boucle immédiate
+        _recent_assistant = [m for m in messages[-10:] if m.get("role") == "assistant"]
+        _text_only_assistant = [
+            m for m in _recent_assistant
+            if not m.get("tool_calls") and m.get("content")
+        ]
+        if has_tools and len(_text_only_assistant) >= 2:
+            # Vérifier si au moins 2 contenus sont très similaires (60 premiers chars)
+            _prefixes = [str(m.get("content", ""))[:80].strip() for m in _text_only_assistant]
+            _seen: dict[str, int] = {}
+            _repetition = False
+            for _p in _prefixes:
+                _seen[_p] = _seen.get(_p, 0) + 1
+                if _seen[_p] >= 2:
+                    _repetition = True
+                    break
+            if _repetition or len(_text_only_assistant) >= 3:
+                # Boucle confirmée : fallback vers Gemini cloud (plus fiable pour sortir du loop)
+                _nudge = (
+                    "IMPORTANT: You are in a loop. Stop asking questions. "
+                    "Write the code directly and call attempt_completion with the result. "
+                    "Do NOT ask for files. Do NOT ask clarifying questions."
+                )
+                data["messages"] = list(messages) + [{"role": "user", "content": _nudge}]
+                data["model"] = "worker-free-gemini-2.5-flash"  # fallback cloud pour sortir du loop
+                data["_roo_routing_score"] = "text_loop_fallback"
+                _log_routing_decision(model_in, data["model"], "text_loop_fallback", messages, _nudge, has_tools=has_tools)
+                print("\a--- [ROUTAGE] Boucle texte répété détectée → fallback Gemini + nudge ---", flush=True)
+                _debug_log(data["model"])
+                return data
+
+        # Mécanisme B : aucun user dans les 8 derniers messages (boucle tool/assistant pure)
+        _last_8_roles = [m.get("role") for m in messages[-8:]]
+        if has_tools and len(messages) >= 6 and "user" not in _last_8_roles:
+            _nudge = "Complete the task now using attempt_completion. Do not ask follow-up questions."
+            data["messages"] = list(messages) + [{"role": "user", "content": _nudge}]
+            data["model"] = ROO_PRIMARY_MODEL["worker"]
+            data["_roo_routing_score"] = "loop_breaker"
+            _log_routing_decision(model_in, data["model"], "loop_breaker", messages, _nudge, has_tools=has_tools)
+            print("\a--- [ROUTAGE] Boucle tool/assistant détectée → nudge attempt_completion ---", flush=True)
+            _debug_log(data["model"])
+            return data
+
+        # Pré-check worker: demande explicite de code / fonction / fix → worker (qwen local)
+        # On vérifie les 3 derniers messages user pour que le 1er tour et les tours après tool soient couverts
+        _worker_keywords = (
+            "code ", "code une", "code un", "écris ", "écrire ", "write ", "fonction ", "function ",
+            "fix ", "fixe ", "refactor", "bug", "test unitaire", "implémente", "implement ",
+            "racine carré", "square root", "écris une fonction", "write a function",
+        )
+        _any_user_with_worker_kw = any(
+            any(kw in um for kw in _worker_keywords)
+            for um in _recent_user_msgs
+        )
+        if _any_user_with_worker_kw:
+            data["model"] = ROO_PRIMARY_MODEL["worker"]
+            data["_roo_routing_score"] = "keywords"
+            _log_routing_decision(model_in, data["model"], "keywords_worker", messages, _last_user, score="keywords", has_tools=has_tools)
+            print(f"--- [ROUTAGE] model_in={model_in!r} → worker (keywords user: code/fix/fonction) ---", flush=True)
+            _debug_log(data["model"])
+            return data
+
+        # Pré-check ingest: si dernier message user demande analyse/scan
         if any(k in _last_user for k in ("analyze", "analyse", "scan", "read all", "examine", "specs/", "documentation", "recursively")):
             data["model"] = ROO_PRIMARY_MODEL["ingest"]
             data["_roo_routing_score"] = "keywords"

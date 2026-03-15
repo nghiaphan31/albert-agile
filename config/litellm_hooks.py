@@ -42,13 +42,15 @@ FALLBACK_CHAINS = {
 }
 
 TOOL_SCHEMA_PROMPT = """TOOL CALLING RULES — MANDATORY:
-1. You MUST call exactly one tool per response.
+1. You MUST call exactly one tool per response. NEVER reply with plain text only.
 2. You MUST provide ALL required parameters — never omit one.
 3. For "follow_up" (array of strings): always provide 2-4 suggested answers as a list.
    CORRECT:   "follow_up": ["Yes, proceed", "No, cancel", "Tell me more"]
    INCORRECT: omitting follow_up, or "follow_up": "Yes"
-4. If the task is complete: use attempt_completion(result="...").
-5. If you need clarification: use ask_followup_question(question="...", follow_up=[...]).
+4. If the task is complete or you have enough information: use attempt_completion(result="...").
+5. If you genuinely cannot proceed without more info: use ask_followup_question(question="...", follow_up=[...]).
+6. NEVER ask the user to share code or files — use read_file to read them yourself.
+7. If asked to WRITE a function or code: write it immediately and call attempt_completion. Do NOT ask clarifying questions first.
 """
 
 DEFAULT_FOLLOW_UP = ["Yes, please continue", "No, stop here", "Give me more details"]
